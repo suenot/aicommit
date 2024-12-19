@@ -6,6 +6,7 @@ use serde_json::json;
 use std::env;
 use clap::Parser;
 use std::process::Command;
+use regex;
 
 #[derive(Parser, Debug)]
 #[command(name = "aicommit")]
@@ -30,6 +31,10 @@ struct Cli {
     /// Automatically increment version in version file
     #[arg(long = "version-iterate")]
     version_iterate: bool,
+
+    /// Synchronize version with Cargo.toml
+    #[arg(long = "version-cargo")]
+    version_cargo: bool,
 }
 
 /// Increment version string (e.g., "0.0.37" -> "0.0.38")
@@ -64,6 +69,25 @@ async fn update_version_file(file_path: &str) -> Result<(), String> {
         .await
         .map_err(|e| format!("Failed to write version file: {}", e))?;
     
+    Ok(())
+}
+
+/// Update version in Cargo.toml
+async fn update_cargo_version(version: &str) -> Result<(), String> {
+    let cargo_path = "Cargo.toml";
+    let content = tokio::fs::read_to_string(cargo_path)
+        .await
+        .map_err(|e| format!("Failed to read Cargo.toml: {}", e))?;
+
+    let re = regex::Regex::new(r#"(?m)^version = "(.*?)"$"#)
+        .map_err(|e| format!("Failed to create regex: {}", e))?;
+
+    let new_content = re.replace(&content, format!(r#"version = "{}""#, version).as_str());
+
+    tokio::fs::write(cargo_path, new_content.as_bytes())
+        .await
+        .map_err(|e| format!("Failed to write Cargo.toml: {}", e))?;
+
     Ok(())
 }
 
@@ -474,6 +498,13 @@ async fn main() -> Result<(), String> {
             if cli.version_iterate {
                 if let Some(version_file) = cli.version_file.as_ref() {
                     update_version_file(version_file).await?;
+                    
+                    if cli.version_cargo {
+                        let new_version = tokio::fs::read_to_string(version_file)
+                            .await
+                            .map_err(|e| format!("Failed to read version file: {}", e))?;
+                        update_cargo_version(new_version.trim()).await?;
+                    }
                 } else {
                     return Err("Error: --version-file must be specified when using --version-iterate".to_string());
                 }
