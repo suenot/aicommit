@@ -1,10 +1,10 @@
-use std::process::Command;
-use std::fs;
-use serde::{Serialize, Deserialize};
 use dialoguer::{Input, Select};
-use console::Term;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::process::Command;
 use uuid::Uuid;
 use serde_json::json;
+use std::env;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct OpenRouterConfig {
@@ -24,26 +24,12 @@ struct OllamaConfig {
     url: String,
     max_tokens: i32,
     temperature: f32,
-    input_cost_per_1k_tokens: f32,
-    output_cost_per_1k_tokens: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "provider")]
 enum ProviderConfig {
-    #[serde(rename = "openrouter")]
     OpenRouter(OpenRouterConfig),
-    #[serde(rename = "ollama")]
     Ollama(OllamaConfig),
-}
-
-impl ProviderConfig {
-    fn get_id(&self) -> String {
-        match self {
-            ProviderConfig::OpenRouter(config) => config.id.clone(),
-            ProviderConfig::Ollama(config) => config.id.clone(),
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -57,6 +43,29 @@ struct UsageInfo {
     input_tokens: i32,
     output_tokens: i32,
     total_cost: f32,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterResponse {
+    choices: Vec<OpenRouterChoice>,
+    usage: OpenRouterUsage,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterChoice {
+    message: OpenRouterMessage,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterMessage {
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterUsage {
+    prompt_tokens: i32,
+    completion_tokens: i32,
+    total_tokens: i32,
 }
 
 impl Config {
@@ -73,10 +82,10 @@ impl Config {
             .join(".commit.json");
 
         if !config_path.exists() {
-            return Ok(Config::new());
+            return Err("Configuration file not found".to_string());
         }
 
-        let content = fs::read_to_string(config_path)
+        let content = fs::read_to_string(&config_path)
             .map_err(|e| format!("Failed to read config file: {}", e))?;
 
         serde_json::from_str(&content)
@@ -139,8 +148,6 @@ impl Config {
                     url,
                     max_tokens,
                     temperature,
-                    input_cost_per_1k_tokens: 0.0,
-                    output_cost_per_1k_tokens: 0.0,
                 }));
                 config.active_provider = provider_id;
             }
@@ -198,63 +205,6 @@ async fn setup_openrouter_provider() -> Result<OpenRouterConfig, String> {
         max_tokens,
         temperature,
     })
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterResponse {
-    id: String,
-    choices: Vec<OpenRouterChoice>,
-    usage: OpenRouterUsage,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterChoice {
-    message: OpenRouterMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterMessage {
-    content: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterUsage {
-    prompt_tokens: i32,
-    completion_tokens: i32,
-    total_tokens: i32,
-}
-
-async fn get_openrouter_generation_stats(api_key: &str, generation_id: &str) -> Result<OpenRouterGenerationStats, String> {
-    let client = reqwest::Client::new();
-    
-    let response = client
-        .get(format!("https://openrouter.ai/api/v1/generation?id={}", generation_id))
-        .header("Authorization", format!("Bearer {}", api_key))
-        .header("HTTP-Referer", "https://github.com/")
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch generation stats: {}", e))?;
-
-    if !response.status().is_success() {
-        return Err(format!("Failed to get generation stats: {}", response.status()));
-    }
-
-    response
-        .json::<OpenRouterGenerationStats>()
-        .await
-        .map_err(|e| format!("Failed to parse generation stats: {}", e))
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterGenerationStats {
-    data: OpenRouterGenerationData,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterGenerationData {
-    tokens_prompt: i32,
-    tokens_completion: i32,
-    total_cost: f32,
 }
 
 async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str) -> Result<(String, UsageInfo), String> {
@@ -358,8 +308,8 @@ async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str) -> Re
     let input_tokens = (diff.len() / 4) as i32;
     let output_tokens = (commit_message.len() / 4) as i32;
     
-    let input_cost = input_tokens as f32 * config.input_cost_per_1k_tokens / 1000.0;
-    let output_cost = output_tokens as f32 * config.output_cost_per_1k_tokens / 1000.0;
+    let input_cost = input_tokens as f32 * 0.0 / 1000.0;
+    let output_cost = output_tokens as f32 * 0.0 / 1000.0;
     let total_cost = input_cost + output_cost;
 
     let usage = UsageInfo {
@@ -373,104 +323,102 @@ async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str) -> Re
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
-    // Check for --config flag
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() > 1 && args[1] == "--config" {
-        edit_config();
-        return Ok(());
-    }
+    let args: Vec<String> = env::args().collect();
+    let command = args.get(1).map(|s| s.as_str());
 
-    let config = match Config::load() {
-        Ok(config) if !config.providers.is_empty() => config,
-        _ => Config::setup_interactive().await?,
-    };
-
-    // Stage all changes
-    if let Err(e) = run_command("git add .") {
-        eprintln!("Error staging changes: {}", e);
-        return Ok(());
-    }
-
-    // Get git diff
-    let diff = match run_command("git diff --cached") {
-        Ok(output) => output,
-        Err(e) => {
-            eprintln!("Error getting git diff: {}", e);
-            return Ok(());
+    match command {
+        Some("--add") => {
+            // Настройка нового провайдера
+            let config = Config::setup_interactive().await?;
+            println!("Provider successfully configured and set as default.");
+            run_commit(&config).await?;
         }
-    };
-
-    if diff.trim().is_empty() {
-        println!("No changes to commit.");
-        return Ok(());
-    }
-
-    // Generate commit message based on active provider
-    let (commit_message, usage) = match &config.providers.iter().find(|p| p.get_id() == config.active_provider) {
-        Some(ProviderConfig::OpenRouter(config)) => {
-            generate_openrouter_commit_message(config, &diff).await?
+        _ => {
+            // Просто делаем коммит с текущей конфигурацией
+            let config = Config::load().unwrap_or_else(|_| {
+                println!("No configuration found. Run 'commit --add' to set up a provider.");
+                std::process::exit(1);
+            });
+            run_commit(&config).await?;
         }
-        Some(ProviderConfig::Ollama(config)) => {
-            generate_ollama_commit_message(config, &diff).await?
-        }
-        None => {
-            eprintln!("No active provider configured");
-            return Ok(());
-        }
-    };
-
-    println!("Generated commit message: {}", commit_message);
-    println!("Tokens: {}↑ {}↓", usage.input_tokens, usage.output_tokens);
-    if usage.total_cost > 0.0 {
-        println!("API Cost: ${:.4}", usage.total_cost);
-    }
-
-    // Commit changes with properly escaped message
-    if let Err(e) = run_command(&format!("git commit -m '{}'", commit_message.replace("'", "'\\''"))) {
-        eprintln!("Error committing changes: {}", e);
-    } else {
-        println!("Commit successfully created.");
     }
 
     Ok(())
 }
 
-// Helper function to run shell commands
-fn run_command(command: &str) -> Result<String, String> {
+async fn run_commit(config: &Config) -> Result<(), String> {
+    // Получаем активного провайдера
+    let active_provider = config.providers.iter().find(|p| match p {
+        ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
+        ProviderConfig::Ollama(c) => c.id == config.active_provider,
+    }).ok_or("No active provider found")?;
+
+    // Получаем git diff
+    let diff = get_git_diff()?;
+    if diff.is_empty() {
+        return Err("No changes to commit".to_string());
+    }
+
+    // Генерируем сообщение коммита
+    let (message, usage) = match active_provider {
+        ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff).await?,
+        ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff).await?,
+    };
+
+    println!("Generated commit message: \"{}\"\n", message);
+    println!("{}", message);
+    println!("Tokens: {}↑ {}↓", usage.input_tokens, usage.output_tokens);
+    println!("API Cost: ${:.4}", usage.total_cost);
+
+    // Создаем коммит
+    create_git_commit(&message)?;
+    println!("Commit successfully created.");
+
+    Ok(())
+}
+
+fn get_git_diff() -> Result<String, String> {
+    // Сначала добавляем все изменения в staging
+    let add_output = Command::new("sh")
+        .arg("-c")
+        .arg("git add .")
+        .output()
+        .map_err(|e| format!("Failed to execute git add: {}", e))?;
+
+    if !add_output.status.success() {
+        return Err(String::from_utf8_lossy(&add_output.stderr).to_string());
+    }
+
+    // Затем получаем diff
+    let diff_output = Command::new("sh")
+        .arg("-c")
+        .arg("git diff --cached")
+        .output()
+        .map_err(|e| format!("Failed to execute git diff: {}", e))?;
+
+    if !diff_output.status.success() {
+        return Err(String::from_utf8_lossy(&diff_output.stderr).to_string());
+    }
+
+    let diff = String::from_utf8_lossy(&diff_output.stdout).to_string();
+    
+    if diff.trim().is_empty() {
+        return Err("No changes to commit".to_string());
+    }
+
+    Ok(diff)
+}
+
+fn create_git_commit(message: &str) -> Result<(), String> {
     let output = Command::new("sh")
         .arg("-c")
-        .arg(command)
+        .arg(&format!("git commit -m '{}'", message.replace("'", "'\\''")))
         .output()
         .map_err(|e| format!("Failed to execute command: {}", e))?;
 
     if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        Ok(())
     } else {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
-    }
-}
-
-fn edit_config() {
-    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
-    let config_path = dirs::home_dir()
-        .expect("Could not find home directory")
-        .join(".commit.json");
-
-    if !config_path.exists() {
-        // Create default config if it doesn't exist
-        let default_config = Config::new();
-        let content = serde_json::to_string_pretty(&default_config)
-            .expect("Failed to serialize default config");
-        fs::write(&config_path, content)
-            .expect("Failed to write default config file");
-    }
-
-    let status = Command::new(&editor)
-        .arg(config_path)
-        .status()
-        .expect("Failed to open editor");
-
-    if !status.success() {
-        eprintln!("Failed to edit configuration");
     }
 }
