@@ -328,13 +328,12 @@ async fn main() -> Result<(), String> {
 
     match command {
         Some("--add") => {
-            // Настройка нового провайдера
+            // Только настройка нового провайдера
             let config = Config::setup_interactive().await?;
             println!("Provider successfully configured and set as default.");
-            run_commit(&config).await?;
         }
         _ => {
-            // Просто делаем коммит с текущей конфигурацией
+            // Делаем коммит с текущей конфигурацией
             let config = Config::load().unwrap_or_else(|_| {
                 println!("No configuration found. Run 'commit --add' to set up a provider.");
                 std::process::exit(1);
