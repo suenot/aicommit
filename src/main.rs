@@ -5,15 +5,18 @@ use std::fs;
 use serde::{Deserialize, Serialize};
 use dialoguer::{Input, Select};
 use console::Term;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct OpenRouterConfig {
+    id: String,
     api_key: String,
     model: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct OllamaConfig {
+    id: String,
     model: String,
     url: String,
 }
@@ -25,6 +28,15 @@ enum ProviderConfig {
     OpenRouter(OpenRouterConfig),
     #[serde(rename = "ollama")]
     Ollama(OllamaConfig),
+}
+
+impl ProviderConfig {
+    fn get_id(&self) -> &str {
+        match self {
+            ProviderConfig::OpenRouter(config) => &config.id,
+            ProviderConfig::Ollama(config) => &config.id,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -81,6 +93,8 @@ impl Config {
             .interact()
             .map_err(|e| format!("Failed to get provider selection: {}", e))?;
 
+        let provider_id = Uuid::new_v4().to_string();
+
         match provider_selection {
             0 => {
                 let api_key: String = Input::new()
@@ -95,10 +109,11 @@ impl Config {
                     .map_err(|e| format!("Failed to get model name: {}", e))?;
 
                 config.providers.push(ProviderConfig::OpenRouter(OpenRouterConfig {
+                    id: provider_id.clone(),
                     api_key,
                     model,
                 }));
-                config.active_provider = "openrouter".to_string();
+                config.active_provider = provider_id;
             }
             1 => {
                 let url: String = Input::new()
@@ -114,10 +129,11 @@ impl Config {
                     .map_err(|e| format!("Failed to get model name: {}", e))?;
 
                 config.providers.push(ProviderConfig::Ollama(OllamaConfig {
+                    id: provider_id.clone(),
                     url,
                     model,
                 }));
-                config.active_provider = "ollama".to_string();
+                config.active_provider = provider_id;
             }
             _ => unreachable!(),
         }
@@ -162,10 +178,7 @@ async fn main() {
     }
 
     // Generate commit message based on active provider
-    let commit_message = match &config.providers.iter().find(|p| match p {
-        ProviderConfig::OpenRouter(_) => config.active_provider == "openrouter",
-        ProviderConfig::Ollama(_) => config.active_provider == "ollama",
-    }) {
+    let commit_message = match &config.providers.iter().find(|p| p.get_id() == config.active_provider) {
         Some(ProviderConfig::OpenRouter(config)) => {
             generate_openrouter_commit_message(config, &diff).await
         }
