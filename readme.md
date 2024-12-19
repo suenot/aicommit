@@ -25,11 +25,14 @@ This will open your default editor ($EDITOR or vim) with the configuration file.
     "model": "mistralai/mistral-tiny",
     "max_tokens": 50,
     "temperature": 0.3,
-    "cost_per_1k_tokens": 0.2
+    "input_cost_per_1k_tokens": 0.25,
+    "output_cost_per_1k_tokens": 0.25
   }],
   "active_provider": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
+
+Note: For OpenRouter, token costs are automatically fetched from their API during setup.
 
 ### Ollama
 ```json
@@ -41,7 +44,8 @@ This will open your default editor ($EDITOR or vim) with the configuration file.
     "model": "llama2",
     "max_tokens": 50,
     "temperature": 0.3,
-    "cost_per_1k_tokens": 0.0
+    "input_cost_per_1k_tokens": 0.0,
+    "output_cost_per_1k_tokens": 0.0
   }],
   "active_provider": "67e55044-10b1-426f-9247-bb680e5fe0c8"
 }
@@ -53,19 +57,22 @@ Each provider supports the following settings:
 
 - `max_tokens`: Maximum number of tokens in the response (default: 50)
 - `temperature`: Controls randomness in the response (0.0-1.0, default: 0.3)
-- `cost_per_1k_tokens`: Cost per 1,000 tokens in USD (default: 0.0)
+- `input_cost_per_1k_tokens`: Cost per 1,000 input tokens in USD
+- `output_cost_per_1k_tokens`: Cost per 1,000 output tokens in USD
+
+For OpenRouter, token costs are automatically fetched from their API. For Ollama, you can specify your own costs if you want to track usage.
 
 ## Usage Information
 
 When generating a commit message, the tool will display:
 - Number of tokens used (input and output)
-- API cost (if cost_per_1k_tokens is set)
+- Total API cost (calculated separately for input and output tokens)
 
 Example output:
 ```
 Generated commit message: Add support for multiple LLM providers
 Tokens: 8↑ 32↓
-API Cost: $0.0080
+API Cost: $0.0100
 ```
 
 You can have multiple providers configured and switch between them by changing the `active_provider` field to match the desired provider's `id`.
