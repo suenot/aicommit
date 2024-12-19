@@ -79,7 +79,7 @@ impl Config {
     fn load() -> Result<Self, String> {
         let config_path = dirs::home_dir()
             .ok_or_else(|| "Could not find home directory".to_string())?
-            .join(".commit.json");
+            .join(".ai-commit.json");
 
         if !config_path.exists() {
             return Ok(Config::new());
@@ -157,7 +157,7 @@ impl Config {
         // Save the configuration
         let config_path = dirs::home_dir()
             .ok_or_else(|| "Could not find home directory".to_string())?
-            .join(".commit.json");
+            .join(".ai-commit.json");
 
         let content = serde_json::to_string_pretty(&config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
@@ -172,7 +172,7 @@ impl Config {
         let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
         let config_path = dirs::home_dir()
             .ok_or_else(|| "Could not find home directory".to_string())?
-            .join(".commit.json");
+            .join(".ai-commit.json");
 
         if !config_path.exists() {
             let default_config = Config::new();
