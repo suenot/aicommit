@@ -13,6 +13,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ⚡ Fast and efficient - works directly from your terminal
 - 🛠️ Easy configuration and customization
 - 💰 Transparent token usage and cost tracking
+- 📦 Version management with automatic incrementation
 
 ## Installation
 
@@ -42,6 +43,35 @@ aicommit --add
 3. Create a commit:
 ```bash
 aicommit
+```
+
+## Provider Management
+
+List all configured providers:
+```bash
+aicommit --list
+```
+
+Set active provider:
+```bash
+aicommit --set <provider-id>
+```
+
+## Version Management
+
+Automatically increment version in a file before commit:
+```bash
+aicommit --version-file "./version" --version-iterate
+```
+
+Synchronize version with Cargo.toml:
+```bash
+aicommit --version-file "./version" --version-cargo
+```
+
+Both operations can be combined:
+```bash
+aicommit --version-file "./version" --version-cargo --version-iterate
 ```
 
 ## Configuration
