@@ -1,21 +1,145 @@
 use std::env;
 use std::path::Path;
 use std::process::Command;
-use dotenv::from_path;
-use reqwest::Client;
-use serde_json::json;
+use std::fs;
+use serde::{Deserialize, Serialize};
+use dialoguer::{Input, Select};
+use console::Term;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OpenRouterConfig {
+    api_key: String,
+    model: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct OllamaConfig {
+    model: String,
+    url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "provider")]
+enum ProviderConfig {
+    #[serde(rename = "openrouter")]
+    OpenRouter(OpenRouterConfig),
+    #[serde(rename = "ollama")]
+    Ollama(OllamaConfig),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Config {
+    providers: Vec<ProviderConfig>,
+    active_provider: String,
+}
+
+impl Config {
+    fn new() -> Self {
+        Config {
+            providers: Vec::new(),
+            active_provider: String::new(),
+        }
+    }
+
+    fn load() -> Result<Self, String> {
+        let config_path = dirs::home_dir()
+            .ok_or_else(|| "Could not find home directory".to_string())?
+            .join(".commit.json");
+
+        if config_path.exists() {
+            let content = fs::read_to_string(&config_path)
+                .map_err(|e| format!("Failed to read config file: {}", e))?;
+            serde_json::from_str(&content)
+                .map_err(|e| format!("Failed to parse config file: {}", e))
+        } else {
+            Ok(Config::new())
+        }
+    }
+
+    fn save(&self) -> Result<(), String> {
+        let config_path = dirs::home_dir()
+            .ok_or_else(|| "Could not find home directory".to_string())?
+            .join(".commit.json");
+
+        let content = serde_json::to_string_pretty(self)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+
+        fs::write(&config_path, content)
+            .map_err(|e| format!("Failed to write config file: {}", e))
+    }
+
+    async fn setup_interactive() -> Result<Self, String> {
+        let term = Term::stdout();
+        let mut config = Config::new();
+
+        println!("Welcome to commit setup!");
+        
+        let provider_options = &["OpenRouter", "Ollama"];
+        let provider_selection = Select::new()
+            .with_prompt("Select LLM provider")
+            .items(provider_options)
+            .interact()
+            .map_err(|e| format!("Failed to get provider selection: {}", e))?;
+
+        match provider_selection {
+            0 => {
+                let api_key: String = Input::new()
+                    .with_prompt("Enter OpenRouter API key")
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get API key: {}", e))?;
+
+                let model: String = Input::new()
+                    .with_prompt("Enter model name (default: mistralai/mistral-tiny)")
+                    .default("mistralai/mistral-tiny".into())
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get model name: {}", e))?;
+
+                config.providers.push(ProviderConfig::OpenRouter(OpenRouterConfig {
+                    api_key,
+                    model,
+                }));
+                config.active_provider = "openrouter".to_string();
+            }
+            1 => {
+                let url: String = Input::new()
+                    .with_prompt("Enter Ollama URL (default: http://localhost:11434)")
+                    .default("http://localhost:11434".into())
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get URL: {}", e))?;
+
+                let model: String = Input::new()
+                    .with_prompt("Enter model name (default: llama2)")
+                    .default("llama2".into())
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get model name: {}", e))?;
+
+                config.providers.push(ProviderConfig::Ollama(OllamaConfig {
+                    url,
+                    model,
+                }));
+                config.active_provider = "ollama".to_string();
+            }
+            _ => unreachable!(),
+        }
+
+        config.save()?;
+        println!("Configuration saved to ~/.commit.json");
+        Ok(config)
+    }
+}
 
 #[tokio::main]
 async fn main() {
-    // Load .env from the current working directory
-    if let Err(e) = load_env_from_current_directory() {
-        eprintln!("Error loading .env file: {}", e);
-        return;
-    }
-
-    let api_url = env::var("OPENROUTER_API_URL").expect("OPENROUTER_API_URL is not set in .env");
-    let api_key = env::var("OPENROUTER_API_KEY").expect("OPENROUTER_API_KEY is not set in .env");
-    let model = env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-neo-125M".to_string());
+    let config = match Config::load() {
+        Ok(config) if !config.providers.is_empty() => config,
+        _ => match Config::setup_interactive().await {
+            Ok(config) => config,
+            Err(e) => {
+                eprintln!("Failed to setup configuration: {}", e);
+                return;
+            }
+        },
+    };
 
     // Stage all changes
     if let Err(e) = run_command("git add .") {
@@ -23,7 +147,7 @@ async fn main() {
         return;
     }
 
-    // Get `git diff` for staged changes
+    // Get git diff
     let diff = match run_command("git diff --cached") {
         Ok(output) => output,
         Err(e) => {
@@ -37,8 +161,24 @@ async fn main() {
         return;
     }
 
-    // Generate commit message
-    let commit_message = match generate_commit_message(&api_url, &api_key, &model, &diff).await {
+    // Generate commit message based on active provider
+    let commit_message = match &config.providers.iter().find(|p| match p {
+        ProviderConfig::OpenRouter(_) => config.active_provider == "openrouter",
+        ProviderConfig::Ollama(_) => config.active_provider == "ollama",
+    }) {
+        Some(ProviderConfig::OpenRouter(config)) => {
+            generate_openrouter_commit_message(config, &diff).await
+        }
+        Some(ProviderConfig::Ollama(config)) => {
+            generate_ollama_commit_message(config, &diff).await
+        }
+        None => {
+            eprintln!("No active provider configured");
+            return;
+        }
+    };
+
+    let commit_message = match commit_message {
         Ok(message) => message,
         Err(e) => {
             eprintln!("Error generating commit message: {}", e);
@@ -56,47 +196,19 @@ async fn main() {
     }
 }
 
-// Function to load .env file from the current working directory
-fn load_env_from_current_directory() -> Result<(), String> {
-    let current_dir = env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
-    let env_path = current_dir.join(".env");
-    if Path::new(&env_path).exists() {
-        from_path(env_path).map_err(|e| format!("Failed to load .env file: {}", e))?;
-        Ok(())
-    } else {
-        Err(".env file not found in the current directory".to_string())
-    }
-}
+async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str) -> Result<String, String> {
+    let client = reqwest::Client::new();
 
-// Function to execute terminal commands
-fn run_command(command: &str) -> Result<String, String> {
-    let output = Command::new("sh")
-        .arg("-c")
-        .arg(command)
-        .output()
-        .map_err(|e| format!("Failed to execute command: {}", e))?;
-
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
-    }
-}
-
-// Function to generate commit message using OpenRouter API
-async fn generate_commit_message(api_url: &str, api_key: &str, model: &str, diff: &str) -> Result<String, String> {
-    let client = Client::new();
-
-    let request_body = json!({
-        "model": model,
+    let request_body = serde_json::json!({
+        "model": config.model,
         "prompt": format!("Write a clear and concise git commit message (one line, no technical terms) that describes these changes:\n\n{}", diff),
         "max_tokens": 50,
         "temperature": 0.3
     });
 
     let response = client
-        .post(format!("{}/completions", api_url))
-        .header("Authorization", format!("Bearer {}", api_key))
+        .post("https://openrouter.ai/api/v1/completions")
+        .header("Authorization", format!("Bearer {}", config.api_key))
         .header("HTTP-Referer", "https://github.com/")
         .json(&request_body)
         .send()
@@ -114,7 +226,6 @@ async fn generate_commit_message(api_url: &str, api_key: &str, model: &str, diff
         .await
         .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
 
-    // Clean up the response
     let commit_message = json["choices"][0]["text"]
         .as_str()
         .map(|s| s.trim()
@@ -129,4 +240,62 @@ async fn generate_commit_message(api_url: &str, api_key: &str, model: &str, diff
     }
 
     Ok(commit_message)
+}
+
+async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str) -> Result<String, String> {
+    let client = reqwest::Client::new();
+
+    let request_body = serde_json::json!({
+        "model": config.model,
+        "prompt": format!("Write a clear and concise git commit message (one line, no technical terms) that describes these changes:\n\n{}", diff),
+        "stream": false
+    });
+
+    let response = client
+        .post(format!("{}/api/generate", config.url))
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(format!("API returned an error ({}): {}", status, error_text));
+    }
+
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
+
+    let commit_message = json["response"]
+        .as_str()
+        .map(|s| s.trim()
+            .trim_start_matches(['\\', '/', '-', ' '])
+            .trim_end_matches(['\\', '/', '-', ' ', '.'])
+            .trim()
+            .to_string())
+        .ok_or_else(|| "No text found in API response".to_string())?;
+
+    if commit_message.is_empty() || commit_message.len() < 3 {
+        return Err("Generated commit message is too short or empty".to_string());
+    }
+
+    Ok(commit_message)
+}
+
+// Helper function to run shell commands
+fn run_command(command: &str) -> Result<String, String> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .output()
+        .map_err(|e| format!("Failed to execute command: {}", e))?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
 }
