@@ -2,6 +2,13 @@
 name = "commit"
 version = "0.1.0"
 edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "A CLI tool that generates concise and descriptive git commit messages using LLMs"
+readme = "readme.md"
+repository = "https://github.com/yourusername/commit"
+license = "MIT"
+keywords = ["git", "commit", "ai", "llm", "cli"]
+categories = ["command-line-utilities", "development-tools", "development-tools::build-utils"]
 
 [dependencies]
 dotenv = "0.15"

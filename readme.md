@@ -1,17 +1,65 @@
-# Install package using cargo
+# commit
+
+[![Crates.io](https://img.shields.io/crates/v/commit.svg)](https://crates.io/crates/commit)
+[![Documentation](https://docs.rs/commit/badge.svg)](https://docs.rs/commit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+A CLI tool that generates concise and descriptive git commit messages using LLMs (Large Language Models).
+
+## Features
+
+- 🤖 Uses LLMs to generate meaningful commit messages from your changes
+- 🔄 Supports multiple LLM providers (OpenRouter, Ollama)
+- ⚡ Fast and efficient - works directly from your terminal
+- 🛠️ Easy configuration and customization
+- 💰 Transparent token usage and cost tracking
+
+## Installation
+
+Install via cargo:
+
+```bash
+cargo install commit
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/yourusername/commit
+cd commit
 cargo install --path .
+```
 
-# Build using cargo
-cargo build --release
+## Quick Start
 
-# Configuration
-The tool uses `~/.commit.json` for configuration. On first run, it will guide you through an interactive setup process.
+1. Add a provider:
+```bash
+commit --add
+```
 
-You can edit the configuration directly using:
+2. Make some changes to your code
+
+3. Create a commit:
+```bash
+commit
+```
+
+## Configuration
+
+The configuration file is stored at `~/.commit.json`. You can edit it directly with:
+
 ```bash
 commit --config
 ```
-This will open your default editor ($EDITOR or vim) with the configuration file.
+
+### Provider Configuration
+
+Each provider can be configured with the following settings:
+
+- `max_tokens`: Maximum number of tokens in the response (default: 50)
+- `temperature`: Controls randomness in the response (0.0-1.0, default: 0.3)
+
+For OpenRouter, token costs are automatically fetched from their API. For Ollama, you can specify your own costs if you want to track usage.
 
 ## Supported LLM Providers
 
@@ -32,8 +80,6 @@ This will open your default editor ($EDITOR or vim) with the configuration file.
 }
 ```
 
-Note: For OpenRouter, token costs are automatically fetched from their API during setup.
-
 ### Ollama
 ```json
 {
@@ -51,17 +97,6 @@ Note: For OpenRouter, token costs are automatically fetched from their API durin
 }
 ```
 
-## Provider Settings
-
-Each provider supports the following settings:
-
-- `max_tokens`: Maximum number of tokens in the response (default: 50)
-- `temperature`: Controls randomness in the response (0.0-1.0, default: 0.3)
-- `input_cost_per_1k_tokens`: Cost per 1,000 input tokens in USD
-- `output_cost_per_1k_tokens`: Cost per 1,000 output tokens in USD
-
-For OpenRouter, token costs are automatically fetched from their API. For Ollama, you can specify your own costs if you want to track usage.
-
 ## Usage Information
 
 When generating a commit message, the tool will display:
@@ -76,3 +111,7 @@ API Cost: $0.0100
 ```
 
 You can have multiple providers configured and switch between them by changing the `active_provider` field to match the desired provider's `id`.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
