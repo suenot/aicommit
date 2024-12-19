@@ -11,12 +11,12 @@ keywords = ["git", "commit", "ai", "llm", "cli"]
 categories = ["command-line-utilities", "development-tools", "development-tools::build-utils"]
 
 [dependencies]
-dotenv = "0.15"
-reqwest = { version = "0.11", features = ["json"] }
-tokio = { version = "1", features = ["full"] }
-serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["json", "native-tls"] }
 serde = { version = "1.0", features = ["derive"] }
-dirs = "5.0"
+serde_json = "1.0"
 dialoguer = "0.11"
 console = "0.15"
+dirs = "5.0"
 uuid = { version = "1.6", features = ["v4", "serde"] }
+dotenv = "0.15"
