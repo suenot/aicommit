@@ -82,7 +82,7 @@ impl Config {
             .join(".commit.json");
 
         if !config_path.exists() {
-            return Err("Configuration file not found".to_string());
+            return Ok(Config::new());
         }
 
         let content = fs::read_to_string(&config_path)
@@ -93,9 +93,9 @@ impl Config {
     }
 
     async fn setup_interactive() -> Result<Self, String> {
-        let mut config = Config::new();
+        let mut config = Config::load().unwrap_or_else(|_| Config::new());
 
-        println!("No configuration found. Let's set up a provider.");
+        println!("Let's set up a provider.");
         let provider_options = &["OpenRouter", "Ollama"];
         let provider_selection = Select::new()
             .with_prompt("Select a provider")
@@ -166,6 +166,32 @@ impl Config {
             .map_err(|e| format!("Failed to write config file: {}", e))?;
 
         Ok(config)
+    }
+
+    fn edit() -> Result<(), String> {
+        let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
+        let config_path = dirs::home_dir()
+            .ok_or_else(|| "Could not find home directory".to_string())?
+            .join(".commit.json");
+
+        if !config_path.exists() {
+            let default_config = Config::new();
+            let content = serde_json::to_string_pretty(&default_config)
+                .map_err(|e| format!("Failed to serialize default config: {}", e))?;
+            fs::write(&config_path, content)
+                .map_err(|e| format!("Failed to write default config: {}", e))?;
+        }
+
+        let status = Command::new(editor)
+            .arg(&config_path)
+            .status()
+            .map_err(|e| format!("Failed to open editor: {}", e))?;
+
+        if !status.success() {
+            return Err("Editor exited with error".to_string());
+        }
+
+        Ok(())
     }
 }
 
@@ -329,8 +355,13 @@ async fn main() -> Result<(), String> {
     match command {
         Some("--add") => {
             // Только настройка нового провайдера
-            let config = Config::setup_interactive().await?;
+            let _config = Config::setup_interactive().await?;
             println!("Provider successfully configured and set as default.");
+        }
+        Some("--config") => {
+            // Открываем конфигурацию в редакторе
+            Config::edit()?;
+            println!("Configuration updated.");
         }
         _ => {
             // Делаем коммит с текущей конфигурацией
