@@ -366,9 +366,15 @@ async fn main() -> Result<(), String> {
         _ => {
             // Делаем коммит с текущей конфигурацией
             let config = Config::load().unwrap_or_else(|_| {
-                println!("No configuration found. Run 'commit --add' to set up a provider.");
+                println!("No configuration found. Run 'aicommit --add' to set up a provider.");
                 std::process::exit(1);
             });
+
+            if config.active_provider.is_empty() || config.providers.is_empty() {
+                println!("No active provider found. Please run 'aicommit --add' to configure a provider.");
+                std::process::exit(1);
+            }
+
             run_commit(&config).await?;
         }
     }
