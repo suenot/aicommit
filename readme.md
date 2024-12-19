@@ -1,7 +1,7 @@
-# ai-commit
+# aicommit
 
-[![Crates.io](https://img.shields.io/crates/v/ai-commit.svg)](https://crates.io/crates/ai-commit)
-[![Documentation](https://docs.rs/ai-commit/badge.svg)](https://docs.rs/ai-commit)
+[![Crates.io](https://img.shields.io/crates/v/aicommit.svg)](https://crates.io/crates/aicommit)
+[![Documentation](https://docs.rs/aicommit/badge.svg)](https://docs.rs/aicommit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A CLI tool that generates concise and descriptive git commit messages using LLMs (Large Language Models).
@@ -19,14 +19,14 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 Install via cargo:
 
 ```bash
-cargo install ai-commit
+cargo install aicommit
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/yourusername/ai-commit
-cd ai-commit
+git clone https://github.com/yourusername/aicommit
+cd aicommit
 cargo install --path .
 ```
 
@@ -34,22 +34,22 @@ cargo install --path .
 
 1. Add a provider:
 ```bash
-ai-commit --add
+aicommit --add
 ```
 
 2. Make some changes to your code
 
 3. Create a commit:
 ```bash
-ai-commit
+aicommit
 ```
 
 ## Configuration
 
-The configuration file is stored at `~/.ai-commit.json`. You can edit it directly with:
+The configuration file is stored at `~/.aicommit.json`. You can edit it directly with:
 
 ```bash
-ai-commit --config
+aicommit --config
 ```
 
 ### Provider Configuration
