@@ -1,10 +1,71 @@
-use dialoguer::{Input, Select};
-use serde::{Deserialize, Serialize};
 use std::fs;
-use std::process::Command;
+use serde::{Serialize, Deserialize};
+use dialoguer::{Input, Select};
 use uuid::Uuid;
 use serde_json::json;
 use std::env;
+use clap::Parser;
+use std::process::Command;
+
+#[derive(Parser, Debug)]
+#[command(name = "aicommit")]
+#[command(about = "A CLI tool that generates concise and descriptive git commit messages using LLMs", long_about = None)]
+struct Cli {
+    /// Add a new provider
+    #[arg(long)]
+    add: bool,
+
+    /// List all providers
+    #[arg(long)]
+    list: bool,
+
+    /// Set active provider
+    #[arg(long)]
+    set: Option<String>,
+
+    /// Path to version file
+    #[arg(long = "version-file")]
+    version_file: Option<String>,
+
+    /// Automatically increment version in version file
+    #[arg(long = "version-iterate")]
+    version_iterate: bool,
+}
+
+/// Increment version string (e.g., "0.0.37" -> "0.0.38")
+fn increment_version(version: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let parts: Vec<&str> = version.trim().split('.').collect();
+    if parts.len() < 1 {
+        return Err("Invalid version format".into());
+    }
+
+    let mut new_parts: Vec<String> = parts.iter().map(|&s| s.to_string()).collect();
+    let last_idx = new_parts.len() - 1;
+    
+    if let Ok(mut num) = new_parts[last_idx].parse::<u32>() {
+        num += 1;
+        new_parts[last_idx] = num.to_string();
+        Ok(new_parts.join("."))
+    } else {
+        Err("Invalid version number".into())
+    }
+}
+
+/// Update version in file
+async fn update_version_file(file_path: &str) -> Result<(), String> {
+    let content = tokio::fs::read_to_string(file_path)
+        .await
+        .map_err(|e| format!("Failed to read version file: {}", e))?;
+    
+    let new_version = increment_version(&content)
+        .map_err(|e| format!("Failed to increment version: {}", e))?;
+    
+    tokio::fs::write(file_path, new_version)
+        .await
+        .map_err(|e| format!("Failed to write version file: {}", e))?;
+    
+    Ok(())
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct OpenRouterConfig {
@@ -349,21 +410,75 @@ async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str) -> Re
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
-    let args: Vec<String> = env::args().collect();
-    let command = args.get(1).map(|s| s.as_str());
+    let cli = Cli::parse();
 
-    match command {
-        Some("--add") => {
+    match () {
+        _ if cli.add => {
             // Только настройка нового провайдера
             let _config = Config::setup_interactive().await?;
             println!("Provider successfully configured and set as default.");
+            Ok(())
         }
-        Some("--config") => {
-            // Открываем конфигурацию в редакторе
-            Config::edit()?;
-            println!("Configuration updated.");
+        _ if cli.list => {
+            // Список всех провайдеров
+            let config = Config::load()?;
+            for provider in config.providers {
+                match provider {
+                    ProviderConfig::OpenRouter(c) => println!("OpenRouter: {}", c.id),
+                    ProviderConfig::Ollama(c) => println!("Ollama: {}", c.id),
+                }
+            }
+            Ok(())
+        }
+        _ if cli.set.is_some() => {
+            // Установка активного провайдера
+            let mut config = Config::load()?;
+            let new_active_provider = cli.set.unwrap();
+            let mut found = false;
+
+            for provider in &config.providers {
+                match provider {
+                    ProviderConfig::OpenRouter(c) => {
+                        if c.id == new_active_provider {
+                            config.active_provider = c.id.clone();
+                            found = true;
+                            break;
+                        }
+                    }
+                    ProviderConfig::Ollama(c) => {
+                        if c.id == new_active_provider {
+                            config.active_provider = c.id.clone();
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if !found {
+                return Err(format!("Provider '{}' not found", new_active_provider));
+            }
+
+            let config_path = dirs::home_dir()
+                .ok_or_else(|| "Could not find home directory".to_string())?
+                .join(".aicommit.json");
+            let content = serde_json::to_string_pretty(&config)
+                .map_err(|e| format!("Failed to serialize config: {}", e))?;
+            fs::write(&config_path, content)
+                .map_err(|e| format!("Failed to write config file: {}", e))?;
+            println!("Active provider set to {}", new_active_provider);
+            Ok(())
         }
         _ => {
+            // Обновляем версию если указаны соответствующие параметры
+            if cli.version_iterate {
+                if let Some(version_file) = cli.version_file.as_ref() {
+                    update_version_file(version_file).await?;
+                } else {
+                    return Err("Error: --version-file must be specified when using --version-iterate".to_string());
+                }
+            }
+
             // Делаем коммит с текущей конфигурацией
             let config = Config::load().unwrap_or_else(|_| {
                 println!("No configuration found. Run 'aicommit --add' to set up a provider.");
@@ -375,11 +490,9 @@ async fn main() -> Result<(), String> {
                 std::process::exit(1);
             }
 
-            run_commit(&config).await?;
+            run_commit(&config).await
         }
     }
-
-    Ok(())
 }
 
 async fn run_commit(config: &Config) -> Result<(), String> {
