@@ -1,5 +1,3 @@
-use std::env;
-use std::path::Path;
 use std::process::Command;
 use std::fs;
 use serde::{Deserialize, Serialize};
@@ -12,6 +10,12 @@ struct OpenRouterConfig {
     id: String,
     api_key: String,
     model: String,
+    #[serde(default = "default_max_tokens")]
+    max_tokens: u32,
+    #[serde(default = "default_temperature")]
+    temperature: f32,
+    #[serde(default = "default_cost_per_token")]
+    cost_per_1k_tokens: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,6 +23,23 @@ struct OllamaConfig {
     id: String,
     model: String,
     url: String,
+    #[serde(default = "default_max_tokens")]
+    max_tokens: u32,
+    #[serde(default = "default_temperature")]
+    temperature: f32,
+    #[serde(default = "default_cost_per_token")]
+    cost_per_1k_tokens: f32,
+}
+
+fn default_max_tokens() -> u32 { 50 }
+fn default_temperature() -> f32 { 0.3 }
+fn default_cost_per_token() -> f32 { 0.0 }
+
+#[derive(Debug)]
+struct UsageInfo {
+    input_tokens: u32,
+    output_tokens: u32,
+    cost: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -81,7 +102,7 @@ impl Config {
     }
 
     async fn setup_interactive() -> Result<Self, String> {
-        let term = Term::stdout();
+        let _term = Term::stdout();
         let mut config = Config::new();
 
         println!("Welcome to commit setup!");
@@ -108,10 +129,37 @@ impl Config {
                     .interact_text()
                     .map_err(|e| format!("Failed to get model name: {}", e))?;
 
+                let max_tokens: String = Input::new()
+                    .with_prompt("Enter max tokens (default: 50)")
+                    .default("50".into())
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get max tokens: {}", e))?;
+                let max_tokens: u32 = max_tokens.parse()
+                    .map_err(|e| format!("Failed to parse max tokens: {}", e))?;
+
+                let temperature: String = Input::new()
+                    .with_prompt("Enter temperature (default: 0.3)")
+                    .default("0.3".into())
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get temperature: {}", e))?;
+                let temperature: f32 = temperature.parse()
+                    .map_err(|e| format!("Failed to parse temperature: {}", e))?;
+
+                let cost_per_1k_tokens: String = Input::new()
+                    .with_prompt("Enter cost per 1k tokens (default: 0.0)")
+                    .default("0.0".into())
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get cost per 1k tokens: {}", e))?;
+                let cost_per_1k_tokens: f32 = cost_per_1k_tokens.parse()
+                    .map_err(|e| format!("Failed to parse cost per 1k tokens: {}", e))?;
+
                 config.providers.push(ProviderConfig::OpenRouter(OpenRouterConfig {
                     id: provider_id.clone(),
                     api_key,
                     model,
+                    max_tokens,
+                    temperature,
+                    cost_per_1k_tokens,
                 }));
                 config.active_provider = provider_id;
             }
@@ -128,10 +176,37 @@ impl Config {
                     .interact_text()
                     .map_err(|e| format!("Failed to get model name: {}", e))?;
 
+                let max_tokens: String = Input::new()
+                    .with_prompt("Enter max tokens (default: 50)")
+                    .default("50".into())
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get max tokens: {}", e))?;
+                let max_tokens: u32 = max_tokens.parse()
+                    .map_err(|e| format!("Failed to parse max tokens: {}", e))?;
+
+                let temperature: String = Input::new()
+                    .with_prompt("Enter temperature (default: 0.3)")
+                    .default("0.3".into())
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get temperature: {}", e))?;
+                let temperature: f32 = temperature.parse()
+                    .map_err(|e| format!("Failed to parse temperature: {}", e))?;
+
+                let cost_per_1k_tokens: String = Input::new()
+                    .with_prompt("Enter cost per 1k tokens (default: 0.0)")
+                    .default("0.0".into())
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get cost per 1k tokens: {}", e))?;
+                let cost_per_1k_tokens: f32 = cost_per_1k_tokens.parse()
+                    .map_err(|e| format!("Failed to parse cost per 1k tokens: {}", e))?;
+
                 config.providers.push(ProviderConfig::Ollama(OllamaConfig {
                     id: provider_id.clone(),
                     url,
                     model,
+                    max_tokens,
+                    temperature,
+                    cost_per_1k_tokens,
                 }));
                 config.active_provider = provider_id;
             }
@@ -145,29 +220,23 @@ impl Config {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), String> {
     // Check for --config flag
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 && args[1] == "--config" {
         edit_config();
-        return;
+        return Ok(());
     }
 
     let config = match Config::load() {
         Ok(config) if !config.providers.is_empty() => config,
-        _ => match Config::setup_interactive().await {
-            Ok(config) => config,
-            Err(e) => {
-                eprintln!("Failed to setup configuration: {}", e);
-                return;
-            }
-        },
+        _ => Config::setup_interactive().await?,
     };
 
     // Stage all changes
     if let Err(e) = run_command("git add .") {
         eprintln!("Error staging changes: {}", e);
-        return;
+        return Ok(());
     }
 
     // Get git diff
@@ -175,38 +244,34 @@ async fn main() {
         Ok(output) => output,
         Err(e) => {
             eprintln!("Error getting git diff: {}", e);
-            return;
+            return Ok(());
         }
     };
 
     if diff.trim().is_empty() {
         println!("No changes to commit.");
-        return;
+        return Ok(());
     }
 
     // Generate commit message based on active provider
-    let commit_message = match &config.providers.iter().find(|p| p.get_id() == config.active_provider) {
+    let (commit_message, usage) = match &config.providers.iter().find(|p| p.get_id() == config.active_provider) {
         Some(ProviderConfig::OpenRouter(config)) => {
-            generate_openrouter_commit_message(config, &diff).await
+            generate_openrouter_commit_message(config, &diff).await?
         }
         Some(ProviderConfig::Ollama(config)) => {
-            generate_ollama_commit_message(config, &diff).await
+            generate_ollama_commit_message(config, &diff).await?
         }
         None => {
             eprintln!("No active provider configured");
-            return;
-        }
-    };
-
-    let commit_message = match commit_message {
-        Ok(message) => message,
-        Err(e) => {
-            eprintln!("Error generating commit message: {}", e);
-            return;
+            return Ok(());
         }
     };
 
     println!("Generated commit message: {}", commit_message);
+    println!("Tokens: {}↑ {}↓", usage.output_tokens, usage.input_tokens);
+    if usage.cost > 0.0 {
+        println!("API Cost: ${:.4}", usage.cost);
+    }
 
     // Commit changes with properly escaped message
     if let Err(e) = run_command(&format!("git commit -m '{}'", commit_message.replace("'", "'\\''"))) {
@@ -214,16 +279,18 @@ async fn main() {
     } else {
         println!("Commit successfully created.");
     }
+
+    Ok(())
 }
 
-async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str) -> Result<String, String> {
+async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str) -> Result<(String, UsageInfo), String> {
     let client = reqwest::Client::new();
 
     let request_body = serde_json::json!({
         "model": config.model,
         "prompt": format!("Write a clear and concise git commit message (one line, no technical terms) that describes these changes:\n\n{}", diff),
-        "max_tokens": 50,
-        "temperature": 0.3
+        "max_tokens": config.max_tokens,
+        "temperature": config.temperature
     });
 
     let response = client
@@ -259,16 +326,35 @@ async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &st
         return Err("Generated commit message is too short or empty".to_string());
     }
 
-    Ok(commit_message)
+    // Extract usage information
+    let input_tokens = json["usage"]["prompt_tokens"]
+        .as_u64()
+        .unwrap_or(0) as u32;
+    let output_tokens = json["usage"]["completion_tokens"]
+        .as_u64()
+        .unwrap_or(0) as u32;
+    let cost = (input_tokens + output_tokens) as f32 * config.cost_per_1k_tokens / 1000.0;
+
+    let usage = UsageInfo {
+        input_tokens,
+        output_tokens,
+        cost,
+    };
+
+    Ok((commit_message, usage))
 }
 
-async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str) -> Result<String, String> {
+async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str) -> Result<(String, UsageInfo), String> {
     let client = reqwest::Client::new();
 
     let request_body = serde_json::json!({
         "model": config.model,
         "prompt": format!("Write a clear and concise git commit message (one line, no technical terms) that describes these changes:\n\n{}", diff),
-        "stream": false
+        "stream": false,
+        "options": {
+            "temperature": config.temperature,
+            "num_predict": config.max_tokens
+        }
     });
 
     let response = client
@@ -302,7 +388,18 @@ async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str) -> Re
         return Err("Generated commit message is too short or empty".to_string());
     }
 
-    Ok(commit_message)
+    // For Ollama, we estimate tokens based on characters (rough approximation)
+    let input_tokens = (diff.len() / 4) as u32;
+    let output_tokens = (commit_message.len() / 4) as u32;
+    let cost = (input_tokens + output_tokens) as f32 * config.cost_per_1k_tokens / 1000.0;
+
+    let usage = UsageInfo {
+        input_tokens,
+        output_tokens,
+        cost,
+    };
+
+    Ok((commit_message, usage))
 }
 
 // Helper function to run shell commands
