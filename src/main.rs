@@ -146,6 +146,13 @@ impl Config {
 
 #[tokio::main]
 async fn main() {
+    // Check for --config flag
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && args[1] == "--config" {
+        edit_config();
+        return;
+    }
+
     let config = match Config::load() {
         Ok(config) if !config.providers.is_empty() => config,
         _ => match Config::setup_interactive().await {
@@ -310,5 +317,30 @@ fn run_command(command: &str) -> Result<String, String> {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+fn edit_config() {
+    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
+    let config_path = dirs::home_dir()
+        .expect("Could not find home directory")
+        .join(".commit.json");
+
+    if !config_path.exists() {
+        // Create default config if it doesn't exist
+        let default_config = Config::new();
+        let content = serde_json::to_string_pretty(&default_config)
+            .expect("Failed to serialize default config");
+        fs::write(&config_path, content)
+            .expect("Failed to write default config file");
+    }
+
+    let status = Command::new(&editor)
+        .arg(config_path)
+        .status()
+        .expect("Failed to open editor");
+
+    if !status.success() {
+        eprintln!("Failed to edit configuration");
     }
 }

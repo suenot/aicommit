@@ -7,6 +7,12 @@ cargo build --release
 # Configuration
 The tool uses `~/.commit.json` for configuration. On first run, it will guide you through an interactive setup process.
 
+You can edit the configuration directly using:
+```bash
+commit --config
+```
+This will open your default editor ($EDITOR or vim) with the configuration file.
+
 ## Supported LLM Providers
 
 ### OpenRouter
