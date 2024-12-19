@@ -495,19 +495,26 @@ async fn main() -> Result<(), String> {
         }
         _ => {
             // Обновляем версию если указаны соответствующие параметры
-            if cli.version_iterate {
-                if let Some(version_file) = cli.version_file.as_ref() {
+            let mut new_version = String::new();
+
+            // Обновляем версию в файле версии
+            if let Some(version_file) = cli.version_file.as_ref() {
+                if cli.version_iterate {
                     update_version_file(version_file).await?;
-                    
-                    if cli.version_cargo {
-                        let new_version = tokio::fs::read_to_string(version_file)
-                            .await
-                            .map_err(|e| format!("Failed to read version file: {}", e))?;
-                        update_cargo_version(new_version.trim()).await?;
-                    }
-                } else {
-                    return Err("Error: --version-file must be specified when using --version-iterate".to_string());
                 }
+                new_version = tokio::fs::read_to_string(version_file)
+                    .await
+                    .map_err(|e| format!("Failed to read version file: {}", e))?
+                    .trim()
+                    .to_string();
+            }
+
+            // Обновляем версию в Cargo.toml
+            if cli.version_cargo {
+                if new_version.is_empty() {
+                    return Err("Error: --version-file must be specified when using --version-cargo".to_string());
+                }
+                update_cargo_version(&new_version).await?;
             }
 
             // Делаем коммит с текущей конфигурацией
