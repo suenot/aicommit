@@ -24,6 +24,10 @@ struct Cli {
     #[arg(long)]
     set: Option<String>,
 
+    /// Edit configuration file
+    #[arg(long)]
+    config: bool,
+
     /// Path to version file
     #[arg(long = "version-file")]
     version_file: Option<String>,
@@ -491,6 +495,11 @@ async fn main() -> Result<(), String> {
             fs::write(&config_path, content)
                 .map_err(|e| format!("Failed to write config file: {}", e))?;
             println!("Active provider set to {}", new_active_provider);
+            Ok(())
+        }
+        _ if cli.config => {
+            Config::edit()?;
+            println!("Configuration updated.");
             Ok(())
         }
         _ => {

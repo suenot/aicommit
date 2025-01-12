@@ -26,7 +26,7 @@ cargo install aicommit
 Or build from source:
 
 ```bash
-git clone https://github.com/yourusername/aicommit
+git clone https://github.com/suenot/aicommit
 cd aicommit
 cargo install --path .
 ```
