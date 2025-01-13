@@ -11,7 +11,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 ### Implemented Features
 - ✅ Uses LLMs to generate meaningful commit messages from your changes
 - ✅ Supports multiple LLM providers (OpenRouter, Ollama)
-- ✅ Custom api keys for services through open router api (for google aistudio and etc) - go to https://openrouter.ai/settings/integrations and paste key from: AI21, Amazon BedRock, Anthropic, AnyScale, Avian.io, Cloudflare, Cohere, DeepInfra, DeepSeek, Fireworks, Google AI Studio, Google Vertex, Hyperbolic, Infermatic, Inflection, Lambda, Lepton, Mancer, Mistral, NovitaAI, OpenAI, Perplexity, Recursal, SambaNova, SF Compute, Together, xAI
+- ✅ Custom api keys for services through open router api (for google aistudio and etc) - go to https://openrouter.ai/settings/integrations and paste key from any of them: AI21, Amazon BedRock, Anthropic, AnyScale, Avian.io, Cloudflare, Cohere, DeepInfra, DeepSeek, Fireworks, Google AI Studio, Google Vertex, Hyperbolic, Infermatic, Inflection, Lambda, Lepton, Mancer, Mistral, NovitaAI, OpenAI, Perplexity, Recursal, SambaNova, SF Compute, Together, xAI
 - ✅ Fast and efficient - works directly from your terminal
 - ✅ Easy configuration and customization
 - ✅ Transparent token usage and cost tracking
