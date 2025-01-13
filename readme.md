@@ -9,19 +9,19 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 ## Features
 
 ### Implemented Features
-- ✅ 🧪 Uses LLMs to generate meaningful commit messages from your changes
-- ✅ 🧪 Supports multiple LLM providers (OpenRouter, Ollama)
-- ✅ 🧪 Fast and efficient - works directly from your terminal
-- ✅ 🧪 Easy configuration and customization
-- ✅ 🧪 Transparent token usage and cost tracking
-- ✅ 🧪 Version management with automatic incrementation
-- ✅ 🧪 Version synchronization with Cargo.toml
-- ✅ 🧪 Provider management (add, list, set active)
-- ✅ 🧪 Interactive configuration setup
-- ✅ 🧪 Configuration file editing
+- ✅ Uses LLMs to generate meaningful commit messages from your changes
+- ✅ Supports multiple LLM providers (OpenRouter, Ollama)
+- ✅ Custom api keys for services through open router api (for google aistudio and etc) - go to https://openrouter.ai/settings/integrations and paste key from: AI21, Amazon BedRock, Anthropic, AnyScale, Avian.io, Cloudflare, Cohere, DeepInfra, DeepSeek, Fireworks, Google AI Studio, Google Vertex, Hyperbolic, Infermatic, Inflection, Lambda, Lepton, Mancer, Mistral, NovitaAI, OpenAI, Perplexity, Recursal, SambaNova, SF Compute, Together, xAI
+- ✅ Fast and efficient - works directly from your terminal
+- ✅ Easy configuration and customization
+- ✅ Transparent token usage and cost tracking
+- ✅ Version management with automatic incrementation
+- ✅ Version synchronization with Cargo.toml
+- ✅ Provider management (add, list, set active)
+- ✅ Interactive configuration setup
+- ✅ Configuration file editing
 
 ### Planned Features
-- 🚧 Custom api keys for open router (for google aistudio and etc)
 - 🚧 Tests for each feature to prevent breaking changes
 - 🚧 Split commits by file (`aicommit --by-file`)
 - 🚧 Split commits by feature (`aicommit --by-feature`)
