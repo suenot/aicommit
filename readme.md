@@ -1,4 +1,5 @@
 # aicommit
+![logo](./aicommit-logo.png)
 
 [![Crates.io](https://img.shields.io/crates/v/aicommit.svg)](https://crates.io/crates/aicommit)
 [![Documentation](https://docs.rs/aicommit/badge.svg)](https://docs.rs/aicommit)
@@ -11,7 +12,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 ### Implemented Features
 - ✅ Uses LLMs to generate meaningful commit messages from your changes
 - ✅ Supports multiple LLM providers (OpenRouter, Ollama)
-- ✅ Custom api keys for services through open router api (for google aistudio and etc) - go to https://openrouter.ai/settings/integrations and paste key from any of them: AI21, Amazon BedRock, Anthropic, AnyScale, Avian.io, Cloudflare, Cohere, DeepInfra, DeepSeek, Fireworks, Google AI Studio, Google Vertex, Hyperbolic, Infermatic, Inflection, Lambda, Lepton, Mancer, Mistral, NovitaAI, OpenAI, Perplexity, Recursal, SambaNova, SF Compute, Together, xAI
+- ✅ Custom api keys for services through open router api (for google aistudio and etc) - go to https://openrouter.ai/settings/integrations and paste key from any of them: AI21, Amazon BedRock, Anthropic, AnyScale, Avian.io, Cloudflare, Cohere, DeepInfra, **DeepSeek**, Fireworks, **Google AI Studio**, Google Vertex, Hyperbolic, Infermatic, Inflection, Lambda, Lepton, Mancer, Mistral, NovitaAI, OpenAI, Perplexity, Recursal, SambaNova, SF Compute, Together, xAI
 - ✅ Fast and efficient - works directly from your terminal
 - ✅ Easy configuration and customization
 - ✅ Transparent token usage and cost tracking
@@ -153,6 +154,13 @@ For OpenRouter, token costs are automatically fetched from their API. For Ollama
   "active_provider": "67e55044-10b1-426f-9247-bb680e5fe0c8"
 }
 ```
+
+## Recommended Providers through OpenRouter
+
+- 🌟 **Google AI Studio** - 1000000 tokens for free
+  - "google/gemini-2.0-flash-exp:free"
+- 🌟 **DeepSeek**
+  - "deepseek/deepseek-chat"
 
 ## Usage Information
 
