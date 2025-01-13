@@ -8,12 +8,39 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 
 ## Features
 
-- 🤖 Uses LLMs to generate meaningful commit messages from your changes
-- 🔄 Supports multiple LLM providers (OpenRouter, Ollama)
-- ⚡ Fast and efficient - works directly from your terminal
-- 🛠️ Easy configuration and customization
-- 💰 Transparent token usage and cost tracking
-- 📦 Version management with automatic incrementation
+### Implemented Features
+- ✅ 🧪 Uses LLMs to generate meaningful commit messages from your changes
+- ✅ 🧪 Supports multiple LLM providers (OpenRouter, Ollama)
+- ✅ 🧪 Fast and efficient - works directly from your terminal
+- ✅ 🧪 Easy configuration and customization
+- ✅ 🧪 Transparent token usage and cost tracking
+- ✅ 🧪 Version management with automatic incrementation
+- ✅ 🧪 Version synchronization with Cargo.toml
+- ✅ 🧪 Provider management (add, list, set active)
+- ✅ 🧪 Interactive configuration setup
+- ✅ 🧪 Configuration file editing
+
+### Planned Features
+- 🚧 Custom api keys for open router (for google aistudio and etc)
+- 🚧 Tests for each feature to prevent breaking changes
+- 🚧 Split commits by file (`aicommit --by-file`)
+- 🚧 Split commits by feature (`aicommit --by-feature`)
+- 🚧 Basic .gitignore file checks and management
+- 🚧 Watch mode (`aicommit --watch 1m`)
+- 🚧 Watch with edit delay (`aicommit --watch 1m --wait-for-edit 30s`)
+- 🚧 Version management for multiple languages (package.json, requirements.txt, etc.)
+- 🚧 Interactive commit message generation (`aicommit --generate`)
+- 🚧 Auto push functionality (`aicommit --push`)
+- 🚧 Branch safety checks for push operations
+- 🚧 Auto pull functionality
+- 🚧 Support for conventional commits format
+- 🚧 Project icon
+- 🚧 OpenRouter project listing
+
+Legend:
+- ✅ Implemented
+- 🚧 Planned
+- 🧪 Has tests
 
 ## Installation
 
