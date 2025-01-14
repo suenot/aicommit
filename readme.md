@@ -33,7 +33,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - 🚧 Watch mode (`aicommit --watch 1m`)
 - 🚧 Watch with edit delay (`aicommit --watch 1m --wait-for-edit 30s`)
 - 🚧 Version management for multiple languages (package.json, requirements.txt, etc.)
-- 🚧 Interactive commit message generation (`aicommit --generate`)
+- 🚧 Interactive commit message generation (`aicommit --dry-run`)
 - 🚧 Branch safety checks for push operations
 - 🚧 Auto pull functionality
 
