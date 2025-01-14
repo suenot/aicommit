@@ -1,5 +1,5 @@
 # aicommit
-![logo](./aicommit-logo.png)
+![logo](./docs/aicommit-logo.png)
 
 [![Crates.io](https://img.shields.io/crates/v/aicommit.svg)](https://crates.io/crates/aicommit)
 [![Documentation](https://docs.rs/aicommit/badge.svg)](https://docs.rs/aicommit)

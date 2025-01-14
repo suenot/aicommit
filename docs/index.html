@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AICommit - Smart Git Commit Messages with AI</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="container">
+                <div class="logo">
+                    <img src="./aicommit-logo.png" alt="AICommit Logo">
+                    <span>AICommit</span>
+                </div>
+                <div class="nav-links">
+                    <a href="#features">Features</a>
+                    <a href="#installation">Installation</a>
+                    <a href="#usage">Usage</a>
+                    <a href="https://github.com/suenot/aicommit" class="github-link">
+                        <i class="fab fa-github"></i> GitHub
+                    </a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <h1>Generate Smart Commit Messages with AI</h1>
+                <p class="subtitle">A powerful CLI tool that creates meaningful git commit messages using LLMs</p>
+                <div class="cta-buttons">
+                    <a href="#installation" class="btn primary">Get Started</a>
+                    <a href="https://github.com/suenot/aicommit" class="btn secondary">View on GitHub</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="features">
+            <div class="container">
+                <h2>Key Features</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <i class="fas fa-robot"></i>
+                        <h3>AI-Powered</h3>
+                        <p>Generate meaningful commit messages using state-of-the-art LLMs</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-plug"></i>
+                        <h3>Multiple Providers</h3>
+                        <p>Support for OpenRouter, Ollama, and various AI services</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-terminal"></i>
+                        <h3>CLI-First</h3>
+                        <p>Fast and efficient - works directly from your terminal</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-cog"></i>
+                        <h3>Customizable</h3>
+                        <p>Easy configuration and provider management</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="installation" class="installation">
+            <div class="container">
+                <h2>Installation</h2>
+                <div class="install-options">
+                    <div class="install-card">
+                        <h3>Via Cargo</h3>
+                        <pre><code>cargo install aicommit</code></pre>
+                    </div>
+                    <div class="install-card">
+                        <h3>From Source</h3>
+                        <pre><code>git clone https://github.com/suenot/aicommit
+cd aicommit
+cargo install --path .</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="usage" class="usage">
+            <div class="container">
+                <h2>Quick Start</h2>
+                <div class="usage-steps">
+                    <div class="step">
+                        <span class="step-number">1</span>
+                        <h3>Add a Provider</h3>
+                        <pre><code>aicommit --add</code></pre>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">2</span>
+                        <h3>Make Changes</h3>
+                        <p>Make changes to your code</p>
+                    </div>
+                    <div class="step">
+                        <span class="step-number">3</span>
+                        <h3>Create Commit</h3>
+                        <pre><code>aicommit</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>AICommit is licensed under the MIT License</p>
+            <div class="social-links">
+                <a href="https://github.com/suenot/aicommit">
+                    <i class="fab fa-github"></i>
+                </a>
+                <a href="https://crates.io/crates/aicommit">
+                    <i class="fas fa-box"></i>
+                </a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
