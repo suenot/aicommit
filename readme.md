@@ -36,9 +36,6 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - 🚧 Auto push functionality (`aicommit --push`)
 - 🚧 Branch safety checks for push operations
 - 🚧 Auto pull functionality
-- 🚧 Support for conventional commits format
-- 🚧 Project icon
-- 🚧 OpenRouter project listing
 
 Legend:
 - ✅ Implemented
