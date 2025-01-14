@@ -51,6 +51,14 @@ struct Cli {
     /// Pull changes before commit
     #[arg(long = "pull")]
     pull: bool,
+
+    /// Watch for changes and auto-commit (e.g. "1m" for 1 minute interval)
+    #[arg(long = "watch")]
+    watch_interval: Option<String>,
+
+    /// Wait for edit delay before committing (e.g. "30s" for 30 seconds)
+    #[arg(long = "wait-for-edit")]
+    wait_for_edit: Option<String>,
 }
 
 /// Increment version string (e.g., "0.0.37" -> "0.0.38")
@@ -478,6 +486,89 @@ struct OpenRouterUsage {
     total_tokens: i32,
 }
 
+// Add helper function to parse duration string
+fn parse_duration(duration_str: &str) -> Result<std::time::Duration, String> {
+    let mut chars = duration_str.chars();
+    let number: String = chars.by_ref().take_while(|c| c.is_digit(10)).collect();
+    let unit: String = chars.collect();
+
+    let value = number.parse::<u64>()
+        .map_err(|_| format!("Invalid duration number: {}", number))?;
+
+    match unit.as_str() {
+        "s" => Ok(std::time::Duration::from_secs(value)),
+        "m" => Ok(std::time::Duration::from_secs(value * 60)),
+        "h" => Ok(std::time::Duration::from_secs(value * 3600)),
+        _ => Err(format!("Invalid duration unit: {}. Use s, m, or h", unit)),
+    }
+}
+
+async fn watch_and_commit(config: &Config, cli: &Cli) -> Result<(), String> {
+    let watch_interval = cli.watch_interval.as_ref()
+        .ok_or_else(|| "Watch interval not specified".to_string())
+        .and_then(|i| parse_duration(i))?;
+
+    let wait_for_edit = cli.wait_for_edit.as_ref()
+        .map(|w| parse_duration(w))
+        .transpose()?;
+
+    println!("Watching for changes every {:?}", watch_interval);
+    if let Some(delay) = wait_for_edit {
+        println!("Waiting {:?} after edits before committing", delay);
+    }
+
+    let mut last_commit_time = std::time::Instant::now();
+
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+        // Try to get git diff
+        match get_git_diff() {
+            Ok(diff) if !diff.is_empty() => {
+                // If we have wait_for_edit, check if enough time has passed since last edit
+                if let Some(delay) = wait_for_edit {
+                    // Get the last modified time of any tracked file
+                    let output = Command::new("sh")
+                        .arg("-c")
+                        .arg("git ls-files -m -o --exclude-standard | xargs -I {} stat -f '%m {}' | sort -nr | head -1")
+                        .output()
+                        .map_err(|e| format!("Failed to get last modified time: {}", e))?;
+
+                    if !output.status.success() {
+                        continue;
+                    }
+
+                    let last_modified_str = String::from_utf8_lossy(&output.stdout);
+                    if let Some(timestamp_str) = last_modified_str.split_whitespace().next() {
+                        if let Ok(timestamp) = timestamp_str.parse::<u64>() {
+                            let now = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_secs();
+                            
+                            if now - timestamp < delay.as_secs() {
+                                continue; // Not enough time has passed since last edit
+                            }
+                        }
+                    }
+                }
+
+                // Check if enough time has passed since last commit
+                if last_commit_time.elapsed() >= watch_interval {
+                    match run_commit(config, cli).await {
+                        Ok(_) => {
+                            last_commit_time = std::time::Instant::now();
+                            println!("\nWaiting for new changes...");
+                        }
+                        Err(e) => println!("Failed to commit: {}", e),
+                    }
+                }
+            }
+            _ => {} // No changes or error, continue watching
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), String> {
     let cli = Cli::parse();
@@ -548,30 +639,6 @@ async fn main() -> Result<(), String> {
             Ok(())
         }
         _ => {
-            // Обновляем версию если указаны соответствующие параметры
-            let mut new_version = String::new();
-
-            // Обновляем версию в файле версии
-            if let Some(version_file) = cli.version_file.as_ref() {
-                if cli.version_iterate {
-                    update_version_file(version_file).await?;
-                }
-                new_version = tokio::fs::read_to_string(version_file)
-                    .await
-                    .map_err(|e| format!("Failed to read version file: {}", e))?
-                    .trim()
-                    .to_string();
-            }
-
-            // Обновляем версию в Cargo.toml
-            if cli.version_cargo {
-                if new_version.is_empty() {
-                    return Err("Error: --version-file must be specified when using --version-cargo".to_string());
-                }
-                update_cargo_version(&new_version).await?;
-            }
-
-            // Делаем коммит с текущей конфигурацией
             let config = Config::load().unwrap_or_else(|_| {
                 println!("No configuration found. Run 'aicommit --add' to set up a provider.");
                 std::process::exit(1);
@@ -582,7 +649,36 @@ async fn main() -> Result<(), String> {
                 std::process::exit(1);
             }
 
-            run_commit(&config, &cli).await?;
+            // Check if we're in watch mode
+            if cli.watch_interval.is_some() {
+                watch_and_commit(&config, &cli).await
+            } else {
+                // Обновляем версию если указаны соответствующие параметры
+                let mut new_version = String::new();
+
+                // Обновляем версию в файле версии
+                if let Some(version_file) = cli.version_file.as_ref() {
+                    if cli.version_iterate {
+                        update_version_file(version_file).await?;
+                    }
+                    new_version = tokio::fs::read_to_string(version_file)
+                        .await
+                        .map_err(|e| format!("Failed to read version file: {}", e))?
+                        .trim()
+                        .to_string();
+                }
+
+                // Обновляем версию в Cargo.toml
+                if cli.version_cargo {
+                    if new_version.is_empty() {
+                        return Err("Error: --version-file must be specified when using --version-cargo".to_string());
+                    }
+                    update_cargo_version(&new_version).await?;
+                }
+
+                // Делаем коммит с текущей конфигурацией
+                run_commit(&config, &cli).await?;
+            }
             Ok(())
         }
     }
