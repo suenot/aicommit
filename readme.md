@@ -179,3 +179,50 @@ You can have multiple providers configured and switch between them by changing t
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Watch Mode
+
+The watch mode allows you to automatically commit changes at specified intervals. This is useful for:
+- Automatic backups of your work
+- Maintaining a detailed history of changes
+- Not forgetting to commit your changes
+
+### Basic Watch Mode
+
+```bash
+aicommit --watch 1m      # Check and commit changes every minute
+aicommit --watch 30s     # Check every 30 seconds
+aicommit --watch 2h      # Check every 2 hours
+```
+
+### Watch with Edit Delay
+
+You can add a delay after the last edit before committing. This helps avoid creating commits while you're still actively editing files:
+
+```bash
+aicommit --watch 1m --wait-for-edit 30s   # Check every minute, but wait 30s after last edit
+```
+
+### Time Units
+- `s`: seconds
+- `m`: minutes
+- `h`: hours
+
+### Additional Options
+You can combine watch mode with other flags:
+```bash
+# Watch with auto-push
+aicommit --watch 1m --push
+
+# Watch with version increment
+aicommit --watch 1m --version-file version --version-iterate
+
+# Interactive mode with watch
+aicommit --watch 1m --dry-run
+```
+
+### Tips
+- Use shorter intervals (30s-1m) for active development sessions
+- Use longer intervals (5m-15m) for longer coding sessions
+- Add `--wait-for-edit` when you want to avoid partial commits
+- Use `Ctrl+C` to stop watching
