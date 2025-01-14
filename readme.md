@@ -5,6 +5,8 @@
 [![Documentation](https://docs.rs/aicommit/badge.svg)](https://docs.rs/aicommit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+📚 [Website & Documentation](https://suenot.github.io/aicommit/)
+
 A CLI tool that generates concise and descriptive git commit messages using LLMs (Large Language Models).
 
 ## Features
