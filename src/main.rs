@@ -43,6 +43,10 @@ struct Cli {
     /// Automatically push changes after commit
     #[arg(long = "push")]
     push: bool,
+
+    /// Interactive commit message generation
+    #[arg(long = "dry-run")]
+    dry_run: bool,
 }
 
 /// Increment version string (e.g., "0.0.37" -> "0.0.38")
@@ -543,7 +547,7 @@ async fn main() -> Result<(), String> {
                 std::process::exit(1);
             }
 
-            run_commit(&config).await?;
+            run_commit(&config, &cli).await?;
 
             // Check if the --push flag is set and execute git push
             if cli.push {
@@ -565,7 +569,7 @@ async fn main() -> Result<(), String> {
     }
 }
 
-async fn run_commit(config: &Config) -> Result<(), String> {
+async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
     // Получаем активного провайдера
     let active_provider = config.providers.iter().find(|p| match p {
         ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
@@ -578,20 +582,54 @@ async fn run_commit(config: &Config) -> Result<(), String> {
         return Err("No changes to commit".to_string());
     }
 
-    // Генерируем сообщение коммита
-    let (message, usage) = match active_provider {
-        ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff).await?,
-        ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff).await?,
-    };
+    // Check if the --dry-run flag is set for interactive commit message generation
+    if cli.dry_run {
+        loop {
+            // Generate commit message
+            let (message, usage) = match active_provider {
+                ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff).await?,
+                ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff).await?,
+            };
 
-    println!("Generated commit message: \"{}\"\n", message);
-    println!("{}", message);
-    println!("Tokens: {}↑ {}↓", usage.input_tokens, usage.output_tokens);
-    println!("API Cost: ${:.4}", usage.total_cost);
+            println!("Generated commit message: \"{}\"\n", message);
+            println!("Tokens: {}↑ {}↓", usage.input_tokens, usage.output_tokens);
+            println!("API Cost: ${:.4}", usage.total_cost);
 
-    // Создаем коммит
-    create_git_commit(&message)?;
-    println!("Commit successfully created.");
+            // Ask user for action
+            let action: String = Input::new()
+                .with_prompt("Choose an action: [apply, regenerate, cancel]")
+                .default("apply".into())
+                .interact_text()
+                .map_err(|e| format!("Failed to get user input: {}", e))?;
+
+            match action.as_str() {
+                "apply" => {
+                    create_git_commit(&message)?;
+                    println!("Commit successfully created.");
+                    break;
+                }
+                "regenerate" => continue,
+                "cancel" => {
+                    println!("Commit canceled.");
+                    break;
+                }
+                _ => println!("Invalid option. Please choose 'apply', 'regenerate', or 'cancel'."),
+            }
+        }
+    } else {
+        // Existing commit logic
+        let (message, usage) = match active_provider {
+            ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff).await?,
+            ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff).await?,
+        };
+
+        println!("Generated commit message: \"{}\"\n", message);
+        println!("Tokens: {}↑ {}↓", usage.input_tokens, usage.output_tokens);
+        println!("API Cost: ${:.4}", usage.total_cost);
+
+        create_git_commit(&message)?;
+        println!("Commit successfully created.");
+    }
 
     Ok(())
 }

@@ -35,7 +35,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - 🚧 Version management for multiple languages (package.json, requirements.txt, etc.)
 - 🚧 Interactive commit message generation (`aicommit --dry-run`)
 - 🚧 Branch safety checks for push operations
-- 🚧 Auto pull functionality
+- 🚧 Auto push functionality (`aicommit --pull`)
 
 Legend:
 - ✅ Implemented
