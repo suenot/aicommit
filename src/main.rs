@@ -342,8 +342,7 @@ async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &st
     let response = client
         .post("https://openrouter.ai/api/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", &config.api_key))
-        .header("HTTP-Referer", "https://github.com/")
-        .header("HTTP-Referer": "https://github.com/suenot/aicommit"),
+        .header("HTTP-Referer": "https://github.com/suenot/aicommit")
         .header("X-Title": "aicommit")
         .header("X-Description": "A CLI tool that generates concise and descriptive git commit messages")
         .json(&request_body)
