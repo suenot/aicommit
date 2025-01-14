@@ -47,6 +47,10 @@ struct Cli {
     /// Interactive commit message generation
     #[arg(long = "dry-run")]
     dry_run: bool,
+
+    /// Pull changes before commit
+    #[arg(long = "pull")]
+    pull: bool,
 }
 
 /// Increment version string (e.g., "0.0.37" -> "0.0.38")
@@ -554,6 +558,26 @@ async fn main() -> Result<(), String> {
 }
 
 async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
+    // Check if we need to pull changes first
+    if cli.pull {
+        // Try to pull changes
+        let pull_output = Command::new("sh")
+            .arg("-c")
+            .arg("git pull --no-rebase --no-edit")
+            .output()
+            .map_err(|e| format!("Failed to execute git pull: {}", e))?;
+
+        if !pull_output.status.success() {
+            let error_msg = String::from_utf8_lossy(&pull_output.stderr);
+            if error_msg.contains("Automatic merge failed") {
+                return Err("Automatic merge failed. Please resolve conflicts manually.".to_string());
+            }
+            return Err(format!("Failed to pull changes: {}", error_msg));
+        }
+
+        println!("Successfully pulled changes.");
+    }
+
     // Получаем активного провайдера
     let active_provider = config.providers.iter().find(|p| match p {
         ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
