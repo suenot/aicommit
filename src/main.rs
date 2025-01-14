@@ -548,22 +548,6 @@ async fn main() -> Result<(), String> {
             }
 
             run_commit(&config, &cli).await?;
-
-            // Check if the --push flag is set and execute git push
-            if cli.push {
-                let push_output = Command::new("sh")
-                    .arg("-c")
-                    .arg("git push")
-                    .output()
-                    .map_err(|e| format!("Failed to execute git push: {}", e))?;
-
-                if !push_output.status.success() {
-                    return Err(String::from_utf8_lossy(&push_output.stderr).to_string());
-                }
-
-                println!("Changes successfully pushed.");
-            }
-
             Ok(())
         }
     }
@@ -582,6 +566,8 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         return Err("No changes to commit".to_string());
     }
 
+    let mut commit_applied = false;
+
     // Check if the --dry-run flag is set for interactive commit message generation
     if cli.dry_run {
         loop {
@@ -595,17 +581,20 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             println!("Tokens: {}↑ {}↓", usage.input_tokens, usage.output_tokens);
             println!("API Cost: ${:.4}", usage.total_cost);
 
-            // Ask user for action
-            let action: String = Input::new()
-                .with_prompt("Choose an action: [apply, regenerate, cancel]")
-                .default("apply".into())
-                .interact_text()
-                .map_err(|e| format!("Failed to get user input: {}", e))?;
+            // Ask user for action using Select
+            let actions = &["apply", "regenerate", "cancel"];
+            let action_selection = Select::new()
+                .with_prompt("Choose an action")
+                .items(actions)
+                .default(0)
+                .interact()
+                .map_err(|e| format!("Failed to get user selection: {}", e))?;
 
-            match action.as_str() {
+            match actions[action_selection] {
                 "apply" => {
                     create_git_commit(&message)?;
                     println!("Commit successfully created.");
+                    commit_applied = true;
                     break;
                 }
                 "regenerate" => continue,
@@ -613,7 +602,7 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
                     println!("Commit canceled.");
                     break;
                 }
-                _ => println!("Invalid option. Please choose 'apply', 'regenerate', or 'cancel'."),
+                _ => unreachable!(),
             }
         }
     } else {
@@ -629,6 +618,22 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 
         create_git_commit(&message)?;
         println!("Commit successfully created.");
+        commit_applied = true;
+    }
+
+    // Check if the --push flag is set and execute git push
+    if cli.push && commit_applied {
+        let push_output = Command::new("sh")
+            .arg("-c")
+            .arg("git push")
+            .output()
+            .map_err(|e| format!("Failed to execute git push: {}", e))?;
+
+        if !push_output.status.success() {
+            return Err(String::from_utf8_lossy(&push_output.stderr).to_string());
+        }
+
+        println!("Changes successfully pushed.");
     }
 
     Ok(())
