@@ -39,6 +39,10 @@ struct Cli {
     /// Synchronize version with Cargo.toml
     #[arg(long = "version-cargo")]
     version_cargo: bool,
+
+    /// Automatically push changes after commit
+    #[arg(long = "push")]
+    push: bool,
 }
 
 /// Increment version string (e.g., "0.0.37" -> "0.0.38")
@@ -539,7 +543,24 @@ async fn main() -> Result<(), String> {
                 std::process::exit(1);
             }
 
-            run_commit(&config).await
+            run_commit(&config).await?;
+
+            // Check if the --push flag is set and execute git push
+            if cli.push {
+                let push_output = Command::new("sh")
+                    .arg("-c")
+                    .arg("git push")
+                    .output()
+                    .map_err(|e| format!("Failed to execute git push: {}", e))?;
+
+                if !push_output.status.success() {
+                    return Err(String::from_utf8_lossy(&push_output.stderr).to_string());
+                }
+
+                println!("Changes successfully pushed.");
+            }
+
+            Ok(())
         }
     }
 }
