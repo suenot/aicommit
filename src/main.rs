@@ -137,37 +137,6 @@ enum ProviderConfig {
 struct Config {
     providers: Vec<ProviderConfig>,
     active_provider: String,
-    default_gitignore: String,
-}
-
-#[derive(Debug)]
-struct UsageInfo {
-    input_tokens: i32,
-    output_tokens: i32,
-    total_cost: f32,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterResponse {
-    choices: Vec<OpenRouterChoice>,
-    usage: OpenRouterUsage,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterChoice {
-    message: OpenRouterMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterMessage {
-    content: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterUsage {
-    prompt_tokens: i32,
-    completion_tokens: i32,
-    total_tokens: i32,
 }
 
 impl Config {
@@ -175,7 +144,6 @@ impl Config {
         Config {
             providers: Vec::new(),
             active_provider: String::new(),
-            default_gitignore: String::from("/target\n.DS_Store\n.env\n*.log\nnode_modules/\n"),
         }
     }
 
@@ -191,28 +159,36 @@ impl Config {
         let content = fs::read_to_string(&config_path)
             .map_err(|e| format!("Failed to read config file: {}", e))?;
 
-        // Try to parse the existing config
-        let parsed_result: Result<serde_json::Value, _> = serde_json::from_str(&content);
-        
-        match parsed_result {
-            Ok(mut json_value) => {
-                // If default_gitignore is missing, add it
-                if !json_value.get("default_gitignore").is_some() {
-                    json_value["default_gitignore"] = serde_json::Value::String(String::from("/target\n.DS_Store\n.env\n*.log\nnode_modules/\n"));
-                    
-                    // Save the updated config
-                    let updated_content = serde_json::to_string_pretty(&json_value)
-                        .map_err(|e| format!("Failed to serialize updated config: {}", e))?;
-                    fs::write(&config_path, updated_content)
-                        .map_err(|e| format!("Failed to write updated config: {}", e))?;
-                }
-                
-                // Now parse the complete config
-                serde_json::from_value(json_value)
-                    .map_err(|e| format!("Failed to parse config file: {}", e))
-            }
-            Err(e) => Err(format!("Failed to parse config file: {}", e)),
+        serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse config file: {}", e))
+    }
+
+    fn check_gitignore() -> Result<(), String> {
+        // Check if .gitignore exists in current directory
+        if !std::path::Path::new(".gitignore").exists() {
+            // Get default gitignore content
+            let default_content = Self::get_default_gitignore()?;
+            fs::write(".gitignore", default_content)
+                .map_err(|e| format!("Failed to create .gitignore: {}", e))?;
+            println!("Created default .gitignore file");
         }
+        Ok(())
+    }
+
+    fn get_default_gitignore() -> Result<String, String> {
+        let default_gitignore_path = dirs::home_dir()
+            .ok_or_else(|| "Could not find home directory".to_string())?
+            .join(".default_gitignore");
+
+        // If default gitignore doesn't exist, create it with default content
+        if !default_gitignore_path.exists() {
+            let default_content = "/target\n.DS_Store\n.env\n*.log\nnode_modules/\n";
+            fs::write(&default_gitignore_path, default_content)
+                .map_err(|e| format!("Failed to create default gitignore template: {}", e))?;
+        }
+
+        fs::read_to_string(&default_gitignore_path)
+            .map_err(|e| format!("Failed to read default gitignore template: {}", e))
     }
 
     async fn setup_interactive() -> Result<Self, String> {
@@ -314,17 +290,6 @@ impl Config {
             return Err("Editor exited with error".to_string());
         }
 
-        Ok(())
-    }
-
-    fn check_gitignore() -> Result<(), String> {
-        // Check if .gitignore exists
-        if !std::path::Path::new(".gitignore").exists() {
-            let config = Config::load()?;
-            fs::write(".gitignore", &config.default_gitignore)
-                .map_err(|e| format!("Failed to create .gitignore: {}", e))?;
-            println!("Created default .gitignore file");
-        }
         Ok(())
     }
 }
@@ -481,6 +446,36 @@ async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str) -> Re
     };
 
     Ok((commit_message, usage))
+}
+
+#[derive(Debug)]
+struct UsageInfo {
+    input_tokens: i32,
+    output_tokens: i32,
+    total_cost: f32,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterResponse {
+    choices: Vec<OpenRouterChoice>,
+    usage: OpenRouterUsage,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterChoice {
+    message: OpenRouterMessage,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterMessage {
+    content: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterUsage {
+    prompt_tokens: i32,
+    completion_tokens: i32,
+    total_tokens: i32,
 }
 
 #[tokio::main]
