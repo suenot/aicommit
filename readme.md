@@ -27,13 +27,13 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Auto push functionality (`aicommit --pull`)
 - ✅ Interactive commit message generation (`aicommit --dry-run`)
 - ✅ Basic .gitignore file checks and management (create ~/.default_gitignore and use it as template if there is no .gitignore in this directory)
+- ✅ Watch mode (`aicommit --watch 1m`)
+- ✅ Watch with edit delay (`aicommit --watch 1m --wait-for-edit 30s`)
 
 ### Planned Features
 - 🚧 Tests for each feature to prevent breaking changes
 - 🚧 Split commits by file (`aicommit --by-file`)
 - 🚧 Split commits by feature (`aicommit --by-feature`)
-- 🚧 Watch mode (`aicommit --watch 1m`)
-- 🚧 Watch with edit delay (`aicommit --watch 1m --wait-for-edit 30s`)
 - 🚧 Version management for multiple languages (package.json, requirements.txt, etc.)
 - 🚧 Branch safety checks for push operations
 
