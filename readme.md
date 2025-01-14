@@ -24,6 +24,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Interactive configuration setup
 - ✅ Configuration file editing
 - ✅ Auto push functionality (`aicommit --push`)
+- ✅ Auto push functionality (`aicommit --pull`)
 - ✅ Interactive commit message generation (`aicommit --dry-run`)
 
 ### Planned Features
@@ -35,7 +36,6 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - 🚧 Watch with edit delay (`aicommit --watch 1m --wait-for-edit 30s`)
 - 🚧 Version management for multiple languages (package.json, requirements.txt, etc.)
 - 🚧 Branch safety checks for push operations
-- 🚧 Auto push functionality (`aicommit --pull`)
 
 Legend:
 - ✅ Implemented
