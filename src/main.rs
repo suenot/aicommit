@@ -137,6 +137,7 @@ enum ProviderConfig {
 struct Config {
     providers: Vec<ProviderConfig>,
     active_provider: String,
+    default_gitignore: String,
 }
 
 #[derive(Debug)]
@@ -174,6 +175,7 @@ impl Config {
         Config {
             providers: Vec::new(),
             active_provider: String::new(),
+            default_gitignore: String::from("/target\n.DS_Store\n.env\n*.log\nnode_modules/\n"),
         }
     }
 
@@ -189,8 +191,28 @@ impl Config {
         let content = fs::read_to_string(&config_path)
             .map_err(|e| format!("Failed to read config file: {}", e))?;
 
-        serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse config file: {}", e))
+        // Try to parse the existing config
+        let parsed_result: Result<serde_json::Value, _> = serde_json::from_str(&content);
+        
+        match parsed_result {
+            Ok(mut json_value) => {
+                // If default_gitignore is missing, add it
+                if !json_value.get("default_gitignore").is_some() {
+                    json_value["default_gitignore"] = serde_json::Value::String(String::from("/target\n.DS_Store\n.env\n*.log\nnode_modules/\n"));
+                    
+                    // Save the updated config
+                    let updated_content = serde_json::to_string_pretty(&json_value)
+                        .map_err(|e| format!("Failed to serialize updated config: {}", e))?;
+                    fs::write(&config_path, updated_content)
+                        .map_err(|e| format!("Failed to write updated config: {}", e))?;
+                }
+                
+                // Now parse the complete config
+                serde_json::from_value(json_value)
+                    .map_err(|e| format!("Failed to parse config file: {}", e))
+            }
+            Err(e) => Err(format!("Failed to parse config file: {}", e)),
+        }
     }
 
     async fn setup_interactive() -> Result<Self, String> {
@@ -292,6 +314,17 @@ impl Config {
             return Err("Editor exited with error".to_string());
         }
 
+        Ok(())
+    }
+
+    fn check_gitignore() -> Result<(), String> {
+        // Check if .gitignore exists
+        if !std::path::Path::new(".gitignore").exists() {
+            let config = Config::load()?;
+            fs::write(".gitignore", &config.default_gitignore)
+                .map_err(|e| format!("Failed to create .gitignore: {}", e))?;
+            println!("Created default .gitignore file");
+        }
         Ok(())
     }
 }
@@ -453,6 +486,9 @@ async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str) -> Re
 #[tokio::main]
 async fn main() -> Result<(), String> {
     let cli = Cli::parse();
+
+    // Check .gitignore at startup
+    Config::check_gitignore()?;
 
     match () {
         _ if cli.add => {

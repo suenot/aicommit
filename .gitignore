@@ -1,4 +1,5 @@
 /target
-features_todo.md
 .DS_Store
-.my/
+.env
+*.log
+node_modules/
