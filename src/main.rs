@@ -586,7 +586,7 @@ async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConf
     let usage = UsageInfo {
         input_tokens: response_data.usage.prompt_tokens,
         output_tokens: response_data.usage.completion_tokens,
-        total_cost: (response_data.usage.total_tokens as f32) * 0.0000014,
+        total_cost: 0.0, // Set to 0 for OpenAI compatible APIs as we don't know the actual cost
     };
 
     Ok((message, usage))
