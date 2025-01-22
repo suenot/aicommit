@@ -31,6 +31,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Watch with edit delay (`aicommit --watch 1m --wait-for-edit 30s`)
 
 ### Planned Features
+- 🚧 OpenAI compatible API support
 - 🚧 Tests for each feature to prevent breaking changes
 - 🚧 Split commits by file (`aicommit --by-file`)
 - 🚧 Split commits by feature (`aicommit --by-feature`)
