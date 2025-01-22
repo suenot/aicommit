@@ -70,7 +70,7 @@ aicommit --add
 
 3. Create a commit:
 ```bash
-aicommit
+aicommit --pull --push
 ```
 
 ## Provider Management
@@ -138,6 +138,14 @@ For OpenRouter, token costs are automatically fetched from their API. For Ollama
 }
 ```
 
+#### Recommended Providers through OpenRouter
+
+- 🌟 **Google AI Studio** - 1000000 tokens for free
+  - "google/gemini-2.0-flash-exp:free"
+- 🌟 **DeepSeek**
+  - "deepseek/deepseek-chat"
+
+
 ### Ollama
 ```json
 {
@@ -155,12 +163,29 @@ For OpenRouter, token costs are automatically fetched from their API. For Ollama
 }
 ```
 
-## Recommended Providers through OpenRouter
+### OpenAI-compatible API
 
-- 🌟 **Google AI Studio** - 1000000 tokens for free
-  - "google/gemini-2.0-flash-exp:free"
-- 🌟 **DeepSeek**
-  - "deepseek/deepseek-chat"
+For example, you can use DeepGPTBot's OpenAI-compatible API for generating commit messages. Here's how to set it up:
+
+1. Get your API key from Telegram:
+   - Open [@DeepGPTBot](https://t.me/DeepGPTBot) in Telegram
+   - Use the `/api` command to get your API key
+
+2. Configure aicommit:
+   ```bash
+   aicommit --add
+   ```
+   Select "OpenAI Compatible" and enter:
+   - API Key: Your key from @DeepGPTBot
+   - API URL: https://api.deep-foundation.tech/v1/chat/completions
+   - Model: gpt-4o-mini
+   - Max tokens: 50 (default)
+   - Temperature: 0.3 (default)
+
+3. Start using it:
+   ```bash
+   aicommit
+   ```
 
 ## Usage Information
 
@@ -177,9 +202,6 @@ API Cost: $0.0100
 
 You can have multiple providers configured and switch between them by changing the `active_provider` field to match the desired provider's `id`.
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Watch Mode
 
@@ -227,3 +249,7 @@ aicommit --watch 1m --dry-run
 - Use longer intervals (5m-15m) for longer coding sessions
 - Add `--wait-for-edit` when you want to avoid partial commits
 - Use `Ctrl+C` to stop watching
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
