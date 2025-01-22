@@ -136,9 +136,21 @@ struct OllamaConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+struct OpenAICompatibleConfig {
+    id: String,
+    provider: String,
+    api_key: String,
+    api_url: String,
+    model: String,
+    max_tokens: i32,
+    temperature: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 enum ProviderConfig {
     OpenRouter(OpenRouterConfig),
     Ollama(OllamaConfig),
+    OpenAICompatible(OpenAICompatibleConfig),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -203,7 +215,7 @@ impl Config {
         let mut config = Config::load().unwrap_or_else(|_| Config::new());
 
         println!("Let's set up a provider.");
-        let provider_options = &["OpenRouter", "Ollama"];
+        let provider_options = &["OpenRouter", "Ollama", "OpenAI Compatible"];
         let provider_selection = Select::new()
             .with_prompt("Select a provider")
             .items(provider_options)
@@ -256,6 +268,12 @@ impl Config {
                     max_tokens,
                     temperature,
                 }));
+                config.active_provider = provider_id;
+            }
+            2 => {
+                let mut openai_compatible_config = setup_openai_compatible_provider().await?;
+                openai_compatible_config.id = provider_id.clone();
+                config.providers.push(ProviderConfig::OpenAICompatible(openai_compatible_config));
                 config.active_provider = provider_id;
             }
             _ => return Err("Invalid provider selection".to_string()),
@@ -456,6 +474,121 @@ async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str) -> Re
     Ok((commit_message, usage))
 }
 
+async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, String> {
+    let api_key: String = Input::new()
+        .with_prompt("Enter API key")
+        .interact_text()
+        .map_err(|e| format!("Failed to get API key: {}", e))?;
+
+    let api_url: String = Input::new()
+        .with_prompt("Enter API URL (e.g., https://api.example.com/v1/)")
+        .interact_text()
+        .map_err(|e| format!("Failed to get API URL: {}", e))?;
+
+    let model_options = &[
+        "gpt-3.5-turbo",
+        "gpt-4",
+        "gpt-4-turbo",
+        "claude-3-opus",
+        "claude-3-sonnet",
+        "claude-2",
+        "custom (enter manually)",
+    ];
+    
+    let model_selection = Select::new()
+        .with_prompt("Select a model")
+        .items(model_options)
+        .default(0)
+        .interact()
+        .map_err(|e| format!("Failed to get model selection: {}", e))?;
+
+    let model = if model_selection == model_options.len() - 1 {
+        // Custom model input
+        Input::new()
+            .with_prompt("Enter model name")
+            .interact_text()
+            .map_err(|e| format!("Failed to get model name: {}", e))?
+    } else {
+        model_options[model_selection].to_string()
+    };
+
+    let max_tokens: String = Input::new()
+        .with_prompt("Enter max tokens")
+        .default("50".into())
+        .interact_text()
+        .map_err(|e| format!("Failed to get max tokens: {}", e))?;
+    let max_tokens: i32 = max_tokens.parse()
+        .map_err(|e| format!("Failed to parse max tokens: {}", e))?;
+
+    let temperature: String = Input::new()
+        .with_prompt("Enter temperature")
+        .default("0.3".into())
+        .interact_text()
+        .map_err(|e| format!("Failed to get temperature: {}", e))?;
+    let temperature: f32 = temperature.parse()
+        .map_err(|e| format!("Failed to parse temperature: {}", e))?;
+
+    Ok(OpenAICompatibleConfig {
+        id: Uuid::new_v4().to_string(),
+        provider: "openai_compatible".to_string(),
+        api_key,
+        api_url,
+        model,
+        max_tokens,
+        temperature,
+    })
+}
+
+async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConfig, diff: &str) -> Result<(String, UsageInfo), String> {
+    let client = reqwest::Client::new();
+
+    let prompt = format!("Here is the git diff, please generate a concise and descriptive commit message:\n\n{}", diff);
+
+    let request_body = json!({
+        "model": &config.model,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "max_tokens": config.max_tokens,
+        "temperature": config.temperature,
+    });
+
+    let response = client
+        .post(format!("{}/chat/completions", config.api_url.trim_end_matches('/')))
+        .header("Authorization", format!("Bearer {}", &config.api_key))
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send request: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("API request failed: {}", response.status()));
+    }
+
+    let response_data: OpenRouterResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+    
+    let message = response_data.choices
+        .get(0)
+        .ok_or("No choices in response")?
+        .message
+        .content
+        .clone();
+
+    let usage = UsageInfo {
+        input_tokens: response_data.usage.prompt_tokens,
+        output_tokens: response_data.usage.completion_tokens,
+        total_cost: (response_data.usage.total_tokens as f32) * 0.0000014, // Using a default cost, can be adjusted
+    };
+
+    Ok((message, usage))
+}
+
 #[derive(Debug)]
 struct UsageInfo {
     input_tokens: i32,
@@ -610,6 +743,7 @@ async fn main() -> Result<(), String> {
                 match provider {
                     ProviderConfig::OpenRouter(c) => println!("OpenRouter: {}", c.id),
                     ProviderConfig::Ollama(c) => println!("Ollama: {}", c.id),
+                    ProviderConfig::OpenAICompatible(c) => println!("OpenAI Compatible: {}", c.id),
                 }
             }
             Ok(())
@@ -630,6 +764,13 @@ async fn main() -> Result<(), String> {
                         }
                     }
                     ProviderConfig::Ollama(c) => {
+                        if c.id == new_active_provider {
+                            config.active_provider = c.id.clone();
+                            found = true;
+                            break;
+                        }
+                    }
+                    ProviderConfig::OpenAICompatible(c) => {
                         if c.id == new_active_provider {
                             config.active_provider = c.id.clone();
                             found = true;
@@ -729,6 +870,7 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
     let active_provider = config.providers.iter().find(|p| match p {
         ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
         ProviderConfig::Ollama(c) => c.id == config.active_provider,
+        ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
     }).ok_or("No active provider found")?;
 
     // Получаем git diff
@@ -746,6 +888,7 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             let (message, usage) = match active_provider {
                 ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff).await?,
                 ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff).await?,
+                ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff).await?,
             };
 
             println!("Generated commit message: \"{}\"\n", message);
@@ -781,6 +924,7 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         let (message, usage) = match active_provider {
             ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff).await?,
             ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff).await?,
+            ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff).await?,
         };
 
         println!("Generated commit message: \"{}\"\n", message);
