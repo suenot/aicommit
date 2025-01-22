@@ -481,7 +481,7 @@ async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, St
         .map_err(|e| format!("Failed to get API key: {}", e))?;
 
     let api_url: String = Input::new()
-        .with_prompt("Enter API URL (e.g., https://api.example.com/v1/)")
+        .with_prompt("Enter complete API URL (e.g., https://api.example.com/v1/chat/completions)")
         .interact_text()
         .map_err(|e| format!("Failed to get API URL: {}", e))?;
 
@@ -489,6 +489,7 @@ async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, St
         "gpt-3.5-turbo",
         "gpt-4",
         "gpt-4-turbo",
+        "gpt-4o-mini",
         "claude-3-opus",
         "claude-3-sonnet",
         "claude-2",
@@ -557,7 +558,7 @@ async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConf
     });
 
     let response = client
-        .post(format!("{}/chat/completions", config.api_url.trim_end_matches('/')))
+        .post(&config.api_url)
         .header("Authorization", format!("Bearer {}", &config.api_key))
         .json(&request_body)
         .send()
@@ -565,7 +566,9 @@ async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConf
         .map_err(|e| format!("Failed to send request: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("API request failed: {}", response.status()));
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(format!("API request failed: {} - {}", status, error_text));
     }
 
     let response_data: OpenRouterResponse = response
@@ -583,7 +586,7 @@ async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConf
     let usage = UsageInfo {
         input_tokens: response_data.usage.prompt_tokens,
         output_tokens: response_data.usage.completion_tokens,
-        total_cost: (response_data.usage.total_tokens as f32) * 0.0000014, // Using a default cost, can be adjusted
+        total_cost: (response_data.usage.total_tokens as f32) * 0.0000014,
     };
 
     Ok((message, usage))
