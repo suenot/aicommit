@@ -16,6 +16,10 @@ struct Cli {
     #[arg(long = "add-provider")]
     add_provider: bool,
 
+    /// Automatically stage all changes before commit
+    #[arg(long = "add")]
+    add: bool,
+
     /// Add OpenRouter provider non-interactively
     #[arg(long)]
     add_openrouter: bool,
@@ -789,7 +793,7 @@ async fn watch_and_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
         // Try to get git diff
-        match get_git_diff() {
+        match get_git_diff(cli) {
             Ok(diff) if !diff.is_empty() => {
                 // If we have wait_for_edit, check if enough time has passed since last edit
                 if let Some(delay) = wait_for_edit {
@@ -993,7 +997,7 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
     }).ok_or("No active provider found")?;
 
     // Получаем git diff
-    let diff = get_git_diff()?;
+    let diff = get_git_diff(cli)?;
     if diff.is_empty() {
         return Err("No changes to commit".to_string());
     }
@@ -1073,19 +1077,21 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
     Ok(())
 }
 
-fn get_git_diff() -> Result<String, String> {
-    // Сначала добавляем все изменения в staging
-    let add_output = Command::new("sh")
-        .arg("-c")
-        .arg("git add .")
-        .output()
-        .map_err(|e| format!("Failed to execute git add: {}", e))?;
+fn get_git_diff(cli: &Cli) -> Result<String, String> {
+    // Stage all changes if --add flag is set
+    if cli.add {
+        let add_output = Command::new("sh")
+            .arg("-c")
+            .arg("git add .")
+            .output()
+            .map_err(|e| format!("Failed to execute git add: {}", e))?;
 
-    if !add_output.status.success() {
-        return Err(String::from_utf8_lossy(&add_output.stderr).to_string());
+        if !add_output.status.success() {
+            return Err(String::from_utf8_lossy(&add_output.stderr).to_string());
+        }
     }
 
-    // Затем получаем diff
+    // Get diff of staged changes
     let diff_output = Command::new("sh")
         .arg("-c")
         .arg("git diff --cached")

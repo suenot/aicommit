@@ -76,9 +76,16 @@ cargo install --path .
 2. Make some changes to your code
 
 3. Create a commit:
-```bash
-aicommit --pull --push
-```
+   ```bash
+   # Commit only staged changes (files added with git add)
+   aicommit
+
+   # Automatically stage and commit all changes
+   aicommit --add
+
+   # Stage all changes, commit, and push
+   aicommit --add --push
+   ```
 
 ## Provider Management
 
@@ -243,6 +250,23 @@ API Cost: $0.0100
 
 You can have multiple providers configured and switch between them by changing the `active_provider` field to match the desired provider's `id`.
 
+### Staging Changes
+
+By default, aicommit will only commit changes that have been staged using `git add`. To automatically stage all changes before committing, use the `--add` flag:
+
+```bash
+# Only commit previously staged changes
+aicommit
+
+# Stage and commit all changes
+aicommit --add
+
+# Stage all changes, commit, and push
+aicommit --add --push
+
+# Stage all changes, pull before commit, and push after
+aicommit --add --pull --push
+```
 
 ## Watch Mode
 
