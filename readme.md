@@ -303,7 +303,7 @@ You can combine watch mode with other flags:
 aicommit --watch 1m --push
 
 # Watch with version increment
-aicommit --watch 1m --version-file version --version-iterate
+aicommit --watch 1m --add --version-file version --version-iterate
 
 # Interactive mode with watch
 aicommit --watch 1m --dry-run
