@@ -25,11 +25,6 @@ jobs:
             artifact_name: aicommit
             asset_name: aicommit-linux-aarch64
             target: aarch64-unknown-linux-gnu
-          # Linux RISC-V 64
-          - os: ubuntu-latest
-            artifact_name: aicommit
-            asset_name: aicommit-linux-riscv64
-            target: riscv64gc-unknown-linux-gnu
           # macOS Intel
           - os: macos-latest
             artifact_name: aicommit
@@ -60,20 +55,15 @@ jobs:
         targets: ${{ matrix.target }}
 
     - name: Install cross-compilation tools
-      if: matrix.os == 'ubuntu-latest' && (contains(matrix.target, 'aarch64') || contains(matrix.target, 'riscv64'))
+      if: matrix.os == 'ubuntu-latest' && contains(matrix.target, 'aarch64')
       run: |
         sudo apt-get update
-        if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-        elif [[ "${{ matrix.target }}" == "riscv64gc-unknown-linux-gnu" ]]; then
-          sudo apt-get install -y gcc-riscv64-linux-gnu
-        fi
+        sudo apt-get install -y gcc-aarch64-linux-gnu
       
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
       env:
         CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-        CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_GNU_LINKER: riscv64-linux-gnu-gcc
       
     - name: Prepare asset
       shell: bash
