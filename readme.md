@@ -61,10 +61,17 @@ cargo install --path .
 
 ## Quick Start
 
-1. Add a provider:
-```bash
-aicommit --add-provider
-```
+1. Add a provider (choose one method):
+
+   Interactive mode:
+   ```bash
+   aicommit --add-provider
+   ```
+
+   Non-interactive mode (example with OpenRouter):
+   ```bash
+   aicommit --add-provider --add-openrouter --openrouter-api-key "your-api-key"
+   ```
 
 2. Make some changes to your code
 
@@ -74,6 +81,30 @@ aicommit --pull --push
 ```
 
 ## Provider Management
+
+Add a provider in interactive mode:
+```bash
+aicommit --add-provider
+```
+
+Add providers in non-interactive mode:
+```bash
+# Add OpenRouter provider
+aicommit --add-provider --add-openrouter --openrouter-api-key "your-api-key" --openrouter-model "mistralai/mistral-tiny"
+
+# Add Ollama provider
+aicommit --add-provider --add-ollama --ollama-url "http://localhost:11434" --ollama-model "llama2"
+
+# Add OpenAI compatible provider
+aicommit --add-provider --add-openai-compatible \
+  --openai-compatible-api-key "your-api-key" \
+  --openai-compatible-api-url "https://api.deep-foundation.tech/v1/chat/completions" \
+  --openai-compatible-model "gpt-4o-mini"
+```
+
+Optional parameters for non-interactive mode:
+- `--max-tokens` - Maximum number of tokens (default: 50)
+- `--temperature` - Controls randomness (default: 0.3)
 
 List all configured providers:
 ```bash
@@ -171,7 +202,9 @@ For example, you can use DeepGPTBot's OpenAI-compatible API for generating commi
    - Open [@DeepGPTBot](https://t.me/DeepGPTBot) in Telegram
    - Use the `/api` command to get your API key
 
-2. Configure aicommit:
+2. Configure aicommit (choose one method):
+
+   Interactive mode:
    ```bash
    aicommit --add-provider
    ```
@@ -181,6 +214,14 @@ For example, you can use DeepGPTBot's OpenAI-compatible API for generating commi
    - Model: gpt-4o-mini
    - Max tokens: 50 (default)
    - Temperature: 0.3 (default)
+
+   Non-interactive mode:
+   ```bash
+   aicommit --add-provider --add-openai-compatible \
+     --openai-compatible-api-key "your-api-key" \
+     --openai-compatible-api-url "https://api.deep-foundation.tech/v1/chat/completions" \
+     --openai-compatible-model "gpt-4o-mini"
+   ```
 
 3. Start using it:
    ```bash
