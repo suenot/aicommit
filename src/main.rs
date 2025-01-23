@@ -12,9 +12,57 @@ use regex;
 #[command(name = "aicommit")]
 #[command(about = "A CLI tool that generates concise and descriptive git commit messages using LLMs", long_about = None)]
 struct Cli {
-    /// Add a new provider
+    /// Add a new provider (interactive mode)
+    #[arg(long = "add-provider")]
+    add_provider: bool,
+
+    /// Add OpenRouter provider non-interactively
     #[arg(long)]
-    add: bool,
+    add_openrouter: bool,
+
+    /// OpenRouter API key
+    #[arg(long)]
+    openrouter_api_key: Option<String>,
+
+    /// OpenRouter model name
+    #[arg(long, default_value = "mistralai/mistral-tiny")]
+    openrouter_model: String,
+
+    /// Add Ollama provider non-interactively
+    #[arg(long)]
+    add_ollama: bool,
+
+    /// Ollama API URL
+    #[arg(long, default_value = "http://localhost:11434")]
+    ollama_url: String,
+
+    /// Ollama model name
+    #[arg(long, default_value = "llama2")]
+    ollama_model: String,
+
+    /// Add OpenAI compatible provider non-interactively
+    #[arg(long)]
+    add_openai_compatible: bool,
+
+    /// OpenAI compatible API key
+    #[arg(long)]
+    openai_compatible_api_key: Option<String>,
+
+    /// OpenAI compatible API URL
+    #[arg(long)]
+    openai_compatible_api_url: Option<String>,
+
+    /// OpenAI compatible model name
+    #[arg(long, default_value = "gpt-3.5-turbo")]
+    openai_compatible_model: String,
+
+    /// Max tokens for provider configuration
+    #[arg(long, default_value = "50")]
+    max_tokens: i32,
+
+    /// Temperature for provider configuration
+    #[arg(long, default_value = "0.3")]
+    temperature: f32,
 
     /// List all providers
     #[arg(long)]
@@ -317,6 +365,68 @@ impl Config {
         }
 
         Ok(())
+    }
+
+    async fn setup_non_interactive(cli: &Cli) -> Result<Self, String> {
+        let mut config = Config::load().unwrap_or_else(|_| Config::new());
+        let provider_id = Uuid::new_v4().to_string();
+
+        if cli.add_openrouter {
+            let api_key = cli.openrouter_api_key.clone()
+                .ok_or_else(|| "OpenRouter API key is required".to_string())?;
+
+            let openrouter_config = OpenRouterConfig {
+                id: provider_id.clone(),
+                provider: "openrouter".to_string(),
+                api_key,
+                model: cli.openrouter_model.clone(),
+                max_tokens: cli.max_tokens,
+                temperature: cli.temperature,
+            };
+            config.providers.push(ProviderConfig::OpenRouter(openrouter_config));
+            config.active_provider = provider_id;
+        } else if cli.add_ollama {
+            let ollama_config = OllamaConfig {
+                id: provider_id.clone(),
+                provider: "ollama".to_string(),
+                model: cli.ollama_model.clone(),
+                url: cli.ollama_url.clone(),
+                max_tokens: cli.max_tokens,
+                temperature: cli.temperature,
+            };
+            config.providers.push(ProviderConfig::Ollama(ollama_config));
+            config.active_provider = provider_id;
+        } else if cli.add_openai_compatible {
+            let api_key = cli.openai_compatible_api_key.clone()
+                .ok_or_else(|| "OpenAI compatible API key is required".to_string())?;
+            let api_url = cli.openai_compatible_api_url.clone()
+                .ok_or_else(|| "OpenAI compatible API URL is required".to_string())?;
+
+            let openai_compatible_config = OpenAICompatibleConfig {
+                id: provider_id.clone(),
+                provider: "openai_compatible".to_string(),
+                api_key,
+                api_url,
+                model: cli.openai_compatible_model.clone(),
+                max_tokens: cli.max_tokens,
+                temperature: cli.temperature,
+            };
+            config.providers.push(ProviderConfig::OpenAICompatible(openai_compatible_config));
+            config.active_provider = provider_id;
+        }
+
+        // Save the configuration
+        let config_path = dirs::home_dir()
+            .ok_or_else(|| "Could not find home directory".to_string())?
+            .join(".aicommit.json");
+
+        let content = serde_json::to_string_pretty(&config)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+
+        fs::write(&config_path, content)
+            .map_err(|e| format!("Failed to write config file: {}", e))?;
+
+        Ok(config)
     }
 }
 
@@ -733,10 +843,16 @@ async fn main() -> Result<(), String> {
     Config::check_gitignore()?;
 
     match () {
-        _ if cli.add => {
-            // Только настройка нового провайдера
-            let _config = Config::setup_interactive().await?;
-            println!("Provider successfully configured and set as default.");
+        _ if cli.add_provider => {
+            if cli.add_openrouter || cli.add_ollama || cli.add_openai_compatible {
+                // Non-interactive provider configuration
+                let _config = Config::setup_non_interactive(&cli).await?;
+                println!("Provider successfully configured and set as default.");
+            } else {
+                // Interactive provider configuration
+                let _config = Config::setup_interactive().await?;
+                println!("Provider successfully configured and set as default.");
+            }
             Ok(())
         }
         _ if cli.list => {
@@ -804,12 +920,12 @@ async fn main() -> Result<(), String> {
         }
         _ => {
             let config = Config::load().unwrap_or_else(|_| {
-                println!("No configuration found. Run 'aicommit --add' to set up a provider.");
+                println!("No configuration found. Run 'aicommit --add-provider' to set up a provider.");
                 std::process::exit(1);
             });
 
             if config.active_provider.is_empty() || config.providers.is_empty() {
-                println!("No active provider found. Please run 'aicommit --add' to configure a provider.");
+                println!("No active provider found. Please run 'aicommit --add-provider' to configure a provider.");
                 std::process::exit(1);
             }
 

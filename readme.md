@@ -63,7 +63,7 @@ cargo install --path .
 
 1. Add a provider:
 ```bash
-aicommit --add
+aicommit --add-provider
 ```
 
 2. Make some changes to your code
@@ -173,7 +173,7 @@ For example, you can use DeepGPTBot's OpenAI-compatible API for generating commi
 
 2. Configure aicommit:
    ```bash
-   aicommit --add
+   aicommit --add-provider
    ```
    Select "OpenAI Compatible" and enter:
    - API Key: Your key from @DeepGPTBot
