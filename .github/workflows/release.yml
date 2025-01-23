@@ -55,25 +55,29 @@ jobs:
         targets: ${{ matrix.target }}
 
     - name: Install cross-compilation tools
-      if: matrix.os == 'ubuntu-latest' && contains(matrix.target, 'aarch64')
+      if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-aarch64-linux-gnu
-        sudo apt-get install -y libssl-dev pkg-config
-        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
-        sudo apt-get install -y libssl-dev:arm64
-      env:
-        PKG_CONFIG_ALLOW_CROSS: 1
-        OPENSSL_DIR: /usr/lib/aarch64-linux-gnu
+        sudo apt-get install -y gcc pkg-config
+        if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          sudo apt-get install -y libc6-dev-arm64-cross
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev:arm64
+        else
+          sudo apt-get install -y libssl-dev
+        fi
       
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
       env:
         CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         PKG_CONFIG_ALLOW_CROSS: 1
-        OPENSSL_DIR: /usr/lib/aarch64-linux-gnu
+        OPENSSL_DIR: ${{ matrix.target == 'aarch64-unknown-linux-gnu' && '/usr/lib/aarch64-linux-gnu' || '/usr' }}
         OPENSSL_INCLUDE_DIR: /usr/include
-      
+        OPENSSL_LIB_DIR: ${{ matrix.target == 'aarch64-unknown-linux-gnu' && '/usr/lib/aarch64-linux-gnu' || '/usr/lib/x86_64-linux-gnu' }}
+        
     - name: Prepare asset
       shell: bash
       run: |
@@ -91,4 +95,4 @@ jobs:
         files: |
           ${{ matrix.asset_name }}.*
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
