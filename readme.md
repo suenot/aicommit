@@ -30,6 +30,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Watch mode (`aicommit --watch 1m`)
 - ✅ Watch with edit delay (`aicommit --watch 1m --wait-for-edit 30s`)
 - ✅ OpenAI compatible API support
+- ✅ Help information display (`aicommit --help`)
 
 ### Planned Features
 - 🚧 Tests for each feature to prevent breaking changes

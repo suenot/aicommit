@@ -115,6 +115,10 @@ struct Cli {
     /// Wait for edit delay before committing (e.g. "30s" for 30 seconds)
     #[arg(long = "wait-for-edit")]
     wait_for_edit: Option<String>,
+
+    /// Display help information
+    #[arg(long = "help")]
+    help: bool,
 }
 
 /// Increment version string (e.g., "0.0.37" -> "0.0.38")
@@ -888,6 +892,39 @@ async fn main() -> Result<(), String> {
     Config::check_gitignore()?;
 
     match () {
+        _ if cli.help => {
+            println!("aicommit - A CLI tool that generates concise and descriptive git commit messages using LLMs");
+            println!("\nUsage:");
+            println!("  aicommit [OPTIONS]");
+            println!("\nOptions:");
+            println!("  --add-provider       Add a new provider (interactive mode)");
+            println!("  --add                Automatically stage all changes before commit");
+            println!("  --add-openrouter     Add OpenRouter provider non-interactively");
+            println!("  --openrouter-api-key OpenRouter API key");
+            println!("  --openrouter-model   OpenRouter model name");
+            println!("  --add-ollama        Add Ollama provider non-interactively");
+            println!("  --ollama-url        Ollama API URL");
+            println!("  --ollama-model      Ollama model name");
+            println!("  --add-openai-compatible Add OpenAI compatible provider non-interactively");
+            println!("  --openai-compatible-api-key OpenAI compatible API key");
+            println!("  --openai-compatible-api-url OpenAI compatible API URL");
+            println!("  --openai-compatible-model OpenAI compatible model name");
+            println!("  --max-tokens         Max tokens for provider configuration");
+            println!("  --temperature        Temperature for provider configuration");
+            println!("  --list              List all providers");
+            println!("  --set               Set active provider");
+            println!("  --config            Edit configuration file");
+            println!("  --version-file      Path to version file");
+            println!("  --version-iterate   Automatically increment version in version file");
+            println!("  --version-cargo     Synchronize version with Cargo.toml");
+            println!("  --version-github    Update version on GitHub");
+            println!("  --push              Automatically push changes after commit");
+            println!("  --dry-run           Interactive commit message generation");
+            println!("  --pull              Pull changes before commit");
+            println!("  --watch             Watch for changes and auto-commit");
+            println!("  --wait-for-edit     Wait for edit delay before committing");
+            Ok(())
+        }
         _ if cli.add_provider => {
             if cli.add_openrouter || cli.add_ollama || cli.add_openai_compatible {
                 // Non-interactive provider configuration
