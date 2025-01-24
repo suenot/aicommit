@@ -937,6 +937,40 @@ async fn main() -> Result<(), String> {
             }
             Ok(())
         }
+        _ if cli.push => {
+            println!("Pushing changes...");
+            let push_output = Command::new("sh")
+                .arg("-c")
+                .arg("git push")
+                .output()
+                .map_err(|e| format!("Failed to execute git push: {}", e))?;
+
+            if !push_output.status.success() {
+                return Err(String::from_utf8_lossy(&push_output.stderr).to_string());
+            }
+
+            println!("Changes successfully pushed.");
+            Ok(())
+        }
+        _ if cli.pull => {
+            println!("Pulling changes...");
+            let pull_output = Command::new("sh")
+                .arg("-c")
+                .arg("git pull --no-rebase --no-edit")
+                .output()
+                .map_err(|e| format!("Failed to execute git pull: {}", e))?;
+
+            if !pull_output.status.success() {
+                let error_msg = String::from_utf8_lossy(&pull_output.stderr);
+                if error_msg.contains("Automatic merge failed") {
+                    return Err("Automatic merge failed. Please resolve conflicts manually.".to_string());
+                }
+                return Err(format!("Failed to pull changes: {}", error_msg));
+            }
+
+            println!("Successfully pulled changes.");
+            Ok(())
+        }
         _ if cli.list => {
             // Список всех провайдеров
             let config = Config::load()?;
