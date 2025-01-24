@@ -20,11 +20,6 @@ jobs:
             artifact_name: aicommit
             asset_name: aicommit-linux-x86_64
             target: x86_64-unknown-linux-gnu
-          # Linux ARM64
-          - os: ubuntu-22.04
-            artifact_name: aicommit
-            asset_name: aicommit-linux-aarch64
-            target: aarch64-unknown-linux-gnu
           # macOS Intel
           - os: macos-latest
             artifact_name: aicommit
