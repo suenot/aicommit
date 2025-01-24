@@ -92,6 +92,10 @@ struct Cli {
     #[arg(long = "version-cargo")]
     version_cargo: bool,
 
+    /// Update version on GitHub
+    #[arg(long = "version-github")]
+    version_github: bool,
+
     /// Automatically push changes after commit
     #[arg(long = "push")]
     push: bool,
@@ -163,6 +167,43 @@ async fn update_cargo_version(version: &str) -> Result<(), String> {
     tokio::fs::write(cargo_path, new_content.as_bytes())
         .await
         .map_err(|e| format!("Failed to write Cargo.toml: {}", e))?;
+
+    Ok(())
+}
+
+/// Update version on GitHub
+fn update_github_version(version: &str) -> Result<(), String> {
+    let delete_tag = Command::new("git")
+        .args(["tag", "-d", &format!("v{}", version)])
+        .output();
+
+    if let Err(e) = delete_tag {
+        return Err(format!("Failed to delete tag: {}", e));
+    }
+
+    let create_tag = Command::new("git")
+        .args(["tag", &format!("v{}", version)])
+        .output();
+
+    if let Err(e) = create_tag {
+        return Err(format!("Failed to create tag: {}", e));
+    }
+
+    let push_delete_tag = Command::new("git")
+        .args(["push", "origin", &format!(":v{}", version)])
+        .output();
+
+    if let Err(e) = push_delete_tag {
+        return Err(format!("Failed to push deleted tag: {}", e));
+    }
+
+    let push_tag = Command::new("git")
+        .args(["push", "origin", &format!("v{}", version)])
+        .output();
+
+    if let Err(e) = push_tag {
+        return Err(format!("Failed to push tag: {}", e));
+    }
 
     Ok(())
 }
@@ -958,6 +999,14 @@ async fn main() -> Result<(), String> {
                         return Err("Error: --version-file must be specified when using --version-cargo".to_string());
                     }
                     update_cargo_version(&new_version).await?;
+                }
+
+                // Обновляем версию на GitHub
+                if cli.version_github {
+                    if new_version.is_empty() {
+                        return Err("Error: --version-file must be specified when using --version-github".to_string());
+                    }
+                    update_github_version(&new_version)?;
                 }
 
                 // Делаем коммит с текущей конфигурацией

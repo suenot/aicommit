@@ -137,17 +137,22 @@ aicommit --set <provider-id>
 
 Automatically increment version in a file before commit:
 ```bash
-aicommit --version-file "./version" --version-iterate
+aicommit --add --version-file "./version" --version-iterate
 ```
 
 Synchronize version with Cargo.toml:
 ```bash
-aicommit --version-file "./version" --version-cargo
+aicommit --add --version-file "./version" --version-cargo
+```
+
+Update version on GitHub:
+```bash
+aicommit --add --version-file "./version" --version-github
 ```
 
 Both operations can be combined:
 ```bash
-aicommit --version-file "./version" --version-cargo --version-iterate
+aicommit --add --version-file "./version" --version-cargo --version-github --version-iterate
 ```
 
 ## Configuration
