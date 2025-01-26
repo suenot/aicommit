@@ -197,11 +197,19 @@ fn update_github_version(version: &str) -> Result<(), String> {
         .output()
         .map_err(|e| format!("Failed to create tag: {}", e))?;
 
+    if !create_tag.status.success() {
+        return Err(String::from_utf8_lossy(&create_tag.stderr).to_string());
+    }
+
     // Push new tag
     let push_tag = Command::new("git")
         .args(["push", "origin", &format!("v{}", version)])
         .output()
         .map_err(|e| format!("Failed to push tag: {}", e))?;
+
+    if !push_tag.status.success() {
+        return Err(String::from_utf8_lossy(&push_tag.stderr).to_string());
+    }
 
     Ok(())
 }
@@ -1009,7 +1017,10 @@ async fn main() -> Result<(), String> {
             if cli.watch_interval.is_some() {
                 watch_and_commit(&config, &cli).await?
             } else {
-                // Обновляем версию если указаны соответствующие параметры
+                // Сначала делаем коммит с текущей конфигурацией
+                run_commit(&config, &cli).await?;
+
+                // Теперь обновляем версии если указаны соответствующие параметры
                 let mut new_version = String::new();
 
                 // Обновляем версию в файле версии
@@ -1039,9 +1050,6 @@ async fn main() -> Result<(), String> {
                     }
                     update_github_version(&new_version)?;
                 }
-
-                // Делаем коммит с текущей конфигурацией
-                run_commit(&config, &cli).await?;
             }
             Ok(())
         }
