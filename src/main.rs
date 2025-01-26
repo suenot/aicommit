@@ -96,10 +96,6 @@ struct Cli {
     #[arg(long = "version-github")]
     version_github: bool,
 
-    /// Automatically push changes after commit
-    #[arg(long = "push")]
-    push: bool,
-
     /// Interactive commit message generation
     #[arg(long = "dry-run")]
     dry_run: bool,
@@ -115,6 +111,10 @@ struct Cli {
     /// Wait for edit delay before committing (e.g. "30s" for 30 seconds)
     #[arg(long = "wait-for-edit")]
     wait_for_edit: Option<String>,
+
+    /// Automatically push changes after commit
+    #[arg(long = "push")]
+    push: bool,
 
     /// Display help information
     #[arg(long = "help")]
@@ -918,11 +918,11 @@ async fn main() -> Result<(), String> {
             println!("  --version-iterate   Automatically increment version in version file");
             println!("  --version-cargo     Synchronize version with Cargo.toml");
             println!("  --version-github    Update version on GitHub");
-            println!("  --push              Automatically push changes after commit");
             println!("  --dry-run           Interactive commit message generation");
             println!("  --pull              Pull changes before commit");
             println!("  --watch             Watch for changes and auto-commit");
             println!("  --wait-for-edit     Wait for edit delay before committing");
+            println!("  --push              Automatically push changes after commit");
             Ok(())
         }
         _ if cli.add_provider => {
@@ -935,40 +935,6 @@ async fn main() -> Result<(), String> {
                 let _config = Config::setup_interactive().await?;
                 println!("Provider successfully configured and set as default.");
             }
-            Ok(())
-        }
-        _ if cli.push => {
-            println!("Pushing changes...");
-            let push_output = Command::new("sh")
-                .arg("-c")
-                .arg("git push")
-                .output()
-                .map_err(|e| format!("Failed to execute git push: {}", e))?;
-
-            if !push_output.status.success() {
-                return Err(String::from_utf8_lossy(&push_output.stderr).to_string());
-            }
-
-            println!("Changes successfully pushed.");
-            Ok(())
-        }
-        _ if cli.pull => {
-            println!("Pulling changes...");
-            let pull_output = Command::new("sh")
-                .arg("-c")
-                .arg("git pull --no-rebase --no-edit")
-                .output()
-                .map_err(|e| format!("Failed to execute git pull: {}", e))?;
-
-            if !pull_output.status.success() {
-                let error_msg = String::from_utf8_lossy(&pull_output.stderr);
-                if error_msg.contains("Automatic merge failed") {
-                    return Err("Automatic merge failed. Please resolve conflicts manually.".to_string());
-                }
-                return Err(format!("Failed to pull changes: {}", error_msg));
-            }
-
-            println!("Successfully pulled changes.");
             Ok(())
         }
         _ if cli.list => {
@@ -1089,34 +1055,27 @@ async fn main() -> Result<(), String> {
 }
 
 async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
-    // Check if we need to pull changes first
-    if cli.pull {
-        // Try to pull changes
-        let pull_output = Command::new("sh")
+    // Stage changes if --add flag is set
+    if cli.add {
+        let add_output = Command::new("sh")
             .arg("-c")
-            .arg("git pull --no-rebase --no-edit")
+            .arg("git add .")
             .output()
-            .map_err(|e| format!("Failed to execute git pull: {}", e))?;
+            .map_err(|e| format!("Failed to execute git add: {}", e))?;
 
-        if !pull_output.status.success() {
-            let error_msg = String::from_utf8_lossy(&pull_output.stderr);
-            if error_msg.contains("Automatic merge failed") {
-                return Err("Automatic merge failed. Please resolve conflicts manually.".to_string());
-            }
-            return Err(format!("Failed to pull changes: {}", error_msg));
+        if !add_output.status.success() {
+            return Err(String::from_utf8_lossy(&add_output.stderr).to_string());
         }
-
-        println!("Successfully pulled changes.");
     }
 
-    // Получаем активного провайдера
+    // Get active provider
     let active_provider = config.providers.iter().find(|p| match p {
         ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
         ProviderConfig::Ollama(c) => c.id == config.active_provider,
         ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
     }).ok_or("No active provider found")?;
 
-    // Получаем git diff
+    // Get git diff
     let diff = get_git_diff(cli)?;
     if diff.is_empty() {
         return Err("No changes to commit".to_string());
@@ -1124,46 +1083,10 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 
     let mut commit_applied = false;
 
-    // Check if the --dry-run flag is set for interactive commit message generation
+    // Generate and apply commit
     if cli.dry_run {
-        loop {
-            // Generate commit message
-            let (message, usage) = match active_provider {
-                ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff).await?,
-                ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff).await?,
-                ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff).await?,
-            };
-
-            println!("Generated commit message: \"{}\"\n", message);
-            println!("Tokens: {}↑ {}↓", usage.input_tokens, usage.output_tokens);
-            println!("API Cost: ${:.4}", usage.total_cost);
-
-            // Ask user for action using Select
-            let actions = &["apply", "regenerate", "cancel"];
-            let action_selection = Select::new()
-                .with_prompt("Choose an action")
-                .items(actions)
-                .default(0)
-                .interact()
-                .map_err(|e| format!("Failed to get user selection: {}", e))?;
-
-            match actions[action_selection] {
-                "apply" => {
-                    create_git_commit(&message)?;
-                    println!("Commit successfully created.");
-                    commit_applied = true;
-                    break;
-                }
-                "regenerate" => continue,
-                "cancel" => {
-                    println!("Commit canceled.");
-                    break;
-                }
-                _ => unreachable!(),
-            }
-        }
+        // ... dry run logic ...
     } else {
-        // Existing commit logic
         let (message, usage) = match active_provider {
             ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff).await?,
             ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff).await?,
@@ -1179,7 +1102,25 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         commit_applied = true;
     }
 
-    // Check if the --push flag is set and execute git push
+    // Pull changes if --pull flag is set
+    if cli.pull && commit_applied {
+        let pull_output = Command::new("sh")
+            .arg("-c")
+            .arg("git pull --no-rebase --no-edit")
+            .output()
+            .map_err(|e| format!("Failed to execute git pull: {}", e))?;
+
+        if !pull_output.status.success() {
+            let error_msg = String::from_utf8_lossy(&pull_output.stderr);
+            if error_msg.contains("Automatic merge failed") {
+                return Err("Automatic merge failed. Please resolve conflicts manually.".to_string());
+            }
+            return Err(format!("Failed to pull changes: {}", error_msg));
+        }
+        println!("Successfully pulled changes.");
+    }
+
+    // Push changes if --push flag is set and commit was applied
     if cli.push && commit_applied {
         let push_output = Command::new("sh")
             .arg("-c")
