@@ -30,6 +30,7 @@ jobs:
     name: Build on ${{ matrix.os }}
     needs: create_release
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     strategy:
       matrix:
         include:
