@@ -24,7 +24,7 @@ jobs:
             asset_name: aicommit-linux-x86_64
             target: x86_64-unknown-linux-gnu
           # Linux ARM64
-          - os: archlinux:latest
+          - os: ubuntu-22.04
             artifact_name: aicommit
             asset_name: aicommit-linux-aarch64
             target: aarch64-unknown-linux-gnu
@@ -61,12 +61,12 @@ jobs:
     - name: Install cross-compilation tools for ARM64
       if: matrix.cross_compile
       run: |
-        sudo pacman -Syu --noconfirm
-        sudo pacman -S --noconfirm base-devel
-        sudo pacman -S --noconfirm aarch64-linux-gnu-gcc
-        sudo pacman -S --noconfirm aarch64-linux-gnu-binutils
-        sudo pacman -S --noconfirm openssl
-        sudo pacman -S --noconfirm pkg-config
+        sudo dpkg --add-architecture arm64
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        sudo apt-get install -y libc6-dev-arm64-cross
+        sudo apt-get install -y libssl-dev:arm64
+        sudo apt-get install -y pkg-config
 
     - name: Install build dependencies
       if: matrix.os == 'ubuntu-22.04' && !matrix.cross_compile

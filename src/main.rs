@@ -193,21 +193,15 @@ fn update_github_version(version: &str) -> Result<(), String> {
 
     // Create new tag
     let create_tag = Command::new("git")
-        .args(["tag", &format!("v{}", version)])
-        .output();
-
-    if let Err(e) = create_tag {
-        return Err(format!("Failed to create tag: {}", e));
-    }
+        .args(["tag", "-a", &format!("v{}", version), "-m", &format!("Release v{}", version)])
+        .output()
+        .map_err(|e| format!("Failed to create tag: {}", e))?;
 
     // Push new tag
     let push_tag = Command::new("git")
         .args(["push", "origin", &format!("v{}", version)])
-        .output();
-
-    if let Err(e) = push_tag {
-        return Err(format!("Failed to push tag: {}", e));
-    }
+        .output()
+        .map_err(|e| format!("Failed to push tag: {}", e))?;
 
     Ok(())
 }
