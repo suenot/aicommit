@@ -53,36 +53,19 @@ jobs:
 
   build-linux-arm:
     needs: build-and-release
-    runs-on: ubuntu-latest
-    container:
-      image: archlinux:latest
+    runs-on: ubuntu-latest-arm64
     steps:
       - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
       - name: Install dependencies
         run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel git rust curl aarch64-linux-gnu-gcc
-          pacman -S --noconfirm aarch64-linux-gnu-glibc openssl pkg-config
-          # Устанавливаем cross-openssl
-          git clone https://aur.archlinux.org/aarch64-linux-gnu-openssl.git
-          cd aarch64-linux-gnu-openssl
-          makepkg -si --noconfirm
-          cd ..
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source $HOME/.cargo/env
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev
       - name: Build
-        env:
-          PKG_CONFIG_ALLOW_CROSS: "1"
-          PKG_CONFIG_PATH: "/usr/aarch64-linux-gnu/lib/pkgconfig"
-          PKG_CONFIG_SYSROOT_DIR: "/usr/aarch64-linux-gnu"
-          OPENSSL_DIR: "/usr/aarch64-linux-gnu"
-          OPENSSL_LIB_DIR: "/usr/aarch64-linux-gnu/lib"
-          OPENSSL_INCLUDE_DIR: "/usr/aarch64-linux-gnu/include"
-          AARCH64_UNKNOWN_LINUX_GNU_OPENSSL_LIB_DIR: "/usr/aarch64-linux-gnu/lib"
-          AARCH64_UNKNOWN_LINUX_GNU_OPENSSL_INCLUDE_DIR: "/usr/aarch64-linux-gnu/include"
-        run: |
-          $HOME/.cargo/bin/rustup target add aarch64-unknown-linux-gnu
-          $HOME/.cargo/bin/cargo build --release --target aarch64-unknown-linux-gnu
+        run: cargo build --release
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
