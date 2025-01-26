@@ -1,16 +1,12 @@
-name: Build and Release
+name: Release
 
 on:
   push:
     tags:
-      - 'v*'
-
-env:
-  CARGO_TERM_COLOR: always
+      - "v*"
 
 jobs:
-  create_release:
-    name: Create Release
+  create-release:
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -26,107 +22,103 @@ jobs:
           draft: false
           prerelease: false
 
-  build:
-    name: Build on ${{ matrix.os }}
-    needs: create_release
-    runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container }}
-    strategy:
-      matrix:
-        include:
-          # Linux x86_64
-          - os: ubuntu-22.04
-            artifact_name: aicommit
-            asset_name: aicommit-linux-x86_64
-            target: x86_64-unknown-linux-gnu
-          # Linux ARM64
-          - os: ubuntu-latest
-            container: archlinux:latest
-            artifact_name: aicommit
-            asset_name: aicommit-linux-aarch64
-            target: aarch64-unknown-linux-gnu
-            cross_compile: true
-          # macOS Intel
-          - os: macos-latest
-            artifact_name: aicommit
-            asset_name: aicommit-macos-x86_64
-            target: x86_64-apple-darwin
-          # macOS Apple Silicon
-          - os: macos-latest
-            artifact_name: aicommit
-            asset_name: aicommit-macos-aarch64
-            target: aarch64-apple-darwin
-          # Windows x86_64
-          - os: windows-latest
-            artifact_name: aicommit.exe
-            asset_name: aicommit-windows-x86_64
-            target: x86_64-pc-windows-msvc
-          # Windows ARM64
-          - os: windows-latest
-            artifact_name: aicommit.exe
-            asset_name: aicommit-windows-aarch64
-            target: aarch64-pc-windows-msvc
-
+  build-ubuntu-x86:
+    needs: create-release
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: ${{ matrix.target }}
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-linux-gnu
+          override: true
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-unknown-linux-gnu
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./target/x86_64-unknown-linux-gnu/release/aicommit
+          asset_name: aicommit-linux-x86_64
+          asset_content_type: application/octet-stream
 
-    - name: Install cross-compilation tools for ARM64
-      if: matrix.cross_compile
-      run: |
-        if [ "${{ matrix.container }}" = "archlinux:latest" ]; then
+  build-ubuntu-arm:
+    needs: create-release
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel
-          pacman -S --noconfirm aarch64-linux-gnu-gcc
-          pacman -S --noconfirm aarch64-linux-gnu-binutils
-          pacman -S --noconfirm openssl
-          pacman -S --noconfirm pkg-config
+          pacman -S --noconfirm base-devel git rust aarch64-linux-gnu-gcc
           pacman -S --noconfirm aarch64-linux-gnu-glibc
-        else
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          sudo apt-get install -y libc6-dev-arm64-cross
-          sudo apt-get install -y libssl-dev:arm64
-          sudo apt-get install -y pkg-config
-        fi
+      - name: Build
+        run: |
+          rustup target add aarch64-unknown-linux-gnu
+          cargo build --release --target aarch64-unknown-linux-gnu
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./target/aarch64-unknown-linux-gnu/release/aicommit
+          asset_name: aicommit-linux-arm64
+          asset_content_type: application/octet-stream
 
-    - name: Install build dependencies
-      if: matrix.os == 'ubuntu-22.04' && !matrix.cross_compile
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc pkg-config libssl-dev
+  build-macos-x86:
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-apple-darwin
+          override: true
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-apple-darwin
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./target/x86_64-apple-darwin/release/aicommit
+          asset_name: aicommit-macos-x86_64
+          asset_content_type: application/octet-stream
 
-    - name: Build
-      run: cargo build --release --target ${{ matrix.target }}
-      env:
-        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-        PKG_CONFIG_ALLOW_CROSS: 1
-        PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
-        OPENSSL_DIR: /usr
-        OPENSSL_INCLUDE_DIR: /usr/include
-        OPENSSL_LIB_DIR: ${{ matrix.cross_compile && '/usr/lib/aarch64-linux-gnu' || '/usr/lib/x86_64-linux-gnu' }}
-        
-    - name: Prepare asset
-      shell: bash
-      run: |
-        cd target/${{ matrix.target }}/release
-        if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          7z a ../../../${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
-        else
-          tar -czf ../../../${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
-        fi
-        
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: ./${{ matrix.asset_name }}.${{ matrix.os == 'windows-latest' && 'zip' || 'tar.gz' }}
-        asset_name: ${{ matrix.asset_name }}.${{ matrix.os == 'windows-latest' && 'zip' || 'tar.gz' }}
-        asset_content_type: ${{ matrix.os == 'windows-latest' && 'application/zip' || 'application/gzip' }}
+  build-macos-arm:
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: aarch64-apple-darwin
+          override: true
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target aarch64-apple-darwin
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./target/aarch64-apple-darwin/release/aicommit
+          asset_name: aicommit-macos-arm64
+          asset_content_type: application/octet-stream
