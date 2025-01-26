@@ -77,7 +77,7 @@ jobs:
     - name: Install cross-compilation tools for ARM64
       if: matrix.cross_compile
       run: |
-        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+        if [ "${{ matrix.container }}" = "archlinux:latest" ]; then
           pacman -Syu --noconfirm
           pacman -S --noconfirm base-devel
           pacman -S --noconfirm aarch64-linux-gnu-gcc
