@@ -26,7 +26,7 @@ jobs:
           draft: false
           prerelease: false
 
-  build-ubuntu-x86:
+  build-linux-x86:
     needs: build-and-release
     runs-on: ubuntu-latest
     steps:
@@ -51,7 +51,7 @@ jobs:
           asset_name: aicommit-linux-x86_64
           asset_content_type: application/octet-stream
 
-  build-ubuntu-arm:
+  build-linux-arm:
     needs: build-and-release
     runs-on: ubuntu-latest
     container:
@@ -62,10 +62,15 @@ jobs:
         run: |
           pacman -Syu --noconfirm
           pacman -S --noconfirm base-devel git rust curl aarch64-linux-gnu-gcc
-          pacman -S --noconfirm aarch64-linux-gnu-glibc
+          pacman -S --noconfirm aarch64-linux-gnu-glibc openssl pkg-config
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           source $HOME/.cargo/env
       - name: Build
+        env:
+          PKG_CONFIG_ALLOW_CROSS: "1"
+          OPENSSL_DIR: "/usr"
+          OPENSSL_LIB_DIR: "/usr/lib"
+          OPENSSL_INCLUDE_DIR: "/usr/include"
         run: |
           $HOME/.cargo/bin/rustup target add aarch64-unknown-linux-gnu
           $HOME/.cargo/bin/cargo build --release --target aarch64-unknown-linux-gnu
