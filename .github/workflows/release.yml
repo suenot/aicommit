@@ -5,6 +5,10 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
@@ -63,8 +67,8 @@ jobs:
           source $HOME/.cargo/env
       - name: Build
         run: |
-          rustup target add aarch64-unknown-linux-gnu
-          cargo build --release --target aarch64-unknown-linux-gnu
+          $HOME/.cargo/bin/rustup target add aarch64-unknown-linux-gnu
+          $HOME/.cargo/bin/cargo build --release --target aarch64-unknown-linux-gnu
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
