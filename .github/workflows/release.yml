@@ -7,27 +7,9 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
-  build-and-release:
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-    steps:
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-
   build-ubuntu-x86:
-    needs: build-and-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -41,18 +23,13 @@ jobs:
         with:
           command: build
           args: --release --target x86_64-unknown-linux-gnu
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
-          asset_path: ./target/x86_64-unknown-linux-gnu/release/aicommit
-          asset_name: aicommit-linux-x86_64
-          asset_content_type: application/octet-stream
+          name: aicommit-linux-x86_64
+          path: ./target/x86_64-unknown-linux-gnu/release/aicommit
 
   build-ubuntu-arm:
-    needs: build-and-release
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
@@ -69,18 +46,13 @@ jobs:
         run: |
           $HOME/.cargo/bin/rustup target add aarch64-unknown-linux-gnu
           $HOME/.cargo/bin/cargo build --release --target aarch64-unknown-linux-gnu
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
-          asset_path: ./target/aarch64-unknown-linux-gnu/release/aicommit
-          asset_name: aicommit-linux-arm64
-          asset_content_type: application/octet-stream
+          name: aicommit-linux-arm64
+          path: ./target/aarch64-unknown-linux-gnu/release/aicommit
 
   build-macos-x86:
-    needs: build-and-release
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
@@ -94,18 +66,13 @@ jobs:
         with:
           command: build
           args: --release --target x86_64-apple-darwin
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
-          asset_path: ./target/x86_64-apple-darwin/release/aicommit
-          asset_name: aicommit-macos-x86_64
-          asset_content_type: application/octet-stream
+          name: aicommit-macos-x86_64
+          path: ./target/x86_64-apple-darwin/release/aicommit
 
   build-macos-arm:
-    needs: build-and-release
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
@@ -119,18 +86,13 @@ jobs:
         with:
           command: build
           args: --release --target aarch64-apple-darwin
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
-          asset_path: ./target/aarch64-apple-darwin/release/aicommit
-          asset_name: aicommit-macos-arm64
-          asset_content_type: application/octet-stream
+          name: aicommit-macos-arm64
+          path: ./target/aarch64-apple-darwin/release/aicommit
 
   build-windows-x86:
-    needs: build-and-release
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
@@ -144,18 +106,13 @@ jobs:
         with:
           command: build
           args: --release --target x86_64-pc-windows-msvc
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
-          asset_path: ./target/x86_64-pc-windows-msvc/release/aicommit.exe
-          asset_name: aicommit-windows-x86_64.exe
-          asset_content_type: application/octet-stream
+          name: aicommit-windows-x86_64
+          path: ./target/x86_64-pc-windows-msvc/release/aicommit.exe
 
   build-windows-arm:
-    needs: build-and-release
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
@@ -169,12 +126,32 @@ jobs:
         with:
           command: build
           args: --release --target aarch64-pc-windows-msvc
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: aicommit-windows-arm64
+          path: ./target/aarch64-pc-windows-msvc/release/aicommit.exe
+
+  create-release:
+    needs: [build-ubuntu-x86, build-ubuntu-arm, build-macos-x86, build-macos-arm, build-windows-x86, build-windows-arm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
-          asset_path: ./target/aarch64-pc-windows-msvc/release/aicommit.exe
-          asset_name: aicommit-windows-arm64.exe
-          asset_content_type: application/octet-stream
+          files: |
+            artifacts/aicommit-linux-x86_64/aicommit
+            artifacts/aicommit-linux-arm64/aicommit
+            artifacts/aicommit-macos-x86_64/aicommit
+            artifacts/aicommit-macos-arm64/aicommit
+            artifacts/aicommit-windows-x86_64/aicommit.exe
+            artifacts/aicommit-windows-arm64/aicommit.exe
