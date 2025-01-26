@@ -177,14 +177,21 @@ async fn update_cargo_version(version: &str) -> Result<(), String> {
 
 /// Update version on GitHub
 fn update_github_version(version: &str) -> Result<(), String> {
-    let delete_tag = Command::new("git")
-        .args(["tag", "-d", &format!("v{}", version)])
-        .output();
+    // Check if tag exists
+    let check_tag = Command::new("git")
+        .args(["tag", "-l", &format!("v{}", version)])
+        .output()
+        .map_err(|e| format!("Failed to check tag: {}", e))?;
+    
+    let tag_exists = String::from_utf8_lossy(&check_tag.stdout)
+        .trim()
+        .len() > 0;
 
-    if let Err(e) = delete_tag {
-        return Err(format!("Failed to delete tag: {}", e));
+    if tag_exists {
+        return Ok(());
     }
 
+    // Create new tag
     let create_tag = Command::new("git")
         .args(["tag", &format!("v{}", version)])
         .output();
@@ -193,14 +200,7 @@ fn update_github_version(version: &str) -> Result<(), String> {
         return Err(format!("Failed to create tag: {}", e));
     }
 
-    let push_delete_tag = Command::new("git")
-        .args(["push", "origin", &format!(":v{}", version)])
-        .output();
-
-    if let Err(e) = push_delete_tag {
-        return Err(format!("Failed to push deleted tag: {}", e));
-    }
-
+    // Push new tag
     let push_tag = Command::new("git")
         .args(["push", "origin", &format!("v{}", version)])
         .output();
