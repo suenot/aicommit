@@ -124,3 +124,53 @@ jobs:
           asset_path: ./target/aarch64-apple-darwin/release/aicommit
           asset_name: aicommit-macos-arm64
           asset_content_type: application/octet-stream
+
+  build-windows-x86:
+    needs: create-release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+          override: true
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target x86_64-pc-windows-msvc
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./target/x86_64-pc-windows-msvc/release/aicommit.exe
+          asset_name: aicommit-windows-x86_64.exe
+          asset_content_type: application/octet-stream
+
+  build-windows-arm:
+    needs: create-release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: aarch64-pc-windows-msvc
+          override: true
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target aarch64-pc-windows-msvc
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./target/aarch64-pc-windows-msvc/release/aicommit.exe
+          asset_name: aicommit-windows-arm64.exe
+          asset_content_type: application/octet-stream
