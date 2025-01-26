@@ -57,8 +57,10 @@ jobs:
       - name: Install dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel git rust aarch64-linux-gnu-gcc
+          pacman -S --noconfirm base-devel git rust curl aarch64-linux-gnu-gcc
           pacman -S --noconfirm aarch64-linux-gnu-glibc
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source $HOME/.cargo/env
       - name: Build
         run: |
           rustup target add aarch64-unknown-linux-gnu
