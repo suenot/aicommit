@@ -85,6 +85,7 @@ jobs:
           pacman -S --noconfirm aarch64-linux-gnu-binutils
           pacman -S --noconfirm openssl
           pacman -S --noconfirm pkg-config
+          pacman -S --noconfirm aarch64-linux-gnu-glibc
         else
           sudo dpkg --add-architecture arm64
           sudo apt-get update
