@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*'
+  create:
+    tags:
+      - 'v*'
 
 env:
   CARGO_TERM_COLOR: always
