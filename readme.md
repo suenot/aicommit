@@ -57,19 +57,71 @@ Legend:
 
 ## Installation
 
-Install via cargo:
+There are several ways to install aicommit:
 
+### 1. Install via Cargo (Recommended)
+
+If you have Rust installed:
 ```bash
 cargo install aicommit
 ```
 
-Or build from source:
+### 2. Download Pre-built Binaries
+
+You can download pre-built binaries from the [GitHub Releases](https://github.com/suenot/aicommit/releases) page.
+
+Available builds:
+- Linux (x86_64, ARM64)
+- macOS (Intel x86_64, Apple Silicon ARM64)
+- Windows (x86_64, ARM64)
+
+#### Linux/macOS:
+```bash
+# 1. Download and extract (replace VERSION and ARCH with appropriate values)
+wget https://github.com/suenot/aicommit/releases/download/vVERSION/aicommit-ARCH.tar.gz
+tar xzf aicommit-ARCH.tar.gz
+
+# Example for Linux x86_64:
+wget https://github.com/suenot/aicommit/releases/download/v0.1.25/aicommit-linux-x86_64.tar.gz
+tar xzf aicommit-linux-x86_64.tar.gz
+
+# Example for macOS ARM64:
+wget https://github.com/suenot/aicommit/releases/download/v0.1.25/aicommit-macos-aarch64.tar.gz
+tar xzf aicommit-macos-aarch64.tar.gz
+
+# Example for macOS x86_64:
+wget https://github.com/suenot/aicommit/releases/download/v0.1.25/aicommit-macos-x86_64.tar.gz
+tar xzf aicommit-macos-x86_64.tar.gz
+
+# 2. Make it executable
+chmod +x aicommit
+
+# 3. Move to a directory in your PATH (optional)
+sudo mv aicommit /usr/local/bin/
+```
+
+#### Windows:
+1. Download the ZIP file for your architecture
+2. Extract the executable
+3. Add the directory to your PATH or move the executable to a directory in your PATH
+
+### 3. Build from Source
+
+If you want to build the latest version from source:
 
 ```bash
+# 1. Clone the repository
 git clone https://github.com/suenot/aicommit
 cd aicommit
+
+# 2. Build and install
 cargo install --path .
 ```
+
+Requirements for building from source:
+- Rust toolchain (install from [rustup.rs](https://rustup.rs))
+- A C compiler (gcc, clang, or MSVC)
+- OpenSSL development packages (on Linux)
 
 ## Quick Start
 
