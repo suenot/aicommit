@@ -23,8 +23,9 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Provider management (add, list, set active)
 - ✅ Interactive configuration setup
 - ✅ Configuration file editing
+- ✅ Add all to stash functionality (`aicommit --add`)
 - ✅ Auto push functionality (`aicommit --push`)
-- ✅ Auto push functionality (`aicommit --pull`)
+- ✅ Auto pull functionality (`aicommit --pull`)
 - ✅ Interactive commit message generation (`aicommit --dry-run`)
 - ✅ Basic .gitignore file checks and management (create ~/.default_gitignore and use it as template if there is no .gitignore in this directory)
 - ✅ Watch mode (`aicommit --watch 1m`)
