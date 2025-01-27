@@ -1,0 +1,32 @@
+{
+  "name": "aicommit",
+  "version": "0.1.54",
+  "description": "A CLI tool that generates concise and descriptive git commit messages using LLM",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suenot/aicommit.git"
+  },
+  "keywords": [
+    "git",
+    "ai",
+    "version",
+    "commit",
+    "autocommit",
+    "llm",
+    "aicommit"
+  ],
+  "author": "Eugen Soloviov",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/suenot/aicommit/issues"
+  },
+  "homepage": "https://github.com/suenot/aicommit#readme"
+}

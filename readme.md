@@ -20,6 +20,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Transparent token usage and cost tracking
 - ✅ Version management with automatic incrementation
 - ✅ Version synchronization with Cargo.toml
+- ✅ Version synchronization with package.json
 - ✅ Provider management (add, list, set active)
 - ✅ Interactive configuration setup
 - ✅ Configuration file editing
@@ -37,7 +38,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - 🚧 Tests for each feature to prevent breaking changes
 - 🚧 Split commits by file (`aicommit --by-file`)
 - 🚧 Split commits by feature (`aicommit --by-feature`)
-- 🚧 Version management for multiple languages (package.json, requirements.txt, etc.)
+- 🚧 Version management for multiple languages (requirements.txt, etc.)
 - 🚧 Version management with git tag
 - 🚧 Branch safety checks for push operations
 - 🚧 Support for cross-compilation (ARM, AARCH64, etc.)
@@ -189,24 +190,31 @@ aicommit --set <provider-id>
 
 ## Version Management
 
-Automatically increment version in a file before commit:
+aicommit supports automatic version management with the following features:
+
+1. Automatic version incrementation using a version file:
 ```bash
-aicommit --add --version-file "./version" --version-iterate
+aicommit --version-file version --version-iterate
 ```
 
-Synchronize version with Cargo.toml:
+2. Synchronize version with Cargo.toml:
 ```bash
-aicommit --add --version-file "./version" --version-cargo
+aicommit --version-file version --version-iterate --version-cargo
 ```
 
-Update version on GitHub:
+3. Synchronize version with package.json:
 ```bash
-aicommit --add --version-file "./version" --version-github
+aicommit --version-file version --version-iterate --version-npm
 ```
 
-Both operations can be combined:
+4. Update version on GitHub (creates a new tag):
 ```bash
-aicommit --add --version-file "./version" --version-cargo --version-github --version-iterate
+aicommit --version-file version --version-iterate --version-github
+```
+
+You can combine these flags to update multiple files at once:
+```bash
+aicommit --version-file version --version-iterate --version-cargo --version-npm --version-github
 ```
 
 ## Configuration

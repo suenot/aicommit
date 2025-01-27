@@ -92,6 +92,10 @@ struct Cli {
     #[arg(long = "version-cargo")]
     version_cargo: bool,
 
+    /// Synchronize version with package.json
+    #[arg(long = "version-npm")]
+    version_npm: bool,
+
     /// Update version on GitHub
     #[arg(long = "version-github")]
     version_github: bool,
@@ -171,6 +175,30 @@ async fn update_cargo_version(version: &str) -> Result<(), String> {
     tokio::fs::write(cargo_path, new_content.as_bytes())
         .await
         .map_err(|e| format!("Failed to write Cargo.toml: {}", e))?;
+
+    Ok(())
+}
+
+/// Update version in package.json
+async fn update_npm_version(version: &str) -> Result<(), String> {
+    let package_path = "package.json";
+    let content = tokio::fs::read_to_string(package_path)
+        .await
+        .map_err(|e| format!("Failed to read package.json: {}", e))?;
+
+    let mut json: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse package.json: {}", e))?;
+
+    if let Some(obj) = json.as_object_mut() {
+        obj["version"] = json!(version);
+    }
+
+    let new_content = serde_json::to_string_pretty(&json)
+        .map_err(|e| format!("Failed to serialize package.json: {}", e))?;
+
+    tokio::fs::write(package_path, new_content)
+        .await
+        .map_err(|e| format!("Failed to write package.json: {}", e))?;
 
     Ok(())
 }
@@ -919,6 +947,7 @@ async fn main() -> Result<(), String> {
             println!("  --version-file      Path to version file");
             println!("  --version-iterate   Automatically increment version in version file");
             println!("  --version-cargo     Synchronize version with Cargo.toml");
+            println!("  --version-npm       Synchronize version with package.json");
             println!("  --version-github    Update version on GitHub");
             println!("  --dry-run           Interactive commit message generation");
             println!("  --pull              Pull changes before commit");
@@ -1041,6 +1070,14 @@ async fn main() -> Result<(), String> {
                         return Err("Error: --version-file must be specified when using --version-cargo".to_string());
                     }
                     update_cargo_version(&new_version).await?;
+                }
+
+                // Обновляем версию в package.json
+                if cli.version_npm {
+                    if new_version.is_empty() {
+                        return Err("Error: --version-file must be specified when using --version-npm".to_string());
+                    }
+                    update_npm_version(&new_version).await?;
                 }
 
                 // Обновляем версию на GitHub
