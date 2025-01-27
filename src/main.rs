@@ -1019,10 +1019,13 @@ async fn main() -> Result<(), String> {
             let config_path = dirs::home_dir()
                 .ok_or_else(|| "Could not find home directory".to_string())?
                 .join(".aicommit.json");
+
             let content = serde_json::to_string_pretty(&config)
                 .map_err(|e| format!("Failed to serialize config: {}", e))?;
+
             fs::write(&config_path, content)
                 .map_err(|e| format!("Failed to write config file: {}", e))?;
+
             println!("Active provider set to {}", new_active_provider);
             Ok(())
         }
@@ -1046,47 +1049,7 @@ async fn main() -> Result<(), String> {
             if cli.watch_interval.is_some() {
                 watch_and_commit(&config, &cli).await?
             } else {
-                // Сначала делаем коммит с текущей конфигурацией
                 run_commit(&config, &cli).await?;
-
-                // Теперь обновляем версии если указаны соответствующие параметры
-                let mut new_version = String::new();
-
-                // Обновляем версию в файле версии
-                if let Some(version_file) = cli.version_file.as_ref() {
-                    if cli.version_iterate {
-                        update_version_file(version_file).await?;
-                    }
-                    new_version = tokio::fs::read_to_string(version_file)
-                        .await
-                        .map_err(|e| format!("Failed to read version file: {}", e))?
-                        .trim()
-                        .to_string();
-                }
-
-                // Обновляем версию в Cargo.toml
-                if cli.version_cargo {
-                    if new_version.is_empty() {
-                        return Err("Error: --version-file must be specified when using --version-cargo".to_string());
-                    }
-                    update_cargo_version(&new_version).await?;
-                }
-
-                // Обновляем версию в package.json
-                if cli.version_npm {
-                    if new_version.is_empty() {
-                        return Err("Error: --version-file must be specified when using --version-npm".to_string());
-                    }
-                    update_npm_version(&new_version).await?;
-                }
-
-                // Обновляем версию на GitHub
-                if cli.version_github {
-                    if new_version.is_empty() {
-                        return Err("Error: --version-file must be specified when using --version-github".to_string());
-                    }
-                    update_github_version(&new_version)?;
-                }
             }
             Ok(())
         }
@@ -1096,6 +1059,58 @@ async fn main() -> Result<(), String> {
 async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
     // Stage changes if --add flag is set
     if cli.add {
+        let add_output = Command::new("sh")
+            .arg("-c")
+            .arg("git add .")
+            .output()
+            .map_err(|e| format!("Failed to execute git add: {}", e))?;
+
+        if !add_output.status.success() {
+            return Err(String::from_utf8_lossy(&add_output.stderr).to_string());
+        }
+    }
+
+    // Обновляем версии если указаны соответствующие параметры
+    let mut new_version = String::new();
+
+    // Обновляем версию в файле версии
+    if let Some(version_file) = cli.version_file.as_ref() {
+        if cli.version_iterate {
+            update_version_file(version_file).await?;
+        }
+        new_version = tokio::fs::read_to_string(version_file)
+            .await
+            .map_err(|e| format!("Failed to read version file: {}", e))?
+            .trim()
+            .to_string();
+    }
+
+    // Обновляем версию в Cargo.toml
+    if cli.version_cargo {
+        if new_version.is_empty() {
+            return Err("Error: --version-file must be specified when using --version-cargo".to_string());
+        }
+        update_cargo_version(&new_version).await?;
+    }
+
+    // Обновляем версию в package.json
+    if cli.version_npm {
+        if new_version.is_empty() {
+            return Err("Error: --version-file must be specified when using --version-npm".to_string());
+        }
+        update_npm_version(&new_version).await?;
+    }
+
+    // Обновляем версию на GitHub
+    if cli.version_github {
+        if new_version.is_empty() {
+            return Err("Error: --version-file must be specified when using --version-github".to_string());
+        }
+        update_github_version(&new_version)?;
+    }
+
+    // Stage version changes if any version flags were used
+    if cli.version_iterate || cli.version_cargo || cli.version_npm || cli.version_github {
         let add_output = Command::new("sh")
             .arg("-c")
             .arg("git add .")
