@@ -1,13 +1,7 @@
 {
   "author": "Eugen Soloviov",
   "bin": {
-    "aicommit": {
-      "darwin-arm64": "./bin/darwin-arm64/aicommit",
-      "darwin-x64": "./bin/darwin-x64/aicommit",
-      "linux-x64": "./bin/linux-x64/aicommit",
-      "win32-arm64": "./bin/win32-arm64/aicommit.exe",
-      "win32-x64": "./bin/win32-x64/aicommit.exe"
-    }
+    "aicommit": "./index.js"
   },
   "bugs": {
     "url": "https://github.com/suenot/aicommit/issues"
@@ -51,5 +45,5 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.1.96"
+  "version": "0.1.97"
 }
