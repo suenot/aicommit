@@ -79,20 +79,13 @@ Available builds:
 #### Linux/macOS:
 ```bash
 # 1. Download and extract (replace VERSION and ARCH with appropriate values)
-wget https://github.com/suenot/aicommit/releases/download/vVERSION/aicommit-ARCH.tar.gz
-tar xzf aicommit-ARCH.tar.gz
-
+wget https://github.com/suenot/aicommit/releases/download/vVERSION/aicommit-ARCH
 # Example for Linux x86_64:
-wget https://github.com/suenot/aicommit/releases/download/v0.1.58/aicommit-linux-x86_64.tar.gz
-tar xzf aicommit-linux-x86_64.tar.gz
-
+wget https://github.com/suenot/aicommit/releases/download/v0.1.72/aicommit-linux-x86_64
 # Example for macOS ARM64:
-wget https://github.com/suenot/aicommit/releases/download/v0.1.58/aicommit-macos-aarch64.tar.gz
-tar xzf aicommit-macos-aarch64.tar.gz
-
+wget https://github.com/suenot/aicommit/releases/download/v0.1.72/aicommit-macos-aarch64
 # Example for macOS x86_64:
-wget https://github.com/suenot/aicommit/releases/download/v0.1.58/aicommit-macos-x86_64.tar.gz
-tar xzf aicommit-macos-x86_64.tar.gz
+wget https://github.com/suenot/aicommit/releases/download/v0.1.72/aicommit-macos-x86_64
 
 # 2. Make it executable
 chmod +x aicommit
