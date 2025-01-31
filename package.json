@@ -2,9 +2,12 @@
   "author": "Eugen Soloviov",
   "bin": {
     "aicommit": {
-      "darwin": "./bin/aicommit-darwin",
-      "linux": "./bin/aicommit-linux",
-      "win32": "./bin/aicommit-win32"
+      "darwin-arm64": "./bin/darwin-arm64/aicommit",
+      "darwin-x64": "./bin/darwin-x64/aicommit",
+      "linux-arm64": "./bin/linux-arm64/aicommit",
+      "linux-x64": "./bin/linux-x64/aicommit",
+      "win32-arm64": "./bin/win32-arm64/aicommit.exe",
+      "win32-x64": "./bin/win32-x64/aicommit.exe"
     }
   },
   "bugs": {
@@ -49,5 +52,5 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.1.92"
+  "version": "0.1.93"
 }
