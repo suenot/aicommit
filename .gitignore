@@ -3,3 +3,4 @@
 .env
 *.log
 node_modules/
+my/
