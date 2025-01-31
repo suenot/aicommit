@@ -234,13 +234,20 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: binaries-*
+          pattern: binaries-*-${{ github.ref_name }}
           path: bin
           merge-multiple: true
       - name: Show binary files
         run: |
           echo "Binary files in bin/:"
           ls -la bin/
+          # Проверяем наличие всех необходимых бинарников
+          for file in aicommit-linux-x86_64 aicommit-macos-x86_64 aicommit-macos-aarch64 aicommit-windows-x86_64.exe aicommit-windows-aarch64.exe; do
+            if [ ! -f "bin/$file" ]; then
+              echo "Error: Missing binary: $file"
+              exit 1
+            fi
+          done
           file bin/* || true
           chmod +x bin/aicommit-*
       - name: Rename binaries for npm
