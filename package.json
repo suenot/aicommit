@@ -4,6 +4,13 @@
     "url": "https://github.com/suenot/aicommit/issues"
   },
   "description": "A CLI tool that generates concise and descriptive git commit messages using LLM",
+  "bin": {
+    "aicommit": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "bin/*"
+  ],
   "directories": {
     "doc": "docs",
     "test": "tests"
@@ -26,7 +33,8 @@
     "url": "git+https://github.com/suenot/aicommit.git"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "node -e \"process.exit(0)\""
   },
   "version": "0.1.58"
 }
