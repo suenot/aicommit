@@ -107,6 +107,12 @@ chmod +x aicommit
 sudo mv aicommit /usr/local/bin/
 ```
 
+#### Linux
+```bash
+curl -L https://github.com/suenot/aicommit/releases/latest/download/aicommit-linux-x86_64 -o ~/.local/bin/aicommit
+chmod +x ~/.local/bin/aicommit
+```
+
 #### Windows:
 1. Download the ZIP file for your architecture
 2. Extract the executable

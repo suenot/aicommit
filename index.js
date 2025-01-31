@@ -5,6 +5,20 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 
+const { platform, arch } = process;
+const { chmodSync, renameSync, existsSync } = require('fs');
+const { join } = require('path');
+
+const binaryName = `aicommit-${platform}-${arch}`;
+const binDir = join(__dirname, 'bin');
+
+if (existsSync(join(binDir, binaryName))) {
+  renameSync(join(binDir, binaryName), join(binDir, 'aicommit'));
+  chmodSync(join(binDir, 'aicommit'), '755');
+} else {
+  console.warn(`Binary for ${binaryName} not found, using JS fallback`);
+}
+
 // Get the binary name based on the platform and architecture
 function getBinaryName() {
     const platform = os.platform();

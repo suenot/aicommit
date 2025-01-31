@@ -1,7 +1,7 @@
 {
   "author": "Eugen Soloviov",
   "bin": {
-    "aicommit": "./index.js"
+    "aicommit": "./bin/aicommit"
   },
   "bugs": {
     "url": "https://github.com/suenot/aicommit/issues"
@@ -13,7 +13,8 @@
   },
   "files": [
     "index.js",
-    "bin/*"
+    "bin/*",
+    "scripts/*"
   ],
   "homepage": "https://github.com/suenot/aicommit#readme",
   "keywords": [
@@ -33,8 +34,7 @@
     "url": "git+https://github.com/suenot/aicommit.git"
   },
   "scripts": {
-    "postinstall": "node -e \"process.exit(0)\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.1.83"
+  "version": "0.1.84"
 }
