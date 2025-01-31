@@ -28,7 +28,7 @@ dependencies = [
 
 [[package]]
 name = "aicommit"
-version = "0.1.68"
+version = "0.1.72"
 dependencies = [
  "clap",
  "console",

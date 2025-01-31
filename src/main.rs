@@ -6,7 +6,7 @@ use serde_json::json;
 use std::env;
 use clap::Parser;
 use std::process::Command;
-use regex;
+use tokio;
 
 #[derive(Parser, Debug)]
 #[command(name = "aicommit")]
