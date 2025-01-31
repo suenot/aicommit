@@ -166,26 +166,27 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         with:
           command: publish
+          args: --allow-dirty
 
   publish-npm:
     needs: [build-and-release, build-linux-x86, build-macos-x86, build-macos-arm, build-windows-x86, build-windows-arm]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
       
       - name: Download all artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
+          pattern: aicommit-*
           path: ./bin
+          merge-multiple: true
 
       - name: Prepare package
         run: |
-          mkdir -p bin
-          cp artifacts/aicommit-* bin/
           chmod +x bin/aicommit-*
 
       - name: Publish to npm
