@@ -236,14 +236,16 @@ jobs:
           name: aicommit-windows-aarch64
           path: bin
 
-      - name: Rename binaries
+      - name: Move binaries to correct location
         run: |
-          mv bin/aicommit bin/aicommit-linux-x86_64 || true
-          mv bin/aicommit bin/aicommit-macos-x86_64 || true
-          mv bin/aicommit bin/aicommit-macos-aarch64 || true
-          mv bin/aicommit.exe bin/aicommit-windows-x86_64.exe || true
-          mv bin/aicommit.exe bin/aicommit-windows-aarch64.exe || true
+          mkdir -p bin
+          for file in bin/*/aicommit*; do
+            echo "Processing $file"
+            mv "$file" "${file%/*}"
+            ls -la "${file%/*}"
+          done
           chmod +x bin/aicommit-*
+          ls -la bin/
 
       - name: Publish to npm
         run: npm publish --access=public

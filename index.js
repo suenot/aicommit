@@ -10,6 +10,9 @@ function getBinaryName() {
     const platform = os.platform();
     const arch = os.arch();
     
+    console.log('Debug: Platform:', platform);
+    console.log('Debug: Architecture:', arch);
+    
     const platformMap = {
         win32: 'aicommit-windows',
         linux: 'aicommit-linux',
@@ -33,15 +36,19 @@ function getBinaryName() {
         throw new Error(`Unsupported platform (${platform}) or architecture (${arch})`);
     }
     
-    return `${base}-${archSuffix}${platform === 'win32' ? '.exe' : ''}`;
+    const binaryName = `${base}-${archSuffix}${platform === 'win32' ? '.exe' : ''}`;
+    console.log('Debug: Binary name:', binaryName);
+    return binaryName;
 }
 
 // Path to the binary in the package
 const binaryPath = path.join(__dirname, 'bin', getBinaryName());
+console.log('Debug: Binary path:', binaryPath);
 
 // Check if binary exists and is executable
 if (!fs.existsSync(binaryPath)) {
     console.error(`Binary not found: ${binaryPath}`);
+    console.log('Debug: Directory contents:', fs.readdirSync(path.join(__dirname, 'bin')));
     process.exit(1);
 }
 
