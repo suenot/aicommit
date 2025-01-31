@@ -60,6 +60,13 @@ Legend:
 
 There are several ways to install aicommit:
 
+### Using Cargo (Rust package manager)
+
+If you have Rust installed:
+```bash
+cargo install aicommit
+```
+
 ### Using npm/npx
 
 ```bash
@@ -69,13 +76,6 @@ npx @suenot/aicommit
 # Or install globally
 npm install -g @suenot/aicommit
 aicommit
-```
-
-### Using Cargo (Rust package manager)
-
-If you have Rust installed:
-```bash
-cargo install aicommit
 ```
 
 ### Manual Installation
