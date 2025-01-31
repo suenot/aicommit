@@ -7,6 +7,7 @@ use std::env;
 use clap::Parser;
 use std::process::Command;
 use tokio;
+use log::error;
 
 #[derive(Parser, Debug)]
 #[command(name = "aicommit")]
@@ -969,6 +970,7 @@ async fn watch_and_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
+    env_logger::init();
     let cli = Cli::parse();
 
     // Check .gitignore at startup
