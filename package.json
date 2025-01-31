@@ -1,20 +1,20 @@
 {
   "author": "Eugen Soloviov",
+  "bin": {
+    "aicommit": "./index.js"
+  },
   "bugs": {
     "url": "https://github.com/suenot/aicommit/issues"
   },
   "description": "A CLI tool that generates concise and descriptive git commit messages using LLM",
-  "bin": {
-    "aicommit": "./index.js"
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
   },
   "files": [
     "index.js",
     "bin/*"
   ],
-  "directories": {
-    "doc": "docs",
-    "test": "tests"
-  },
   "homepage": "https://github.com/suenot/aicommit#readme",
   "keywords": [
     "git",
@@ -33,8 +33,8 @@
     "url": "git+https://github.com/suenot/aicommit.git"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "node -e \"process.exit(0)\""
+    "postinstall": "node -e \"process.exit(0)\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.1.58"
+  "version": "0.1.59"
 }
