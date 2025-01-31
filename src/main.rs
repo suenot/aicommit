@@ -1057,107 +1057,35 @@ async fn main() -> Result<(), String> {
 }
 
 async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
-    // Stage changes if --add flag is set
-    if cli.add {
-        let add_output = Command::new("sh")
-            .arg("-c")
-            .arg("git add .")
-            .output()
-            .map_err(|e| format!("Failed to execute git add: {}", e))?;
-
-        if !add_output.status.success() {
-            return Err(String::from_utf8_lossy(&add_output.stderr).to_string());
-        }
-    }
-
-    // Обновляем версии если указаны соответствующие параметры
-    let mut new_version = String::new();
-
-    // Обновляем версию в файле версии
-    if let Some(version_file) = cli.version_file.as_ref() {
-        if cli.version_iterate {
-            update_version_file(version_file).await?;
-        }
-        new_version = tokio::fs::read_to_string(version_file)
-            .await
-            .map_err(|e| format!("Failed to read version file: {}", e))?
-            .trim()
-            .to_string();
-    }
-
-    // Обновляем версию в Cargo.toml
-    if cli.version_cargo {
-        if new_version.is_empty() {
-            return Err("Error: --version-file must be specified when using --version-cargo".to_string());
-        }
-        update_cargo_version(&new_version).await?;
-    }
-
-    // Обновляем версию в package.json
-    if cli.version_npm {
-        if new_version.is_empty() {
-            return Err("Error: --version-file must be specified when using --version-npm".to_string());
-        }
-        update_npm_version(&new_version).await?;
-    }
-
-    // Обновляем версию на GitHub
-    if cli.version_github {
-        if new_version.is_empty() {
-            return Err("Error: --version-file must be specified when using --version-github".to_string());
-        }
-        update_github_version(&new_version)?;
-    }
-
-    // Stage version changes if any version flags were used
-    if cli.version_iterate || cli.version_cargo || cli.version_npm || cli.version_github {
-        let add_output = Command::new("sh")
-            .arg("-c")
-            .arg("git add .")
-            .output()
-            .map_err(|e| format!("Failed to execute git add: {}", e))?;
-
-        if !add_output.status.success() {
-            return Err(String::from_utf8_lossy(&add_output.stderr).to_string());
-        }
-    }
-
-    // Get active provider
-    let active_provider = config.providers.iter().find(|p| match p {
-        ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
-        ProviderConfig::Ollama(c) => c.id == config.active_provider,
-        ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
-    }).ok_or("No active provider found")?;
-
-    // Get git diff
+    // Get the diff (will handle git add if needed)
     let diff = get_git_diff(cli)?;
-    if diff.is_empty() {
-        return Err("No changes to commit".to_string());
-    }
 
-    let mut commit_applied = false;
+    // Generate commit message based on the active provider
+    let (message, usage_info) = match &config.active_provider {
+        _ => {
+            let active_provider = config.providers.iter().find(|p| match p {
+                ProviderConfig::OpenRouter(c) => c.id == &config.active_provider,
+                ProviderConfig::Ollama(c) => c.id == &config.active_provider,
+                ProviderConfig::OpenAICompatible(c) => c.id == &config.active_provider,
+            }).ok_or("No active provider found")?;
 
-    // Generate and apply commit
-    if cli.dry_run {
-        // ... dry run logic ...
-    } else {
-        let (message, usage) = match active_provider {
-            ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff).await?,
-            ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff).await?,
-            ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff).await?,
-        };
+            match active_provider {
+                ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff).await?,
+                ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff).await?,
+                ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff).await?,
+            }
+        }
+    };
 
-        println!("Generated commit message: \"{}\"\n", message);
-        println!("Tokens: {}↑ {}↓", usage.input_tokens, usage.output_tokens);
-        println!("API Cost: ${:.4}", usage.total_cost);
+    println!("Generated commit message: \"{}\"\n", message);
+    println!("Tokens: {}↑ {}↓", usage_info.input_tokens, usage_info.output_tokens);
+    println!("API Cost: ${:.4}", usage_info.total_cost);
 
-        create_git_commit(&message)?;
-        println!("Commit successfully created.");
-        commit_applied = true;
-    }
+    create_git_commit(&message)?;
+    println!("Commit successfully created.");
 
     // Pull changes if --pull flag is set
-    if cli.pull && commit_applied {
+    if cli.pull {
         let pull_output = Command::new("sh")
             .arg("-c")
             .arg("git pull --no-rebase --no-edit")
@@ -1174,8 +1102,8 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         println!("Successfully pulled changes.");
     }
 
-    // Push changes if --push flag is set and commit was applied
-    if cli.push && commit_applied {
+    // Push changes if --push flag is set
+    if cli.push {
         let push_output = Command::new("sh")
             .arg("-c")
             .arg("git push")
@@ -1193,8 +1121,21 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 }
 
 fn get_git_diff(cli: &Cli) -> Result<String, String> {
-    // Stage all changes if --add flag is set
-    if cli.add {
+    // Check for unstaged changes first
+    let status_output = Command::new("sh")
+        .arg("-c")
+        .arg("git status --porcelain")
+        .output()
+        .map_err(|e| format!("Failed to execute git status: {}", e))?;
+
+    let status = String::from_utf8_lossy(&status_output.stdout).to_string();
+    
+    // If --add flag is set and there are unstaged changes, add them
+    if cli.add && status.lines().any(|line| {
+        line.starts_with(" M") || // Modified but not staged
+        line.starts_with("MM") || // Modified and staged with new modifications
+        line.starts_with("??")    // Untracked files
+    }) {
         let add_output = Command::new("sh")
             .arg("-c")
             .arg("git add .")
