@@ -56,7 +56,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binaries-linux-x86_64
+          name: binaries-linux-x86_64-${{ github.ref_name }}
           path: ./dist/aicommit-linux-x86_64
           if-no-files-found: error
       - name: Upload Release Asset
@@ -91,7 +91,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binaries-macos-x86_64
+          name: binaries-macos-x86_64-${{ github.ref_name }}
           path: ./dist/aicommit-macos-x86_64
           if-no-files-found: error
       - name: Upload Release Asset
@@ -126,7 +126,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binaries-macos-aarch64
+          name: binaries-macos-aarch64-${{ github.ref_name }}
           path: ./dist/aicommit-macos-aarch64
           if-no-files-found: error
       - name: Upload Release Asset
@@ -161,7 +161,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binaries-windows-x86_64
+          name: binaries-windows-x86_64-${{ github.ref_name }}
           path: ./dist/aicommit-windows-x86_64.exe
           if-no-files-found: error
       - name: Upload Release Asset
@@ -196,7 +196,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binaries-windows-aarch64
+          name: binaries-windows-aarch64-${{ github.ref_name }}
           path: ./dist/aicommit-windows-aarch64.exe
           if-no-files-found: error
       - name: Upload Release Asset
@@ -246,14 +246,12 @@ jobs:
       - name: Rename binaries for npm
         run: |
           mkdir -p bin/linux-x64
-          mkdir -p bin/linux-arm64
           mkdir -p bin/darwin-x64
           mkdir -p bin/darwin-arm64
           mkdir -p bin/win32-x64
           mkdir -p bin/win32-arm64
           
           mv bin/aicommit-linux-x86_64 bin/linux-x64/aicommit
-          mv bin/aicommit-linux-aarch64 bin/linux-arm64/aicommit
           mv bin/aicommit-macos-x86_64 bin/darwin-x64/aicommit
           mv bin/aicommit-macos-aarch64 bin/darwin-arm64/aicommit
           mv bin/aicommit-windows-x86_64.exe bin/win32-x64/aicommit.exe
