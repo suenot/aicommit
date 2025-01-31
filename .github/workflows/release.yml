@@ -41,11 +41,15 @@ jobs:
         with:
           command: build
           args: --release --target x86_64-unknown-linux-gnu
+      - name: Prepare binary
+        run: |
+          mkdir -p dist
+          cp ./target/x86_64-unknown-linux-gnu/release/aicommit ./dist/aicommit-linux-x86_64
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aicommit-linux-x86_64
-          path: ./target/x86_64-unknown-linux-gnu/release/aicommit
+          name: binaries
+          path: ./dist/aicommit-linux-x86_64
           if-no-files-found: error
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
@@ -53,7 +57,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.build-and-release.outputs.upload_url }}
-          asset_path: ./target/x86_64-unknown-linux-gnu/release/aicommit
+          asset_path: ./dist/aicommit-linux-x86_64
           asset_name: aicommit-linux-x86_64
           asset_content_type: application/octet-stream
 
@@ -72,11 +76,15 @@ jobs:
         with:
           command: build
           args: --release --target x86_64-apple-darwin
+      - name: Prepare binary
+        run: |
+          mkdir -p dist
+          cp ./target/x86_64-apple-darwin/release/aicommit ./dist/aicommit-macos-x86_64
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aicommit-macos-x86_64
-          path: ./target/x86_64-apple-darwin/release/aicommit
+          name: binaries
+          path: ./dist/aicommit-macos-x86_64
           if-no-files-found: error
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
@@ -84,7 +92,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.build-and-release.outputs.upload_url }}
-          asset_path: ./target/x86_64-apple-darwin/release/aicommit
+          asset_path: ./dist/aicommit-macos-x86_64
           asset_name: aicommit-macos-x86_64
           asset_content_type: application/octet-stream
 
@@ -103,11 +111,15 @@ jobs:
         with:
           command: build
           args: --release --target aarch64-apple-darwin
+      - name: Prepare binary
+        run: |
+          mkdir -p dist
+          cp ./target/aarch64-apple-darwin/release/aicommit ./dist/aicommit-macos-aarch64
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aicommit-macos-aarch64
-          path: ./target/aarch64-apple-darwin/release/aicommit
+          name: binaries
+          path: ./dist/aicommit-macos-aarch64
           if-no-files-found: error
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
@@ -115,7 +127,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.build-and-release.outputs.upload_url }}
-          asset_path: ./target/aarch64-apple-darwin/release/aicommit
+          asset_path: ./dist/aicommit-macos-aarch64
           asset_name: aicommit-macos-aarch64
           asset_content_type: application/octet-stream
 
@@ -134,11 +146,15 @@ jobs:
         with:
           command: build
           args: --release --target x86_64-pc-windows-msvc
+      - name: Prepare binary
+        run: |
+          mkdir -p dist
+          cp ./target/x86_64-pc-windows-msvc/release/aicommit.exe ./dist/aicommit-windows-x86_64.exe
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aicommit-windows-x86_64
-          path: ./target/x86_64-pc-windows-msvc/release/aicommit.exe
+          name: binaries
+          path: ./dist/aicommit-windows-x86_64.exe
           if-no-files-found: error
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
@@ -146,7 +162,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.build-and-release.outputs.upload_url }}
-          asset_path: ./target/x86_64-pc-windows-msvc/release/aicommit.exe
+          asset_path: ./dist/aicommit-windows-x86_64.exe
           asset_name: aicommit-windows-x86_64.exe
           asset_content_type: application/octet-stream
 
@@ -165,11 +181,15 @@ jobs:
         with:
           command: build
           args: --release --target aarch64-pc-windows-msvc
+      - name: Prepare binary
+        run: |
+          mkdir -p dist
+          cp ./target/aarch64-pc-windows-msvc/release/aicommit.exe ./dist/aicommit-windows-aarch64.exe
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aicommit-windows-aarch64
-          path: ./target/aarch64-pc-windows-msvc/release/aicommit.exe
+          name: binaries
+          path: ./dist/aicommit-windows-aarch64.exe
           if-no-files-found: error
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
@@ -177,7 +197,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.build-and-release.outputs.upload_url }}
-          asset_path: ./target/aarch64-pc-windows-msvc/release/aicommit.exe
+          asset_path: ./dist/aicommit-windows-aarch64.exe
           asset_name: aicommit-windows-aarch64.exe
           asset_content_type: application/octet-stream
 
@@ -199,88 +219,27 @@ jobs:
           args: --allow-dirty
 
   publish-npm:
-    needs: [build-and-release, build-linux-x86, build-macos-x86, build-macos-arm, build-windows-x86, build-windows-arm]
+    needs: [build-linux-x86, build-macos-x86, build-macos-arm, build-windows-x86, build-windows-arm]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '18.x'
-          registry-url: 'https://registry.npmjs.org'
-      
-      - name: Create bin directory
-        run: mkdir -p bin
-
-      - name: Download Linux x86_64
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: aicommit-linux-x86_64
+          name: binaries
           path: bin
-
-      - name: Download macOS x86_64
-        uses: actions/download-artifact@v4
-        with:
-          name: aicommit-macos-x86_64
-          path: bin
-
-      - name: Download macOS ARM64
-        uses: actions/download-artifact@v4
-        with:
-          name: aicommit-macos-aarch64
-          path: bin
-
-      - name: Download Windows x86_64
-        uses: actions/download-artifact@v4
-        with:
-          name: aicommit-windows-x86_64
-          path: bin
-
-      - name: Download Windows ARM64
-        uses: actions/download-artifact@v4
-        with:
-          name: aicommit-windows-aarch64
-          path: bin
-
-      - name: Move binaries to correct location
+      - name: Show binary files
         run: |
-          mkdir -p bin
-          echo "Current directory structure:"
-          find bin -type f -ls
-          
-          # Перемещаем файлы с правильными именами
-          for file in bin/*/aicommit*; do
-            dir=$(dirname "$file")
-            platform=$(basename "$dir")
-            echo "Processing $file from $platform"
-            
-            case "$platform" in
-              "aicommit-linux-x86_64")
-                mv "$file" "bin/aicommit-linux-x86_64"
-                ;;
-              "aicommit-macos-x86_64")
-                mv "$file" "bin/aicommit-macos-x86_64"
-                ;;
-              "aicommit-macos-aarch64")
-                mv "$file" "bin/aicommit-macos-aarch64"
-                ;;
-              "aicommit-windows-x86_64")
-                mv "$file" "bin/aicommit-windows-x86_64.exe"
-                ;;
-              "aicommit-windows-aarch64")
-                mv "$file" "bin/aicommit-windows-aarch64.exe"
-                ;;
-            esac
-          done
-          
-          # Удаляем пустые директории
-          rm -rf bin/*/
-          
-          echo "Final bin directory contents:"
+          echo "Binary files in bin/:"
           ls -la bin/
           file bin/* || true
           chmod +x bin/aicommit-*
-          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
       - name: Publish to npm
-        run: npm publish --access=public
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
