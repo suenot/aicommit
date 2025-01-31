@@ -239,13 +239,21 @@ jobs:
       - name: Move binaries to correct location
         run: |
           mkdir -p bin
-          for file in bin/*/aicommit*; do
-            echo "Processing $file"
-            mv "$file" "${file%/*}"
-            ls -la "${file%/*}"
-          done
-          chmod +x bin/aicommit-*
+          # Каждый артефакт скачивается в свою директорию с именем артефакта
+          # Перемещаем файлы в bin/ с правильными именами
+          [ -f "bin/aicommit-linux-x86_64/aicommit" ] && mv "bin/aicommit-linux-x86_64/aicommit" "bin/aicommit-linux-x86_64"
+          [ -f "bin/aicommit-macos-x86_64/aicommit" ] && mv "bin/aicommit-macos-x86_64/aicommit" "bin/aicommit-macos-x86_64"
+          [ -f "bin/aicommit-macos-aarch64/aicommit" ] && mv "bin/aicommit-macos-aarch64/aicommit" "bin/aicommit-macos-aarch64"
+          [ -f "bin/aicommit-windows-x86_64/aicommit.exe" ] && mv "bin/aicommit-windows-x86_64/aicommit.exe" "bin/aicommit-windows-x86_64.exe"
+          [ -f "bin/aicommit-windows-aarch64/aicommit.exe" ] && mv "bin/aicommit-windows-aarch64/aicommit.exe" "bin/aicommit-windows-aarch64.exe"
+          
+          # Удаляем пустые директории
+          rm -rf bin/*/
+          
+          # Проверяем содержимое и права
           ls -la bin/
+          file bin/*
+          chmod +x bin/aicommit-*
 
       - name: Publish to npm
         run: npm publish --access=public
