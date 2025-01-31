@@ -27,7 +27,7 @@
   ],
   "license": "MIT",
   "main": "index.js",
-  "name": "aicommit",
+  "name": "@suenot/aicommit",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/suenot/aicommit.git"
@@ -36,5 +36,5 @@
     "postinstall": "node -e \"process.exit(0)\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.1.66"
+  "version": "0.1.68"
 }
