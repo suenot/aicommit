@@ -60,14 +60,27 @@ Legend:
 
 There are several ways to install aicommit:
 
-### 1. Install via Cargo (Recommended)
+### Using npm/npx
+
+```bash
+# Run without installation
+npx @suenot/aicommit
+
+# Or install globally
+npm install -g @suenot/aicommit
+aicommit
+```
+
+### Using Cargo (Rust package manager)
 
 If you have Rust installed:
 ```bash
 cargo install aicommit
 ```
 
-### 2. Download Pre-built Binaries
+### Manual Installation
+
+#### Download Pre-built Binaries
 
 You can download pre-built binaries from the [GitHub Releases](https://github.com/suenot/aicommit/releases) page.
 
@@ -99,7 +112,7 @@ sudo mv aicommit /usr/local/bin/
 2. Extract the executable
 3. Add the directory to your PATH or move the executable to a directory in your PATH
 
-### 3. Build from Source
+### Build from Source
 
 If you want to build the latest version from source:
 
@@ -328,7 +341,7 @@ By default, aicommit will only commit changes that have been staged using `git a
 # Only commit previously staged changes
 aicommit
 
-# Stage and commit all changes
+# Automatically stage and commit all changes
 aicommit --add
 
 # Stage all changes, commit, and push
