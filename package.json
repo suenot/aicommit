@@ -1,11 +1,19 @@
 {
   "author": "Eugen Soloviov",
   "bin": {
-    "aicommit": "./bin/aicommit"
+    "aicommit": {
+      "darwin": "./bin/aicommit-darwin",
+      "linux": "./bin/aicommit-linux",
+      "win32": "./bin/aicommit-win32"
+    }
   },
   "bugs": {
     "url": "https://github.com/suenot/aicommit/issues"
   },
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
   "description": "A CLI tool that generates concise and descriptive git commit messages using LLM",
   "directories": {
     "doc": "docs",
@@ -29,6 +37,11 @@
   "license": "MIT",
   "main": "index.js",
   "name": "@suenot/aicommit",
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/suenot/aicommit.git"
@@ -36,5 +49,5 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "0.1.90"
+  "version": "0.1.91"
 }

@@ -242,6 +242,23 @@ jobs:
           ls -la bin/
           file bin/* || true
           chmod +x bin/aicommit-*
+      - name: Rename binaries for npm
+        run: |
+          mkdir -p bin/linux-x64
+          mkdir -p bin/linux-arm64
+          mkdir -p bin/darwin-x64
+          mkdir -p bin/darwin-arm64
+          mkdir -p bin/win32-x64
+          mkdir -p bin/win32-arm64
+          
+          mv bin/aicommit-linux-x86_64 bin/linux-x64/aicommit
+          mv bin/aicommit-linux-aarch64 bin/linux-arm64/aicommit
+          mv bin/aicommit-macos-x86_64 bin/darwin-x64/aicommit
+          mv bin/aicommit-macos-aarch64 bin/darwin-arm64/aicommit
+          mv bin/aicommit-windows-x86_64.exe bin/win32-x64/aicommit.exe
+          mv bin/aicommit-windows-aarch64.exe bin/win32-arm64/aicommit.exe
+          
+          chmod +x bin/**/aicommit*
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
