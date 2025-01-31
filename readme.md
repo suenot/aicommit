@@ -50,6 +50,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - 🚧 Publication in other package managers
 - 🚧 Support for submodules
 - 🚧 Support for mercurial
+- 🚧 Using priority for providers (if one of provider broken)
 
 Legend:
 - ✅ Implemented
@@ -105,12 +106,6 @@ chmod +x aicommit
 
 # 3. Move to a directory in your PATH (optional)
 sudo mv aicommit /usr/local/bin/
-```
-
-#### Linux
-```bash
-curl -L https://github.com/suenot/aicommit/releases/latest/download/aicommit-linux-x86_64 -o ~/.local/bin/aicommit
-chmod +x ~/.local/bin/aicommit
 ```
 
 #### Windows:
