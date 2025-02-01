@@ -8,10 +8,6 @@ on:
 permissions:
   contents: write
   packages: write
-  pull-requests: write
-  actions: read
-  checks: write
-  repositories: write
 
 jobs:
   build-and-release:
@@ -288,7 +284,7 @@ jobs:
         with:
           repository: suenot/homebrew-tap
           path: homebrew-tap
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
       
       - name: Download macOS binaries
         uses: actions/download-artifact@v4
