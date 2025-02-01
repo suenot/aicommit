@@ -104,19 +104,29 @@ Available builds:
 #### Linux/macOS:
 ```bash
 # 1. Download and extract (replace VERSION and ARCH with appropriate values)
-wget https://github.com/suenot/aicommit/releases/download/vVERSION/aicommit-ARCH
+# wget https://github.com/suenot/aicommit/releases/download/vVERSION/aicommit-<ARCH>
+# chmod +x aicommit-<ARCH>
+# sudo mv aicommit-<ARCH> /usr/local/bin/
 # Example for Linux x86_64:
 wget https://github.com/suenot/aicommit/releases/download/v0.1.72/aicommit-linux-x86_64
+chmod +x aicommit-linux-x86_64
+sudo mv aicommit-linux-x86_64 /usr/local/bin/
 # Example for macOS ARM64:
 wget https://github.com/suenot/aicommit/releases/download/v0.1.72/aicommit-macos-aarch64
+chmod +x aicommit-macos-aarch64
+sudo mv aicommit-macos-aarch64 /usr/local/bin/
 # Example for macOS x86_64:
 wget https://github.com/suenot/aicommit/releases/download/v0.1.72/aicommit-macos-x86_64
+chmod +x aicommit-macos-x86_64
+sudo mv aicommit-macos-x86_64 /usr/local/bin/
+
 
 # 2. Make it executable
-chmod +x aicommit
+chmod +x aicommit-<ARCH>
+
 
 # 3. Move to a directory in your PATH (optional)
-sudo mv aicommit /usr/local/bin/
+
 ```
 
 #### Windows:
