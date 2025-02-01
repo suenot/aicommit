@@ -87,7 +87,7 @@ aicommit
 
 # Add aicommit tap and install
 brew tap suenot/tap
-brew install aicommit
+brew install suenot/tap/aicommit
 ```
 
 The Homebrew formula automatically detects your CPU architecture (Intel or Apple Silicon) and installs the appropriate version. No additional configuration needed.
