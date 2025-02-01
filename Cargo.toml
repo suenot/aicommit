@@ -1,6 +1,6 @@
 [package]
 name = "aicommit"
-version = "0.1.105"
+version = "0.1.106"
 edition = "2021"
 authors = ["Eugen Soloviov <suenot@gmail.com>"]
 description = "A CLI tool that generates concise and descriptive git commit messages using LLMs"

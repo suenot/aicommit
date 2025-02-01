@@ -291,31 +291,55 @@ jobs:
         with:
           pattern: binaries-macos-*
           path: dist/
+          merge-multiple: true
 
       - name: Calculate SHA256
         id: sha-calc
         run: |
-          SHA=$(sha256sum dist/aicommit-macos-x86_64 | awk '{ print $1 }')
-          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+          echo "sha256_x86=$(sha256sum dist/aicommit-macos-x86_64 | awk '{ print $1 }')" >> $GITHUB_OUTPUT
+          echo "sha256_arm=$(sha256sum dist/aicommit-macos-aarch64 | awk '{ print $1 }')" >> $GITHUB_OUTPUT
 
       - name: Update formula
         env:
           VERSION: ${{ github.ref_name }}
-          SHA256: ${{ steps.sha-calc.outputs.sha256 }}
+          SHA256_X86: ${{ steps.sha-calc.outputs.sha256_x86 }}
+          SHA256_ARM: ${{ steps.sha-calc.outputs.sha256_arm }}
         run: |
           cat > homebrew-tap/Formula/aicommit.rb <<EOL
           class Aicommit < Formula
             desc "AI-powered commit message generator"
             homepage "https://github.com/suenot/aicommit"
-            url "https://github.com/suenot/aicommit/releases/download/${VERSION}/aicommit-macos-x86_64"
-            sha256 "${SHA256}"
+            version "${VERSION}"
             license "MIT"
 
-            def install
-              bin.install "aicommit-macos-x86_64" => "aicommit"
+            on_macos do
+              on_arm do
+                url "https://github.com/suenot/aicommit/releases/download/${VERSION}/aicommit-macos-aarch64"
+                sha256 "${SHA256_ARM}"
+
+                def install
+                  bin.install "aicommit-macos-aarch64" => "aicommit"
+                end
+              end
+
+              on_intel do
+                url "https://github.com/suenot/aicommit/releases/download/${VERSION}/aicommit-macos-x86_64"
+                sha256 "${SHA256_X86}"
+
+                def install
+                  bin.install "aicommit-macos-x86_64" => "aicommit"
+                end
+              end
             end
           end
           EOL
+
+      - name: Debug formula
+        run: |
+          echo "Generated formula:"
+          cat homebrew-tap/Formula/aicommit.rb
+          echo "Files in dist:"
+          ls -la dist/
 
       - name: Commit and push
         run: |
@@ -323,5 +347,5 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add Formula/aicommit.rb
-          git commit -m "Update aicommit to ${{ github.ref_name }}"
+          git commit -m "Update aicommit to ${{ github.ref_name }} with ARM support"
           git push
