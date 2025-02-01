@@ -90,18 +90,6 @@ brew tap suenot/tap
 brew install suenot/tap/aicommit
 ```
 
-The Homebrew formula automatically detects your CPU architecture (Intel or Apple Silicon) and installs the appropriate version. No additional configuration needed.
-
-To upgrade to the latest version:
-```bash
-brew upgrade aicommit
-```
-
-To uninstall:
-```bash
-brew uninstall aicommit
-```
-
 ### Manual Installation
 
 #### Download Pre-built Binaries
