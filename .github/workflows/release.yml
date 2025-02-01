@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
   packages: write
+  pull-requests: write
+  actions: read
+  checks: write
+  repositories: write
 
 jobs:
   build-and-release:
@@ -274,3 +278,54 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-homebrew:
+    needs: [build-macos-x86, build-macos-arm]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tap repo
+        uses: actions/checkout@v4
+        with:
+          repository: suenot/homebrew-tap
+          path: homebrew-tap
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Download macOS binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binaries-macos-*
+          path: dist/
+
+      - name: Calculate SHA256
+        id: sha-calc
+        run: |
+          SHA=$(sha256sum dist/aicommit-macos-x86_64 | awk '{ print $1 }')
+          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+
+      - name: Update formula
+        env:
+          VERSION: ${{ github.ref_name }}
+          SHA256: ${{ steps.sha-calc.outputs.sha256 }}
+        run: |
+          cat > homebrew-tap/Formula/aicommit.rb <<EOL
+          class Aicommit < Formula
+            desc "AI-powered commit message generator"
+            homepage "https://github.com/suenot/aicommit"
+            url "https://github.com/suenot/aicommit/releases/download/${VERSION}/aicommit-macos-x86_64"
+            sha256 "${SHA256}"
+            license "MIT"
+
+            def install
+              bin.install "aicommit-macos-x86_64" => "aicommit"
+            end
+          end
+          EOL
+
+      - name: Commit and push
+        run: |
+          cd homebrew-tap
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Formula/aicommit.rb
+          git commit -m "Update aicommit to ${{ github.ref_name }}"
+          git push

@@ -62,6 +62,12 @@ Legend:
 
 There are several ways to install aicommit:
 
+### Homebrew (macOS/Linux)
+```bash
+brew tap suenot/tap
+brew install aicommit
+```
+
 ### Using Cargo (Rust package manager)
 
 If you have Rust installed:
