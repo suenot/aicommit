@@ -62,12 +62,6 @@ Legend:
 
 There are several ways to install aicommit:
 
-### Homebrew (macOS/Linux)
-```bash
-brew tap suenot/tap
-brew install aicommit
-```
-
 ### Using Cargo (Rust package manager)
 
 If you have Rust installed:
@@ -84,6 +78,28 @@ npx @suenot/aicommit
 # Or install globally
 npm install -g @suenot/aicommit
 aicommit
+```
+
+### Using brew
+```bash
+# Install Homebrew if you haven't already
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Add aicommit tap and install
+brew tap suenot/tap
+brew install aicommit
+```
+
+The Homebrew formula automatically detects your CPU architecture (Intel or Apple Silicon) and installs the appropriate version. No additional configuration needed.
+
+To upgrade to the latest version:
+```bash
+brew upgrade aicommit
+```
+
+To uninstall:
+```bash
+brew uninstall aicommit
 ```
 
 ### Manual Installation
