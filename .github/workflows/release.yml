@@ -351,7 +351,7 @@ jobs:
           git push
 
   build-deb-package:
-    needs: build-linux-x86
+    needs: [build-and-release, build-linux-x86]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -386,14 +386,15 @@ jobs:
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
+          upload_url: ${{ env.UPLOAD_URL }}
           asset_path: ./dist/aicommit_${GITHUB_REF#refs/tags/v}_amd64.deb
           asset_name: aicommit_${{ github.ref_name }}_amd64.deb
           asset_content_type: application/vnd.debian.binary-package
 
   build-rpm-package:
-    needs: build-linux-x86
+    needs: [build-and-release, build-linux-x86]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -448,14 +449,15 @@ jobs:
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
+          upload_url: ${{ env.UPLOAD_URL }}
           asset_path: ./dist/aicommit-${{ github.ref_name }}-1.x86_64.rpm
           asset_name: aicommit-${{ github.ref_name }}-1.x86_64.rpm
           asset_content_type: application/x-rpm
 
   build-alpine-package:
-    needs: build-linux-x86
+    needs: [build-and-release, build-linux-x86]
     runs-on: ubuntu-latest
     container: alpine:latest
     steps:
@@ -511,14 +513,15 @@ jobs:
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
+          upload_url: ${{ env.UPLOAD_URL }}
           asset_path: ./dist/aicommit-${{ github.ref_name }}-r0.apk
           asset_name: aicommit-${{ github.ref_name }}-r0.apk
           asset_content_type: application/x-alpine-linux-package
 
   build-arch-package:
-    needs: build-linux-x86
+    needs: [build-and-release, build-linux-x86]
     runs-on: ubuntu-latest
     container: archlinux:base-devel
     steps:
@@ -567,14 +570,15 @@ jobs:
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
+          upload_url: ${{ env.UPLOAD_URL }}
           asset_path: ./dist/aicommit-${{ github.ref_name }}-1-x86_64.pkg.tar.zst
           asset_name: aicommit-${{ github.ref_name }}-1-x86_64.pkg.tar.zst
           asset_content_type: application/zstd
 
   build-snap-package:
-    needs: build-linux-x86
+    needs: [build-and-release, build-linux-x86]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -634,14 +638,15 @@ jobs:
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
+          upload_url: ${{ env.UPLOAD_URL }}
           asset_path: ./aicommit_${{ github.ref_name }}_amd64.snap
           asset_name: aicommit_${{ github.ref_name }}_amd64.snap
           asset_content_type: application/vnd.snap
 
   build-nix-package:
-    needs: build-linux-x86
+    needs: [build-and-release, build-linux-x86]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -721,8 +726,9 @@ jobs:
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
-          upload_url: ${{ needs.build-and-release.outputs.upload_url }}
+          upload_url: ${{ env.UPLOAD_URL }}
           asset_path: ./dist-nix/aicommit-${{ github.ref_name }}.tar.gz
           asset_name: aicommit-${{ github.ref_name }}.tar.gz
           asset_content_type: application/gzip
