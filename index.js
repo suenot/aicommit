@@ -10,9 +10,6 @@ function getBinaryPath() {
     const platform = os.platform();
     const arch = os.arch();
     
-    console.log('Debug: Platform:', platform);
-    console.log('Debug: Architecture:', arch);
-    
     const platformMap = {
         win32: 'win32',
         linux: 'linux',
@@ -38,8 +35,6 @@ function getBinaryPath() {
 
     const binaryName = platform === 'win32' ? 'aicommit.exe' : 'aicommit';
     const binaryPath = path.join(__dirname, 'bin', `${platformKey}-${archKey}`, binaryName);
-    
-    console.log('Debug: Binary path:', binaryPath);
     
     if (!fs.existsSync(binaryPath)) {
         throw new Error(`Binary not found at ${binaryPath}`);
