@@ -21,6 +21,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Version management with automatic incrementation
 - ✅ Version synchronization with Cargo.toml
 - ✅ Version synchronization with package.json
+- ✅ Version management with git tag
 - ✅ Provider management (add, list, set active)
 - ✅ Interactive configuration setup
 - ✅ Configuration file editing
@@ -33,20 +34,20 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Watch with edit delay (`aicommit --watch 1m --wait-for-edit 30s`)
 - ✅ OpenAI compatible API support
 - ✅ Help information display (`aicommit --help`)
+- ✅ Publication in npm
 
 ### Planned Features
+- 🚧 Support github issues (sync, auto open, auto close)
 - 🚧 Tests for each feature to prevent breaking changes
 - 🚧 Split commits by file (`aicommit --by-file`)
 - 🚧 Split commits by feature (`aicommit --by-feature`)
 - 🚧 Version management for multiple languages (requirements.txt, etc.)
-- 🚧 Version management with git tag
 - 🚧 Branch safety checks for push operations
 - 🚧 Support for cross-compilation (ARM, AARCH64, etc.)
 - 🚧 Installation from binary
 - 🚧 Publication management
 - 🚧 Publication in brew/macports
 - 🚧 Publication in apt/apk/yum/pacman
-- 🚧 Publication in npm
 - 🚧 Publication in other package managers
 - 🚧 Support for submodules
 - 🚧 Support for mercurial
