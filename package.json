@@ -43,7 +43,8 @@
     "url": "git+https://github.com/suenot/aicommit.git"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "postinstall": "chmod +x index.js",
+    "start": "node index.js"
   },
-  "version": "0.1.97"
+  "version": "0.1.98"
 }
