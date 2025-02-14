@@ -123,6 +123,10 @@ struct Cli {
     /// Display help information
     #[arg(long = "help")]
     help: bool,
+
+    /// Display verbose information
+    #[arg(long = "verbose")]
+    verbose: bool,
 }
 
 /// Increment version string (e.g., "0.0.37" -> "0.0.38")
@@ -600,10 +604,21 @@ async fn setup_openrouter_provider() -> Result<OpenRouterConfig, String> {
     })
 }
 
-async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str) -> Result<(String, UsageInfo), String> {
+async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     let client = reqwest::Client::new();
 
     let prompt = format!("Here is the git diff, please generate a concise and descriptive commit message:\n\n{}", diff);
+
+    // Show context in verbose mode
+    if cli.verbose {
+        println!("\n=== Context for LLM ===");
+        println!("Provider: OpenRouter");
+        println!("Model: {}", config.model);
+        println!("Max tokens: {}", config.max_tokens);
+        println!("Temperature: {}", config.temperature);
+        println!("\n=== Prompt ===\n{}", prompt);
+        println!("\n=== Sending request to API ===");
+    }
 
     let request_body = json!({
         "model": &config.model,
@@ -655,8 +670,22 @@ async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &st
     Ok((message, usage))
 }
 
-async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str) -> Result<(String, UsageInfo), String> {
+async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     let client = reqwest::Client::new();
+
+    let prompt = format!("Write a clear and concise git commit message (one line, no technical terms) that describes these changes:\n\n{}", diff);
+
+    // Show context in verbose mode
+    if cli.verbose {
+        println!("\n=== Context for LLM ===");
+        println!("Provider: Ollama");
+        println!("Model: {}", config.model);
+        println!("URL: {}", config.url);
+        println!("Max tokens: {}", config.max_tokens);
+        println!("Temperature: {}", config.temperature);
+        println!("\n=== Prompt ===\n{}", prompt);
+        println!("\n=== Sending request to API ===");
+    }
 
     let request_body = serde_json::json!({
         "model": config.model,
@@ -782,10 +811,22 @@ async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, St
     })
 }
 
-async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConfig, diff: &str) -> Result<(String, UsageInfo), String> {
+async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     let client = reqwest::Client::new();
 
     let prompt = format!("Here is the git diff, please generate a concise and descriptive commit message:\n\n{}", diff);
+
+    // Show context in verbose mode
+    if cli.verbose {
+        println!("\n=== Context for LLM ===");
+        println!("Provider: OpenAI Compatible");
+        println!("Model: {}", config.model);
+        println!("API URL: {}", config.api_url);
+        println!("Max tokens: {}", config.max_tokens);
+        println!("Temperature: {}", config.temperature);
+        println!("\n=== Prompt ===\n{}", prompt);
+        println!("\n=== Sending request to API ===");
+    }
 
     let request_body = json!({
         "model": &config.model,
@@ -1165,6 +1206,11 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
     // Get the diff (will handle git add if needed)
     let diff = get_git_diff(cli)?;
 
+    // Show diff in verbose mode
+    if cli.verbose {
+        println!("\n=== Git Diff ===\n{}", diff);
+    }
+
     // Generate commit message based on the active provider
     let (message, usage_info) = {
         let active_provider = config.providers.iter().find(|p| match p {
@@ -1174,9 +1220,9 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         }).ok_or("No active provider found")?;
 
         match active_provider {
-            ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff).await?,
-            ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff).await?,
-            ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff).await?,
+            ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await?,
+            ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await?,
+            ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await?,
         }
     };
 
