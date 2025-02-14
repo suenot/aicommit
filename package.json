@@ -43,8 +43,9 @@
     "url": "git+https://github.com/suenot/aicommit.git"
   },
   "scripts": {
+    "new-version": "aicommit --add --version-file version --version-iterate --version-cargo --version-npm --version-github --push",
     "postinstall": "chmod +x index.js",
     "start": "node index.js"
   },
-  "version": "0.1.112"
+  "version": "0.1.113"
 }
