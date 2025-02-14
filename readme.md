@@ -39,6 +39,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Installation from binary
 
 ### Planned Features
+- 🚧 --verbose mode
 - 🚧 Support github issues (sync, auto open, auto close)
 - 🚧 Tests for each feature to prevent breaking changes
 - 🚧 Split commits by file (`aicommit --by-file`)
