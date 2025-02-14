@@ -35,6 +35,8 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ OpenAI compatible API support
 - ✅ Help information display (`aicommit --help`)
 - ✅ Publication in npm
+- ✅ Support for cross-compilation (ARM, AARCH64, etc.)
+- ✅ Installation from binary
 
 ### Planned Features
 - 🚧 Support github issues (sync, auto open, auto close)
@@ -43,14 +45,13 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - 🚧 Split commits by feature (`aicommit --by-feature`)
 - 🚧 Version management for multiple languages (requirements.txt, etc.)
 - 🚧 Branch safety checks for push operations
-- 🚧 Support for cross-compilation (ARM, AARCH64, etc.)
-- 🚧 Installation from binary
 - 🚧 Publication management
 - 🚧 Publication in brew/macports
 - 🚧 Publication in apt/apk/yum/pacman
 - 🚧 Publication in other package managers
 - 🚧 Support for submodules
 - 🚧 Support for mercurial
+- 🚧 Langchain support for multiple providers and custom logic
 - 🚧 Using priority for providers (if one of provider broken)
 
 Legend:
