@@ -37,9 +37,9 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Publication in npm
 - ✅ Support for cross-compilation (ARM, AARCH64, etc.)
 - ✅ Installation from binary
+- ✅ --verbose mode (show context for LLM)
 
 ### Planned Features
-- 🚧 --verbose mode
 - 🚧 Support github issues (sync, auto open, auto close)
 - 🚧 Tests for each feature to prevent breaking changes
 - 🚧 Split commits by file (`aicommit --by-file`)
