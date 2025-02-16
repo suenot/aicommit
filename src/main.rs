@@ -1226,30 +1226,32 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
         }).ok_or("No active provider found")?;
 
-        let mut last_error = String::new();
-        for attempt in 0..config.retry_attempts {
-            if attempt > 0 {
-                println!("Retry attempt {} of {}", attempt + 1, config.retry_attempts);
+        let mut attempt_count = 0;
+        loop {
+            if attempt_count > 0 {
+                println!("Retry attempt {} of {}", attempt_count + 1, config.retry_attempts);
                 tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
             }
 
-            match match active_provider {
+            let result = match active_provider {
                 ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
                 ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
                 ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
-            } {
+            };
+
+            match result {
                 Ok(result) => {
-                    if attempt > 0 {
-                        println!("Successfully generated commit message after {} attempts", attempt + 1);
+                    if attempt_count > 0 {
+                        println!("Successfully generated commit message after {} attempts", attempt_count + 1);
                     }
                     break result;
                 }
                 Err(e) => {
-                    last_error = e;
-                    if attempt + 1 == config.retry_attempts {
-                        return Err(format!("Failed after {} attempts. Last error: {}", config.retry_attempts, last_error));
+                    println!("Attempt {} failed: {}", attempt_count + 1, e);
+                    attempt_count += 1;
+                    if attempt_count >= config.retry_attempts {
+                        return Err(format!("Failed to generate commit message after {} attempts. Last error: {}", config.retry_attempts, e));
                     }
-                    continue;
                 }
             }
         }
