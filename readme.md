@@ -18,6 +18,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Fast and efficient - works directly from your terminal
 - ✅ Easy configuration and customization
 - ✅ Transparent token usage and cost tracking
+- ✅ Automatic retry on provider errors (configurable attempts with 5s delay)
 - ✅ Version management with automatic incrementation
 - ✅ Version synchronization with Cargo.toml
 - ✅ Version synchronization with package.json
