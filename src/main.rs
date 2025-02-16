@@ -341,6 +341,12 @@ enum ProviderConfig {
 struct Config {
     providers: Vec<ProviderConfig>,
     active_provider: String,
+    #[serde(default = "default_retry_attempts")]
+    retry_attempts: u32,
+}
+
+fn default_retry_attempts() -> u32 {
+    3
 }
 
 impl Config {
@@ -348,6 +354,7 @@ impl Config {
         Config {
             providers: Vec::new(),
             active_provider: String::new(),
+            retry_attempts: default_retry_attempts(),
         }
     }
 
@@ -580,7 +587,7 @@ async fn setup_openrouter_provider() -> Result<OpenRouterConfig, String> {
 
     let max_tokens: String = Input::new()
         .with_prompt("Enter max tokens")
-        .default("50".into())
+        .default("200".into())
         .interact_text()
         .map_err(|e| format!("Failed to get max tokens: {}", e))?;
     let max_tokens: i32 = max_tokens.parse()
@@ -1219,10 +1226,32 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
         }).ok_or("No active provider found")?;
 
-        match active_provider {
-            ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await?,
-            ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await?,
-            ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await?,
+        let mut last_error = String::new();
+        for attempt in 0..config.retry_attempts {
+            if attempt > 0 {
+                println!("Retry attempt {} of {}", attempt + 1, config.retry_attempts);
+                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+            }
+
+            match match active_provider {
+                ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
+                ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
+                ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
+            } {
+                Ok(result) => {
+                    if attempt > 0 {
+                        println!("Successfully generated commit message after {} attempts", attempt + 1);
+                    }
+                    break result;
+                }
+                Err(e) => {
+                    last_error = e;
+                    if attempt + 1 == config.retry_attempts {
+                        return Err(format!("Failed after {} attempts. Last error: {}", config.retry_attempts, last_error));
+                    }
+                    continue;
+                }
+            }
         }
     };
 

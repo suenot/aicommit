@@ -263,12 +263,45 @@ The configuration file is stored at `~/.aicommit.json`. You can edit it directly
 aicommit --config
 ```
 
+### Global Configuration
+
+The configuration file supports the following global settings:
+
+```json
+{
+  "providers": [...],
+  "active_provider": "provider-id",
+  "retry_attempts": 3  // Number of attempts to generate commit message if provider fails
+}
+```
+
+- `retry_attempts`: Number of retry attempts if provider fails (default: 3)
+  - Waits 5 seconds between attempts
+  - Shows informative messages about retry progress
+  - Can be adjusted based on your needs (e.g., set to 5 for less stable providers)
+
 ### Provider Configuration
 
 Each provider can be configured with the following settings:
 
-- `max_tokens`: Maximum number of tokens in the response (default: 50)
+- `max_tokens`: Maximum number of tokens in the response (default: 200)
 - `temperature`: Controls randomness in the response (0.0-1.0, default: 0.3)
+
+Example configuration with all options:
+```json
+{
+  "providers": [{
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "provider": "openrouter",
+    "api_key": "sk-or-v1-...",
+    "model": "mistralai/mistral-tiny",
+    "max_tokens": 200,
+    "temperature": 0.3
+  }],
+  "active_provider": "550e8400-e29b-41d4-a716-446655440000",
+  "retry_attempts": 3
+}
+```
 
 For OpenRouter, token costs are automatically fetched from their API. For Ollama, you can specify your own costs if you want to track usage.
 
