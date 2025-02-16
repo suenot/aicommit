@@ -28,6 +28,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Add all to stash functionality (`aicommit --add`)
 - ✅ Auto push functionality (`aicommit --push`)
 - ✅ Auto pull functionality (`aicommit --pull`)
+- ✅ Automatic upstream branch setup for new branches
 - ✅ Interactive commit message generation (`aicommit --dry-run`)
 - ✅ Basic .gitignore file checks and management (create ~/.default_gitignore and use it as template if there is no .gitignore in this directory)
 - ✅ Watch mode (`aicommit --watch 1m`)
@@ -375,12 +376,32 @@ aicommit
 # Automatically stage and commit all changes
 aicommit --add
 
-# Stage all changes, commit, and push
+# Stage all changes, commit, and push (automatically sets up upstream if needed)
 aicommit --add --push
 
-# Stage all changes, pull before commit, and push after
+# Stage all changes, pull before commit, and push after (automatically sets up upstream if needed)
 aicommit --add --pull --push
 ```
+
+### Automatic Upstream Branch Setup
+
+When using `--pull` or `--push` flags, aicommit automatically handles upstream branch configuration:
+
+- If the current branch has no upstream set:
+  ```bash
+  # Automatically runs git push --set-upstream origin <branch> when needed
+  aicommit --push
+
+  # Automatically sets up tracking and pulls changes
+  aicommit --pull
+  ```
+
+- For new branches:
+  - With `--push`: Creates the remote branch and sets up tracking
+  - With `--pull`: Skips pull if remote branch doesn't exist yet
+  - No manual `git push --set-upstream origin <branch>` needed
+
+This makes working with new branches much easier, as you don't need to manually configure upstream tracking.
 
 ## Watch Mode
 
