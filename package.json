@@ -47,5 +47,5 @@
     "postinstall": "chmod +x index.js",
     "start": "node index.js"
   },
-  "version": "0.1.113"
+  "version": "0.1.114"
 }
