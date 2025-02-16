@@ -1235,6 +1235,9 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 
     // Pull changes if --pull flag is set
     if cli.pull {
+        let current_branch = get_current_branch()?;
+        
+        // Try normal pull first
         let pull_output = Command::new("sh")
             .arg("-c")
             .arg("git pull --no-rebase --no-edit")
@@ -1242,17 +1245,56 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             .map_err(|e| format!("Failed to execute git pull: {}", e))?;
 
         if !pull_output.status.success() {
-            let error_msg = String::from_utf8_lossy(&pull_output.stderr);
-            if error_msg.contains("Automatic merge failed") {
+            let error = String::from_utf8_lossy(&pull_output.stderr).to_string();
+            
+            if error.contains("no upstream branch") {
+                println!("No upstream branch found. Setting up tracking for branch '{}'...", current_branch);
+                
+                // Set up tracking
+                let setup_output = Command::new("sh")
+                    .arg("-c")
+                    .arg(&format!("git branch --set-upstream-to=origin/{} {}", current_branch, current_branch))
+                    .output()
+                    .map_err(|e| format!("Failed to set upstream: {}", e))?;
+
+                if !setup_output.status.success() {
+                    let setup_error = String::from_utf8_lossy(&setup_output.stderr).to_string();
+                    if setup_error.contains("the requested upstream branch 'origin/") {
+                        // Remote branch doesn't exist yet
+                        println!("Remote branch doesn't exist yet. Skipping pull.");
+                    } else {
+                        return Err(setup_error);
+                    }
+                } else {
+                    // Try pull again after setting upstream
+                    let second_pull = Command::new("sh")
+                        .arg("-c")
+                        .arg("git pull --no-rebase --no-edit")
+                        .output()
+                        .map_err(|e| format!("Failed to execute git pull: {}", e))?;
+
+                    if !second_pull.status.success() {
+                        let error_msg = String::from_utf8_lossy(&second_pull.stderr);
+                        if error_msg.contains("Automatic merge failed") {
+                            return Err("Automatic merge failed. Please resolve conflicts manually.".to_string());
+                        }
+                        return Err(format!("Failed to pull changes: {}", error_msg));
+                    }
+                }
+            } else if error.contains("Automatic merge failed") {
                 return Err("Automatic merge failed. Please resolve conflicts manually.".to_string());
+            } else {
+                return Err(format!("Failed to pull changes: {}", error));
             }
-            return Err(format!("Failed to pull changes: {}", error_msg));
         }
         println!("Successfully pulled changes.");
     }
 
     // Push changes if --push flag is set
     if cli.push {
+        let current_branch = get_current_branch()?;
+        
+        // Try normal push first
         let push_output = Command::new("sh")
             .arg("-c")
             .arg("git push")
@@ -1260,10 +1302,30 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             .map_err(|e| format!("Failed to execute git push: {}", e))?;
 
         if !push_output.status.success() {
-            return Err(String::from_utf8_lossy(&push_output.stderr).to_string());
-        }
+            let error = String::from_utf8_lossy(&push_output.stderr).to_string();
+            
+            // Check if the error is about missing upstream
+            if error.contains("no upstream branch") {
+                println!("No upstream branch found. Setting up tracking for branch '{}'...", current_branch);
+                
+                // Set up tracking and push
+                let setup_output = Command::new("sh")
+                    .arg("-c")
+                    .arg(&format!("git push --set-upstream origin {}", current_branch))
+                    .output()
+                    .map_err(|e| format!("Failed to set upstream: {}", e))?;
 
-        println!("Changes successfully pushed.");
+                if !setup_output.status.success() {
+                    return Err(String::from_utf8_lossy(&setup_output.stderr).to_string());
+                }
+                
+                println!("Successfully set up tracking and pushed changes.");
+            } else {
+                return Err(error);
+            }
+        } else {
+            println!("Changes successfully pushed.");
+        }
     }
 
     Ok(())
@@ -1328,4 +1390,19 @@ fn create_git_commit(message: &str) -> Result<(), String> {
     } else {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
     }
+}
+
+/// Get current git branch name
+fn get_current_branch() -> Result<String, String> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg("git rev-parse --abbrev-ref HEAD")
+        .output()
+        .map_err(|e| format!("Failed to get current branch: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
