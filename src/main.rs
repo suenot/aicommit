@@ -1380,38 +1380,5 @@ fn create_git_commit(message: &str) -> Result<(), String> {
 
 // Helper function to get version
 fn get_version() -> String {
-    // Сначала проверяем переменную окружения AICOMMIT_VERSION_FILE
-    let version_file_path = env::var("AICOMMIT_VERSION_FILE").unwrap_or_else(|_| "version".to_string());
-    
-    // Пытаемся прочитать версию из указанного файла
-    match std::fs::read_to_string(&version_file_path) {
-        Ok(v) => v.trim().to_string(),
-        Err(_) => {
-            // Если файл version не найден, пытаемся получить версию из Cargo.toml
-            let cargo_path = std::path::Path::new("Cargo.toml");
-            if cargo_path.exists() {
-                match std::fs::read_to_string(cargo_path) {
-                    Ok(content) => {
-                        let version_line = content.lines()
-                            .find(|line| line.trim().starts_with("version = "));
-                        
-                        match version_line {
-                            Some(line) => {
-                                let version = line.split('=').nth(1)
-                                    .unwrap_or("\"unknown\"")
-                                    .trim()
-                                    .trim_matches('"');
-                                version.to_string()
-                            },
-                            None => "unknown".to_string()
-                        }
-                    },
-                    Err(_) => "unknown".to_string()
-                }
-            } else {
-                // Если ничего не найдено, возвращаем unknown
-                "unknown".to_string()
-            }
-        }
-    }
+    env!("CARGO_PKG_VERSION").to_string()
 }
