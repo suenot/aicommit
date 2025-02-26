@@ -11,6 +11,7 @@ use tokio;
 #[derive(Parser, Debug)]
 #[command(name = "aicommit")]
 #[command(about = "A CLI tool that generates concise and descriptive git commit messages using LLMs", long_about = None)]
+#[command(disable_help_flag = true)]
 struct Cli {
     /// Add a new provider (interactive mode)
     #[arg(long = "add-provider")]
@@ -123,6 +124,10 @@ struct Cli {
     /// Display help information
     #[arg(long = "help")]
     help: bool,
+
+    /// Display version information
+    #[arg(long = "version")]
+    version: bool,
 
     /// Display verbose information
     #[arg(long = "verbose")]
@@ -1024,7 +1029,10 @@ async fn main() -> Result<(), String> {
 
     match () {
         _ if cli.help => {
-            println!("aicommit - A CLI tool that generates concise and descriptive git commit messages using LLMs");
+            // Получаем версию для отображения в справке
+            let version = get_version();
+            
+            println!("aicommit v{} - A CLI tool that generates concise and descriptive git commit messages using LLMs", version);
             println!("\nUsage:");
             println!("  aicommit [OPTIONS]");
             println!("\nOptions:");
@@ -1055,6 +1063,15 @@ async fn main() -> Result<(), String> {
             println!("  --watch             Watch for changes and auto-commit");
             println!("  --wait-for-edit     Wait for edit delay before committing");
             println!("  --push              Automatically push changes after commit");
+            println!("  --version           Display version information");
+            println!("  --help              Display help information");
+            println!("  --verbose           Display verbose information");
+            Ok(())
+        }
+        _ if cli.version => {
+            // Получаем версию с помощью вспомогательной функции
+            let version = get_version();
+            println!("aicommit version {}", version);
             Ok(())
         }
         _ if cli.add_provider => {
@@ -1358,5 +1375,43 @@ fn create_git_commit(message: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+// Helper function to get version
+fn get_version() -> String {
+    // Сначала проверяем переменную окружения AICOMMIT_VERSION_FILE
+    let version_file_path = env::var("AICOMMIT_VERSION_FILE").unwrap_or_else(|_| "version".to_string());
+    
+    // Пытаемся прочитать версию из указанного файла
+    match std::fs::read_to_string(&version_file_path) {
+        Ok(v) => v.trim().to_string(),
+        Err(_) => {
+            // Если файл version не найден, пытаемся получить версию из Cargo.toml
+            let cargo_path = std::path::Path::new("Cargo.toml");
+            if cargo_path.exists() {
+                match std::fs::read_to_string(cargo_path) {
+                    Ok(content) => {
+                        let version_line = content.lines()
+                            .find(|line| line.trim().starts_with("version = "));
+                        
+                        match version_line {
+                            Some(line) => {
+                                let version = line.split('=').nth(1)
+                                    .unwrap_or("\"unknown\"")
+                                    .trim()
+                                    .trim_matches('"');
+                                version.to_string()
+                            },
+                            None => "unknown".to_string()
+                        }
+                    },
+                    Err(_) => "unknown".to_string()
+                }
+            } else {
+                // Если ничего не найдено, возвращаем unknown
+                "unknown".to_string()
+            }
+        }
     }
 }
