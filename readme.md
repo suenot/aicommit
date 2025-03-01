@@ -4,6 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/aicommit.svg)](https://crates.io/crates/aicommit)
 [![Documentation](https://docs.rs/aicommit/badge.svg)](https://docs.rs/aicommit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![VS Code](https://raw.githubusercontent.com/suenot/aicommit/main/docs/vscode-badge.svg)](https://github.com/suenot/aicommit/tree/main/vscode-extension)
 
 📚 [Website & Documentation](https://suenot.github.io/aicommit/)
 
@@ -22,7 +23,9 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Version management with automatic incrementation
 - ✅ Version synchronization with Cargo.toml
 - ✅ Version synchronization with package.json
-- ✅ Version management with git tag
+- ✅ GitHub version management
+- ✅ Watch mode for automatic commits
+- ✅ VS Code integration for generating commit messages directly in the editor
 - ✅ Provider management (add, list, set active)
 - ✅ Interactive configuration setup
 - ✅ Configuration file editing
@@ -32,9 +35,6 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Automatic upstream branch setup for new branches
 - ✅ Interactive commit message generation (`aicommit --dry-run`)
 - ✅ Basic .gitignore file checks and management (create ~/.default_gitignore and use it as template if there is no .gitignore in this directory)
-- ✅ Watch mode (`aicommit --watch 1m`)
-- ✅ Watch with edit delay (`aicommit --watch 1m --wait-for-edit 30s`)
-- ✅ OpenAI compatible API support
 - ✅ Help information display (`aicommit --help`)
 - ✅ Publication in npm
 - ✅ Support for cross-compilation (ARM, AARCH64, etc.)
@@ -256,6 +256,33 @@ You can combine these flags to update multiple files at once:
 aicommit --version-file version --version-iterate --version-cargo --version-npm --version-github
 ```
 
+## VS Code Extension
+
+aicommit now includes a VS Code extension for seamless integration with the editor:
+
+1. Navigate to the vscode-extension directory
+```bash
+cd vscode-extension
+```
+
+2. Install the extension locally for development
+```bash
+code --install-extension aicommit-vscode-0.1.0.vsix
+```
+
+Or build the extension package manually:
+```bash
+# Install vsce if not already installed
+npm install -g @vscode/vsce
+
+# Package the extension
+vsce package
+```
+
+Once installed, you can generate commit messages directly from the Source Control view in VS Code by clicking the "AICommit: Generate Commit Message" button.
+
+See the [VS Code Extension README](./vscode-extension/README.md) for more details.
+
 ## Configuration
 
 The configuration file is stored at `~/.aicommit.json`. You can edit it directly with:
@@ -383,6 +410,14 @@ For example, you can use DeepGPTBot's OpenAI-compatible API for generating commi
    ```bash
    aicommit
    ```
+
+## Upcoming Features
+- ⏳ Hooks for Git systems (pre-commit, post-commit)
+- ⏳ Support for more LLM providers
+- ⏳ Integration with IDEs and editors
+- ⏳ EasyCode: VS Code integration for commit message generation directly from editor
+- ⏳ Command history and reuse of previous messages
+- ⏳ Message templates and customization options
 
 ## Usage Information
 

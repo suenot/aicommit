@@ -1,0 +1,65 @@
+{
+  "name": "aicommit-vscode",
+  "displayName": "AICommit for VS Code",
+  "description": "Generate concise and descriptive git commit messages using LLMs directly in VS Code",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/suenot/aicommit.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:aicommit.generateCommitMessage"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "aicommit.generateCommitMessage",
+        "title": "Generate Commit Message",
+        "icon": "$(sparkle)"
+      }
+    ],
+    "menus": {
+      "scm/title": [
+        {
+          "when": "scmProvider == git",
+          "command": "aicommit.generateCommitMessage",
+          "group": "navigation",
+          "icon": "$(sparkle)"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "AICommit",
+      "properties": {
+        "aicommit.autoStage": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically stage all changes before generating commit message"
+        },
+        "aicommit.providerOverride": {
+          "type": "string",
+          "default": "",
+          "description": "Override the default provider specified in aicommit configuration"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "npm run lint",
+    "test": "node ./test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.60.0",
+    "eslint": "^8.39.0"
+  }
+}

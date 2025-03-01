@@ -132,6 +132,10 @@ struct Cli {
     /// Display verbose information
     #[arg(long = "verbose")]
     verbose: bool,
+    
+    /// Skip .gitignore check and creation
+    #[arg(long = "no-gitignore-check")]
+    no_gitignore_check: bool,
 }
 
 /// Increment version string (e.g., "0.0.37" -> "0.0.38")
@@ -380,13 +384,15 @@ impl Config {
     }
 
     fn check_gitignore() -> Result<(), String> {
-        // Check if .gitignore exists in current directory
-        if !std::path::Path::new(".gitignore").exists() {
-            // Get default gitignore content
-            let default_content = Self::get_default_gitignore()?;
-            fs::write(".gitignore", default_content)
-                .map_err(|e| format!("Failed to create .gitignore: {}", e))?;
-            println!("Created default .gitignore file");
+        if !Cli::parse().no_gitignore_check {
+            // Check if .gitignore exists in current directory
+            if !std::path::Path::new(".gitignore").exists() {
+                // Get default gitignore content
+                let default_content = Self::get_default_gitignore()?;
+                fs::write(".gitignore", default_content)
+                    .map_err(|e| format!("Failed to create .gitignore: {}", e))?;
+                println!("Created default .gitignore file");
+            }
         }
         Ok(())
     }
@@ -1025,7 +1031,9 @@ async fn main() -> Result<(), String> {
     let cli = Cli::parse();
 
     // Check .gitignore at startup
-    Config::check_gitignore()?;
+    if !cli.no_gitignore_check {
+        Config::check_gitignore()?;
+    }
 
     match () {
         _ if cli.help => {
@@ -1066,6 +1074,7 @@ async fn main() -> Result<(), String> {
             println!("  --version           Display version information");
             println!("  --help              Display help information");
             println!("  --verbose           Display verbose information");
+            println!("  --no-gitignore-check Skip .gitignore check and creation");
             Ok(())
         }
         _ if cli.version => {
@@ -1152,6 +1161,20 @@ async fn main() -> Result<(), String> {
             println!("Configuration updated.");
             Ok(())
         }
+        _ if cli.dry_run => {
+            // Special handling for --dry-run to provide better error messages
+            match dry_run(&cli).await {
+                Ok(message) => {
+                    println!("{}", message);
+                    Ok(())
+                }
+                Err(e) => {
+                    // Provide more detailed error message
+                    eprintln!("Error in dry-run mode: {}", e);
+                    Err(e)
+                }
+            }
+        }
         _ => {
             let config = Config::load().unwrap_or_else(|_| {
                 println!("No configuration found. Run 'aicommit --add-provider' to set up a provider.");
@@ -1174,6 +1197,167 @@ async fn main() -> Result<(), String> {
     }
 }
 
+fn get_git_diff(cli: &Cli) -> Result<String, String> {
+    // First check if current directory is a git repository
+    let is_git_repo = Command::new("sh")
+        .arg("-c")
+        .arg("git rev-parse --is-inside-work-tree")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+
+    if !is_git_repo {
+        return Err("Current directory is not a git repository".to_string());
+    }
+
+    // Check for unstaged changes first
+    let status_output = Command::new("sh")
+        .arg("-c")
+        .arg("git status --porcelain")
+        .output()
+        .map_err(|e| format!("Failed to execute git status: {}", e))?;
+
+    let status = String::from_utf8_lossy(&status_output.stdout).to_string();
+    
+    // If --add flag is set and there are unstaged changes, add them
+    if cli.add && status.lines().any(|line| {
+        line.starts_with(" M") || // Modified but not staged
+        line.starts_with("MM") || // Modified and staged with new modifications
+        line.starts_with("??")    // Untracked files
+    }) {
+        let add_output = Command::new("sh")
+            .arg("-c")
+            .arg("git add .")
+            .output()
+            .map_err(|e| format!("Failed to execute git add: {}", e))?;
+
+        if !add_output.status.success() {
+            return Err(String::from_utf8_lossy(&add_output.stderr).to_string());
+        }
+    }
+
+    // Try to get diff of staged changes
+    let diff_cmd = if cli.dry_run {
+        // For dry run, try to get changes in a more robust way
+        // First try --cached, and if it fails, try without --cached
+        match Command::new("sh")
+            .arg("-c")
+            .arg("git diff --cached")
+            .output() {
+                Ok(output) if output.status.success() => {
+                    let diff = String::from_utf8_lossy(&output.stdout).to_string();
+                    if !diff.trim().is_empty() {
+                        return Ok(diff);
+                    }
+                    // If no staged changes, fall back to unstaged changes
+                    "git diff"
+                },
+                _ => "git diff" // Fall back to unstaged changes
+            }
+    } else {
+        "git diff --cached"
+    };
+
+    let diff_output = Command::new("sh")
+        .arg("-c")
+        .arg(diff_cmd)
+        .output()
+        .map_err(|e| format!("Failed to execute {}: {}", diff_cmd, e))?;
+
+    if !diff_output.status.success() {
+        return Err(format!("Git diff command failed: {}", String::from_utf8_lossy(&diff_output.stderr)));
+    }
+
+    let diff = String::from_utf8_lossy(&diff_output.stdout).to_string();
+    
+    if diff.trim().is_empty() {
+        return Err("No changes to commit".to_string());
+    }
+
+    Ok(diff)
+}
+
+fn create_git_commit(message: &str) -> Result<(), String> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(&format!("git commit -m '{}'", message.replace("'", "'\\''")))
+        .output()
+        .map_err(|e| format!("Failed to execute command: {}", e))?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+// Helper function to get version
+fn get_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+// Function to handle --dry-run mode with detailed error handling
+async fn dry_run(cli: &Cli) -> Result<String, String> {
+    // Check .gitignore at startup if not skipping
+    if !cli.no_gitignore_check {
+        Config::check_gitignore()?;
+    }
+    
+    // Load configuration
+    let config = Config::load()?;
+    
+    // Make sure we have a provider
+    if config.providers.is_empty() {
+        return Err("No providers configured. Please run with --add-provider to add a provider.".to_string());
+    }
+    
+    // Check if we're in a git repository and get the diff
+    let diff = match get_git_diff(cli) {
+        Ok(diff) => diff,
+        Err(e) => {
+            return Err(format!("Failed to get git diff: {}", e));
+        }
+    };
+    
+    // Generate commit message
+    let (message, _) = {
+        let active_provider = config.providers.iter().find(|p| match p {
+            ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
+            ProviderConfig::Ollama(c) => c.id == config.active_provider,
+            ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
+        }).ok_or_else(|| "No active provider found".to_string())?;
+
+        let mut attempt_count = 0;
+        loop {
+            if attempt_count > 0 {
+                eprintln!("Retry attempt {} of {}", attempt_count + 1, config.retry_attempts);
+                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+            }
+
+            let result = match active_provider {
+                ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
+                ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
+                ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
+            };
+
+            match result {
+                Ok(result) => break result,
+                Err(e) => {
+                    eprintln!("Attempt {} failed: {}", attempt_count + 1, e);
+                    attempt_count += 1;
+                    if attempt_count >= config.retry_attempts {
+                        return Err(format!("Failed to generate commit message after {} attempts. Last error: {}", config.retry_attempts, e));
+                    }
+                }
+            }
+        }
+    };
+
+    // In dry-run mode, only return the generated message
+    Ok(message)
+}
+
+// Implementation of run_commit function
 async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
     // Update versions if specified
     let mut new_version = String::new();
@@ -1183,6 +1367,7 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         if cli.version_iterate {
             update_version_file(version_file).await?;
         }
+
         new_version = tokio::fs::read_to_string(version_file)
             .await
             .map_err(|e| format!("Failed to read version file: {}", e))?
@@ -1294,8 +1479,10 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             if error_msg.contains("Automatic merge failed") {
                 return Err("Automatic merge failed. Please resolve conflicts manually.".to_string());
             }
+
             return Err(format!("Failed to pull changes: {}", error_msg));
         }
+
         println!("Successfully pulled changes.");
     }
 
@@ -1315,70 +1502,4 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
     }
 
     Ok(())
-}
-
-fn get_git_diff(cli: &Cli) -> Result<String, String> {
-    // Check for unstaged changes first
-    let status_output = Command::new("sh")
-        .arg("-c")
-        .arg("git status --porcelain")
-        .output()
-        .map_err(|e| format!("Failed to execute git status: {}", e))?;
-
-    let status = String::from_utf8_lossy(&status_output.stdout).to_string();
-    
-    // If --add flag is set and there are unstaged changes, add them
-    if cli.add && status.lines().any(|line| {
-        line.starts_with(" M") || // Modified but not staged
-        line.starts_with("MM") || // Modified and staged with new modifications
-        line.starts_with("??")    // Untracked files
-    }) {
-        let add_output = Command::new("sh")
-            .arg("-c")
-            .arg("git add .")
-            .output()
-            .map_err(|e| format!("Failed to execute git add: {}", e))?;
-
-        if !add_output.status.success() {
-            return Err(String::from_utf8_lossy(&add_output.stderr).to_string());
-        }
-    }
-
-    // Get diff of staged changes
-    let diff_output = Command::new("sh")
-        .arg("-c")
-        .arg("git diff --cached")
-        .output()
-        .map_err(|e| format!("Failed to execute git diff: {}", e))?;
-
-    if !diff_output.status.success() {
-        return Err(String::from_utf8_lossy(&diff_output.stderr).to_string());
-    }
-
-    let diff = String::from_utf8_lossy(&diff_output.stdout).to_string();
-    
-    if diff.trim().is_empty() {
-        return Err("No changes to commit".to_string());
-    }
-
-    Ok(diff)
-}
-
-fn create_git_commit(message: &str) -> Result<(), String> {
-    let output = Command::new("sh")
-        .arg("-c")
-        .arg(&format!("git commit -m '{}'", message.replace("'", "'\\''")))
-        .output()
-        .map_err(|e| format!("Failed to execute command: {}", e))?;
-
-    if output.status.success() {
-        Ok(())
-    } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
-    }
-}
-
-// Helper function to get version
-fn get_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
 }
