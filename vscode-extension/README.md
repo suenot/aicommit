@@ -37,6 +37,46 @@ This extension contributes the following settings:
 5. The generated message will be inserted into the commit message input box
 6. Review and edit the message if needed, then commit as usual
 
+## Building from Source
+
+If you want to build the extension from source, follow these steps:
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/suenot/aicommit.git
+   cd aicommit/vscode-extension
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Package the extension:
+   ```bash
+   npm install -g @vscode/vsce  # If you don't have vsce installed
+   vsce package
+   ```
+
+4. Install the extension:
+   ```bash
+   # From VS Code UI:
+   # Open VS Code → Extensions → ... (More Actions) → Install from VSIX → Select the .vsix file
+
+   # Or using command line (if VS Code CLI is available):
+   code --install-extension aicommit-vscode-0.1.0.vsix
+   ```
+
+## Development
+
+For working on the extension:
+
+1. Open the project in VS Code
+2. Make your changes
+3. Press F5 to launch a new VS Code window with the extension loaded
+4. Test your changes in the new window
+5. Make changes and press F5 again to reload
+
 ## Known Issues
 
 - Currently only supports the first repository when multiple repositories are open

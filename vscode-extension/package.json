@@ -11,6 +11,7 @@
   "engines": {
     "vscode": "^1.60.0"
   },
+  "icon": "images/aicommit-logo.png",
   "categories": [
     "SCM Providers",
     "Other"
