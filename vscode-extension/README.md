@@ -1,4 +1,4 @@
-# AICommit for VS Code
+# AutoCommit AI
 
 Generate concise and descriptive git commit messages using LLMs directly in VS Code.
 
@@ -33,7 +33,7 @@ This extension contributes the following settings:
 1. Open a git repository in VS Code
 2. Make changes to your files
 3. Open the Source Control view (Ctrl+Shift+G)
-4. Click the "AICommit: Generate Commit Message" button in the source control toolbar
+4. Click the "AutoCommit AI: Generate Commit Message" button in the source control toolbar
 5. The generated message will be inserted into the commit message input box
 6. Review and edit the message if needed, then commit as usual
 
@@ -85,4 +85,4 @@ For working on the extension:
 
 ### 0.1.0
 
-Initial release of AICommit for VS Code
+Initial release of AutoCommit AI for VS Code

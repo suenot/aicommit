@@ -1,8 +1,9 @@
 {
-  "name": "aicommit-vscode",
+  "name": "suenot-aicommit-vscode",
   "displayName": "AICommit for VS Code",
   "description": "Generate concise and descriptive git commit messages using LLMs directly in VS Code",
   "version": "0.1.0",
+  "publisher": "suenot",
   "repository": {
     "type": "git",
     "url": "https://github.com/suenot/aicommit.git"
@@ -16,6 +17,21 @@
     "SCM Providers",
     "Other"
   ],
+  "keywords": [
+    "git",
+    "commit",
+    "ai",
+    "llm",
+    "gpt"
+  ],
+  "galleryBanner": {
+    "color": "#C80000",
+    "theme": "dark"
+  },
+  "homepage": "https://github.com/suenot/aicommit",
+  "bugs": {
+    "url": "https://github.com/suenot/aicommit/issues"
+  },
   "activationEvents": [
     "onCommand:aicommit.generateCommitMessage"
   ],
