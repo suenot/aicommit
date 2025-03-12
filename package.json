@@ -53,5 +53,5 @@
     "vscode:install": "cd vscode-extension && code --install-extension aicommit-vscode-0.1.0.vsix",
     "vscode:package": "cd vscode-extension && vsce package"
   },
-  "version": "0.1.123"
+  "version": "0.1.124"
 }
