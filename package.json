@@ -43,15 +43,15 @@
     "url": "git+https://github.com/suenot/aicommit.git"
   },
   "scripts": {
+    "docs:build": "vitepress build docs",
+    "docs:dev": "vitepress dev docs",
+    "docs:preview": "vitepress preview docs",
     "new-version": "aicommit --add --version-file version --version-iterate --version-cargo --version-npm --version-github --push",
     "postinstall": "chmod +x index.js",
     "start": "node index.js",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs",
     "vscode:build": "cd vscode-extension && bash build.sh",
-    "vscode:package": "cd vscode-extension && vsce package",
-    "vscode:install": "cd vscode-extension && code --install-extension aicommit-vscode-0.1.0.vsix"
+    "vscode:install": "cd vscode-extension && code --install-extension aicommit-vscode-0.1.0.vsix",
+    "vscode:package": "cd vscode-extension && vsce package"
   },
-  "version": "0.1.122"
+  "version": "0.1.123"
 }

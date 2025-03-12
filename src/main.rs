@@ -1468,6 +1468,56 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 
     // Pull changes if --pull flag is set
     if cli.pull {
+        // Проверяем, имеет ли текущая ветка upstream
+        let check_upstream = Command::new("sh")
+            .arg("-c")
+            .arg("git rev-parse --abbrev-ref --symbolic-full-name @{upstream} 2>/dev/null || echo \"\"")
+            .output()
+            .map_err(|e| format!("Failed to check upstream branch: {}", e))?;
+
+        let has_upstream = !String::from_utf8_lossy(&check_upstream.stdout).trim().is_empty();
+
+        // Получаем имя текущей ветки
+        let branch_output = Command::new("sh")
+            .arg("-c")
+            .arg("git rev-parse --abbrev-ref HEAD")
+            .output()
+            .map_err(|e| format!("Failed to get current branch name: {}", e))?;
+
+        let branch_name = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+
+        if !has_upstream {
+            // Проверяем существование удаленной ветки
+            let remote_branch_check = Command::new("sh")
+                .arg("-c")
+                .arg(format!("git ls-remote --heads origin {} | wc -l", branch_name))
+                .output()
+                .map_err(|e| format!("Failed to check remote branch: {}", e))?;
+
+            let remote_branch_exists = String::from_utf8_lossy(&remote_branch_check.stdout)
+                .trim()
+                .parse::<i32>()
+                .unwrap_or(0) > 0;
+
+            if remote_branch_exists {
+                // Настраиваем upstream для существующей удаленной ветки
+                println!("Setting upstream for branch '{}' to 'origin/{}'", branch_name, branch_name);
+                let set_upstream = Command::new("sh")
+                    .arg("-c")
+                    .arg(format!("git branch --set-upstream-to=origin/{} {}", branch_name, branch_name))
+                    .output()
+                    .map_err(|e| format!("Failed to set upstream: {}", e))?;
+
+                if !set_upstream.status.success() {
+                    return Err(String::from_utf8_lossy(&set_upstream.stderr).to_string());
+                }
+            } else {
+                // Если удаленная ветка не существует, пропускаем pull
+                println!("Skipping pull: remote branch 'origin/{}' does not exist yet", branch_name);
+                return Ok(());
+            }
+        }
+
         let pull_output = Command::new("sh")
             .arg("-c")
             .arg("git pull --no-rebase --no-edit")
@@ -1488,9 +1538,36 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 
     // Push changes if --push flag is set
     if cli.push {
+        // Проверяем, имеет ли текущая ветка upstream
+        let check_upstream = Command::new("sh")
+            .arg("-c")
+            .arg("git rev-parse --abbrev-ref --symbolic-full-name @{upstream} 2>/dev/null || echo \"\"")
+            .output()
+            .map_err(|e| format!("Failed to check upstream branch: {}", e))?;
+
+        let has_upstream = !String::from_utf8_lossy(&check_upstream.stdout).trim().is_empty();
+
+        // Получаем имя текущей ветки
+        let branch_output = Command::new("sh")
+            .arg("-c")
+            .arg("git rev-parse --abbrev-ref HEAD")
+            .output()
+            .map_err(|e| format!("Failed to get current branch name: {}", e))?;
+
+        let branch_name = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
+
+        let push_cmd = if has_upstream {
+            // Если upstream настроен, выполняем обычный push
+            "git push"
+        } else {
+            // Если upstream не настроен, настраиваем его
+            println!("Setting upstream for branch '{}' to 'origin/{}'", branch_name, branch_name);
+            &format!("git push --set-upstream origin {}", branch_name)
+        };
+
         let push_output = Command::new("sh")
             .arg("-c")
-            .arg("git push")
+            .arg(push_cmd)
             .output()
             .map_err(|e| format!("Failed to execute git push: {}", e))?;
 
