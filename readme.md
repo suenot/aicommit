@@ -39,7 +39,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Support for cross-compilation (ARM, AARCH64, etc.)
 - ✅ Installation from binary
 - ✅ --verbose mode (show context for LLM)
-- ✅ Watch mode for automatic commits [BROKEN_NEED_TO_FIX]
+- ✅ Watch mode for automatic commits
 
 ### Planned Features
 - 🚧 Support github issues (sync, auto open, auto close)
