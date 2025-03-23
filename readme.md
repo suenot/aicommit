@@ -474,7 +474,7 @@ This makes working with new branches much easier, as you don't need to manually 
 
 ## Watch Mode
 
-The watch mode allows you to automatically commit changes at specified intervals. This is useful for:
+The watch mode allows you to automatically commit changes when files are modified. This is useful for:
 - Automatic backups of your work
 - Maintaining a detailed history of changes
 - Not forgetting to commit your changes
@@ -482,9 +482,7 @@ The watch mode allows you to automatically commit changes at specified intervals
 ### Basic Watch Mode
 
 ```bash
-aicommit --watch 1m      # Check and commit changes every minute
-aicommit --watch 30s     # Check every 30 seconds
-aicommit --watch 2h      # Check every 2 hours
+aicommit --watch      # Monitor files continuously and commit on changes
 ```
 
 ### Watch with Edit Delay
@@ -492,10 +490,10 @@ aicommit --watch 2h      # Check every 2 hours
 You can add a delay after the last edit before committing. This helps avoid creating commits while you're still actively editing files:
 
 ```bash
-aicommit --watch 1m --wait-for-edit 30s   # Check every minute, but wait 30s after last edit
+aicommit --watch --wait-for-edit 30s   # Monitor files continuously, but wait 30s after last edit before committing
 ```
 
-### Time Units
+### Time Units for wait-for-edit
 - `s`: seconds
 - `m`: minutes
 - `h`: hours
@@ -504,19 +502,19 @@ aicommit --watch 1m --wait-for-edit 30s   # Check every minute, but wait 30s aft
 You can combine watch mode with other flags:
 ```bash
 # Watch with auto-push
-aicommit --watch 1m --push
+aicommit --watch --push
 
 # Watch with version increment
-aicommit --watch 1m --add --version-file version --version-iterate
+aicommit --watch --add --version-file version --version-iterate
 
 # Interactive mode with watch
-aicommit --watch 1m --dry-run
+aicommit --watch --dry-run
 ```
 
 ### Tips
-- Use shorter intervals (30s-1m) for active development sessions
-- Use longer intervals (5m-15m) for longer coding sessions
-- Add `--wait-for-edit` when you want to avoid partial commits
+- Use `--wait-for-edit` when you want to avoid partial commits
+- For active editing, set longer wait times (e.g., `--wait-for-edit 1m`)
+- For quick commits after small changes, don't use `--wait-for-edit`
 - Use `Ctrl+C` to stop watching
 
 ## Algorithm of Operation
