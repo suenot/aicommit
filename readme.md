@@ -24,7 +24,6 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Version synchronization with Cargo.toml
 - ✅ Version synchronization with package.json
 - ✅ GitHub version management
-- ✅ Watch mode for automatic commits
 - ✅ VS Code integration for generating commit messages directly in the editor
 - ✅ Provider management (add, list, set active)
 - ✅ Interactive configuration setup
@@ -40,6 +39,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Support for cross-compilation (ARM, AARCH64, etc.)
 - ✅ Installation from binary
 - ✅ --verbose mode (show context for LLM)
+- ✅ Watch mode for automatic commits [BROKEN_NEED_TO_FIX]
 
 ### Planned Features
 - 🚧 Support github issues (sync, auto open, auto close)
