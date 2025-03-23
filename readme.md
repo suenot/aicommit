@@ -519,9 +519,9 @@ aicommit --watch 1m --dry-run
 - Add `--wait-for-edit` when you want to avoid partial commits
 - Use `Ctrl+C` to stop watching
 
-## Алгоритм работы
+## Algorithm of Operation
 
-Ниже представлена диаграмма алгоритма работы программы aicommit:
+Below is a flowchart diagram of the aicommit program workflow:
 
 ```mermaid
 flowchart TD
