@@ -525,90 +525,90 @@ aicommit --watch 1m --dry-run
 
 ```mermaid
 flowchart TD
-    A[Запуск aicommit] --> B{Проверка параметров}
+    A[Start aicommit] --> B{Check parameters}
     
-    %% Обработка основных флагов
-    B -->|--help| C[Показать справку]
-    B -->|--version| D[Показать версию]
-    B -->|--add-provider| E[Добавить нового провайдера]
-    B -->|--list| F[Список провайдеров]
-    B -->|--set| G[Установить активного провайдера]
-    B -->|--config| H[Редактировать конфигурацию]
-    B -->|--dry-run| I[Режим генерации без коммита]
-    B -->|стандартный режим| J[Стандартный режим коммита]
-    B -->|--watch| K[Режим отслеживания изменений]
+    %% Main flags processing
+    B -->|--help| C[Show help]
+    B -->|--version| D[Show version]
+    B -->|--add-provider| E[Add new provider]
+    B -->|--list| F[List providers]
+    B -->|--set| G[Set active provider]
+    B -->|--config| H[Edit configuration]
+    B -->|--dry-run| I[Message generation mode without commit]
+    B -->|standard mode| J[Standard commit mode]
+    B -->|--watch| K[File change monitoring mode]
     
-    %% Добавление провайдера
-    E -->|интерактивно| E1[Интерактивная настройка]
-    E -->|--add-openrouter| E2[Добавление OpenRouter]
-    E -->|--add-ollama| E3[Добавление Ollama]
-    E -->|--add-openai-compatible| E4[Добавление OpenAI совместимого API]
-    E1 --> E5[Сохранение конфигурации]
+    %% Provider addition
+    E -->|interactive| E1[Interactive setup]
+    E -->|--add-openrouter| E2[Add OpenRouter]
+    E -->|--add-ollama| E3[Add Ollama]
+    E -->|--add-openai-compatible| E4[Add OpenAI compatible API]
+    E1 --> E5[Save configuration]
     E2 --> E5
     E3 --> E5
     E4 --> E5
     
-    %% Основной процесс коммита
-    J --> L[Загрузка конфигурации]
-    L --> M{Версионирование}
-    M -->|--version-iterate| M1[Обновление версии]
-    M -->|--version-cargo| M2[Обновление в Cargo.toml]
-    M -->|--version-npm| M3[Обновление в package.json]
-    M -->|--version-github| M4[Создание тега на GitHub]
+    %% Main commit process
+    J --> L[Load configuration]
+    L --> M{Versioning}
+    M -->|--version-iterate| M1[Update version]
+    M -->|--version-cargo| M2[Update in Cargo.toml]
+    M -->|--version-npm| M3[Update in package.json]
+    M -->|--version-github| M4[Create GitHub tag]
     M1 --> N
     M2 --> N
     M3 --> N
     M4 --> N
-    M -->|нет опций версионирования| N[Получение git diff]
+    M -->|no versioning options| N[Get git diff]
     
-    %% Git операции
+    %% Git operations
     N -->|--add| N1[git add .]
     N1 --> O
-    N -->|только staged изменения| O[Генерация сообщения коммита]
+    N -->|only staged changes| O[Generate commit message]
     
-    O --> P{Успешно?}
-    P -->|Да| Q[Создание коммита]
-    P -->|Нет| P1{Достигнут лимит попыток?}
-    P1 -->|Да| P2[Ошибка генерации]
-    P1 -->|Нет| P3[Повторная попытка через 5 сек]
+    O --> P{Success?}
+    P -->|Yes| Q[Create commit]
+    P -->|No| P1{Retry limit reached?}
+    P1 -->|Yes| P2[Generation error]
+    P1 -->|No| P3[Retry after 5 sec]
     P3 --> O
     
-    Q --> R{Дополнительные операции}
-    R -->|--pull| R1[Синхронизация с удаленным репозиторием]
-    R -->|--push| R2[Отправка изменений в удаленный репозиторий]
-    R1 --> S[Готово]
+    Q --> R{Additional operations}
+    R -->|--pull| R1[Sync with remote repository]
+    R -->|--push| R2[Push changes to remote]
+    R1 --> S[Done]
     R2 --> S
-    R -->|нет доп. опций| S
+    R -->|no additional options| S
     
-    %% Улучшенный режим отслеживания
-    K --> K1[Инициализация системы отслеживания файлов]
-    K1 --> K2[Начало отслеживания изменений]
-    K2 --> K3{Обнаружено изменение файла}
-    K3 -->|Да| K4[Логирование изменения в терминал]
-    K3 -->|Нет| K2
+    %% Improved watch mode
+    K --> K1[Initialize file monitoring system]
+    K1 --> K2[Start monitoring for changes]
+    K2 --> K3{File change detected?}
+    K3 -->|Yes| K4[Log change to terminal]
+    K3 -->|No| K2
     
-    K4 --> K5{Указан --wait-for-edit?}
-    K5 -->|Нет| K7[git add измененного файла]
-    K5 -->|Да| K6[Добавление файла в список ожидания]
+    K4 --> K5{--wait-for-edit specified?}
+    K5 -->|No| K7[git add changed file]
+    K5 -->|Yes| K6[Add file to waiting list]
     
     K6 --> K2
     
-    %% Параллельный процесс для списка ожидания
-    K1 --> K8[Проверка списка ожидания каждую секунду]
-    K8 --> K9{Есть файлы без изменений время wait-for-edit?}
-    K9 -->|Нет| K8
-    K9 -->|Да| K10[git add этих файлов]
-    K10 --> K11[Запуск процесса коммита]
-    K11 --> K12[Удаление файлов из списка ожидания]
+    %% Parallel process for waiting list
+    K1 --> K8[Check waiting list every second]
+    K8 --> K9{Files unchanged for wait-for-edit time?}
+    K9 -->|No| K8
+    K9 -->|Yes| K10[git add these files]
+    K10 --> K11[Start commit process]
+    K11 --> K12[Remove files from waiting list]
     K12 --> K8
     
     K7 --> K11
     
-    %% Сухой запуск
-    I --> I1[Загрузка конфигурации]
-    I1 --> I2[Получение git diff]
-    I2 --> I3[Генерация сообщения коммита]
-    I3 --> I4[Вывод результата без создания коммита]
+    %% Dry run
+    I --> I1[Load configuration]
+    I1 --> I2[Get git diff]
+    I2 --> I3[Generate commit message]
+    I3 --> I4[Display result without creating commit]
 ```
 
 ## License
