@@ -580,7 +580,7 @@ flowchart TD
     R2 --> S
     R -->|no additional options| S
     
-    %% Improved watch mode
+    %% Improved watch mode with timer reset logic
     K --> K1[Initialize file monitoring system]
     K1 --> K2[Start monitoring for changes]
     K2 --> K3{File change detected?}
@@ -589,20 +589,30 @@ flowchart TD
     
     K4 --> K5{--wait-for-edit specified?}
     K5 -->|No| K7[git add changed file]
-    K5 -->|Yes| K6[Add file to waiting list]
+    K5 -->|Yes| K6[Check if file is already in waiting list]
     
-    K6 --> K2
+    K6 --> K6A{File in waiting list?}
+    K6A -->|Yes| K6B[Reset timer for this file]
+    K6A -->|No| K6C[Add file to waiting list with current timestamp]
     
-    %% Parallel process for waiting list
+    K6B --> K2
+    K6C --> K2
+    
+    %% Parallel process for waiting list with timer reset logic
     K1 --> K8[Check waiting list every second]
-    K8 --> K9{Files unchanged for wait-for-edit time?}
+    K8 --> K9{Any files in waiting list?}
     K9 -->|No| K8
-    K9 -->|Yes| K10[git add these files]
-    K10 --> K11[Start commit process]
-    K11 --> K12[Remove files from waiting list]
-    K12 --> K8
+    K9 -->|Yes| K10[For each file in waiting list]
     
-    K7 --> K11
+    K10 --> K11{Time since last modification >= wait-for-edit time?}
+    K11 -->|No| K8
+    K11 -->|Yes| K12[git add stable files]
+    
+    K12 --> K13[Start commit process]
+    K13 --> K14[Remove committed files from waiting list]
+    K14 --> K8
+    
+    K7 --> K13
     
     %% Dry run
     I --> I1[Load configuration]
