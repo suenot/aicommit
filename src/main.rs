@@ -405,7 +405,169 @@ impl Config {
 
         // If default gitignore doesn't exist, create it with default content
         if !default_gitignore_path.exists() {
-            let default_content = "/target\n.DS_Store\n.env\n*.log\nnode_modules/\n";
+            let default_content = r#"# Универсальный .gitignore для большинства проектов
+
+## Операционные системы
+# macOS
+*.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+.dropbox
+.dropbox.attr
+
+## Общие файлы
+*.log
+*.log.*
+*.sql
+*.sqlite
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+*.exe
+*.dll
+*.so
+*.dylib
+*.bak
+*.swp
+*~
+*.tmp
+
+## Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+## Golang
+bin/
+pkg/
+*.test
+*.prof
+
+## Rust
+target/
+*.rs.bk
+
+## C++
+build/
+*.o
+*.obj
+*.out
+*.a
+*.lib
+*.pdb
+
+## Java
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+dependency-reduced-pom.xml
+release.properties
+tomcat*/
+*.class
+
+## C#
+bin/
+obj/
+*.user
+*.suo
+*.csproj.bak
+*.cache
+*.ilk
+*.meta
+*.ncx
+*.nupkg
+
+## Elixir
+_build/
+deps/
+*.ez
+
+## R
+.Rhistory
+.RData
+.Rproj.user/
+*.Rout
+
+## JavaScript / TypeScript / Фронтенд
+node_modules/
+dist/
+build/
+*.min.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tsbuildinfo
+
+## iOS
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xccheckout
+*.moved-aside
+*.xcuserstate
+*.xcworkspace
+Pods/
+
+## Android
+.gradle/
+build/
+*.apk
+*.ap_
+*.aab
+local.properties
+*.idea/
+*.iml
+
+## IDE и редакторы
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+nbproject/
+*.code-workspace
+
+## Прочее
+.env
+.env.local
+.env.*.local
+*.cache
+*.lock
+*.pid
+"#;
             fs::write(&default_gitignore_path, default_content)
                 .map_err(|e| format!("Failed to create default gitignore template: {}", e))?;
         }
