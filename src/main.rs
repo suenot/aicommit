@@ -580,9 +580,9 @@ nbproject/
         let mut config = Config::load().unwrap_or_else(|_| Config::new());
 
         println!("Let's set up a provider.");
-        let provider_options = &["OpenRouter", "Ollama", "OpenAI Compatible (e.g., LM Studio, custom)"];
+        let provider_options = &["OpenRouter", "Ollama", "OpenAI Compatible"];
         let provider_selection = Select::new()
-            .with_prompt("Select a provider type")
+            .with_prompt("Select a provider")
             .items(provider_options)
             .interact()
             .map_err(|e| format!("Failed to get provider selection: {}", e))?;

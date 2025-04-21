@@ -14,7 +14,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 
 ### Implemented Features
 - ✅ Uses LLMs to generate meaningful commit messages from your changes
-- ✅ Supports multiple LLM providers (OpenRouter, Ollama, OpenAI compatible api)
+- ✅ Supports multiple LLM providers (OpenRouter, Ollama, LM Studio and any other OpenAI compatible api)
 - ✅ Custom api keys for services through open router api (for google aistudio and etc) - go to https://openrouter.ai/settings/integrations and paste key from any of them: AI21, Amazon BedRock, Anthropic, AnyScale, Avian.io, Cloudflare, Cohere, DeepInfra, **DeepSeek**, Fireworks, **Google AI Studio**, Google Vertex, Hyperbolic, Infermatic, Inflection, Lambda, Lepton, Mancer, Mistral, NovitaAI, OpenAI, Perplexity, Recursal, SambaNova, SF Compute, Together, xAI
 - ✅ Fast and efficient - works directly from your terminal
 - ✅ Easy configuration and customization
@@ -423,7 +423,7 @@ LM Studio runs a local server that is OpenAI-compatible. Here's how to configure
 1.  **Start LM Studio**: Launch the LM Studio application.
 2.  **Load a Model**: Select and load the model you want to use (e.g., Llama 3, Mistral).
 3.  **Start the Server**: Navigate to the "Local Server" tab (usually represented by `<->`) and click "Start Server".
-!(How turn on server)[./docs/telegram-cloud-photo-size-2-5202061790916241349-y.jpg]
+![How turn on server](./docs/telegram-cloud-photo-size-2-5202061790916241349-y.jpg)
 4.  **Note the URL**: LM Studio will display the server URL, typically `http://localhost:1234/v1/chat/completions`.
 5.  **Configure aicommit** (choose one method):
 
@@ -445,7 +445,7 @@ LM Studio runs a local server that is OpenAI-compatible. Here's how to configure
     aicommit --add-provider --add-openai-compatible \
       --openai-compatible-api-key "lm-studio" \
       --openai-compatible-api-url "http://localhost:1234/v1/chat/completions" \
-      --openai-compatible-model "mlx-community/Llama-3.2-1B-Instruct-4bit" # This name is just a label for aicommit
+      --openai-compatible-model "mlx-community/Llama-3.2-1B-Instruct-4bit"
     ```
 
 6.  **Select the Provider**: If this isn't your only provider, make sure it's active using `aicommit --set <provider-id>`. You can find the ID using `aicommit --list`.
