@@ -4,7 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/aicommit.svg)](https://crates.io/crates/aicommit)
 [![Documentation](https://docs.rs/aicommit/badge.svg)](https://docs.rs/aicommit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![VS Code](https://raw.githubusercontent.com/suenot/aicommit/main/docs/vscode-badge.svg)](https://github.com/suenot/aicommit/tree/main/vscode-extension)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/suenot.suenot-aicommit-vscode?label=VS%20Code%20extension&color=23a2f0)](https://marketplace.visualstudio.com/items?itemName=suenot.suenot-aicommit-vscode)
 
 📚 [Website & Documentation](https://suenot.github.io/aicommit/)
 
