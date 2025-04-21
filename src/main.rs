@@ -46,7 +46,7 @@ struct Cli {
     #[arg(long, default_value = "llama2")]
     ollama_model: String,
 
-    /// Add OpenAI compatible provider non-interactively
+    /// Add OpenAI compatible provider non-interactively (e.g., LM Studio, custom endpoints)
     #[arg(long)]
     add_openai_compatible: bool,
 
@@ -580,9 +580,9 @@ nbproject/
         let mut config = Config::load().unwrap_or_else(|_| Config::new());
 
         println!("Let's set up a provider.");
-        let provider_options = &["OpenRouter", "Ollama", "OpenAI Compatible"];
+        let provider_options = &["OpenRouter", "Ollama", "OpenAI Compatible (e.g., LM Studio, custom)"];
         let provider_selection = Select::new()
-            .with_prompt("Select a provider")
+            .with_prompt("Select a provider type")
             .items(provider_options)
             .interact()
             .map_err(|e| format!("Failed to get provider selection: {}", e))?;
@@ -1372,9 +1372,9 @@ async fn main() -> Result<(), String> {
             println!("  --add-ollama        Add Ollama provider non-interactively");
             println!("  --ollama-url        Ollama API URL");
             println!("  --ollama-model      Ollama model name");
-            println!("  --add-openai-compatible Add OpenAI compatible provider non-interactively");
+            println!("  --add-openai-compatible Add OpenAI compatible provider non-interactively (e.g., LM Studio, custom)");
             println!("  --openai-compatible-api-key OpenAI compatible API key");
-            println!("  --openai-compatible-api-url OpenAI compatible API URL");
+            println!("  --openai-compatible-api-url OpenAI compatible API URL (e.g., for LM Studio)");
             println!("  --openai-compatible-model OpenAI compatible model name");
             println!("  --max-tokens         Max tokens for provider configuration");
             println!("  --temperature        Temperature for provider configuration");

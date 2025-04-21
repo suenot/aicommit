@@ -380,6 +380,10 @@ For OpenRouter, token costs are automatically fetched from their API. For Ollama
 
 ### OpenAI-compatible API
 
+You can use any service that provides an OpenAI-compatible API endpoint.
+
+#### Example: DeepGPTBot
+
 For example, you can use DeepGPTBot's OpenAI-compatible API for generating commit messages. Here's how to set it up:
 
 1. Get your API key from Telegram:
@@ -411,6 +415,46 @@ For example, you can use DeepGPTBot's OpenAI-compatible API for generating commi
    ```bash
    aicommit
    ```
+
+#### Example: LM Studio
+
+LM Studio runs a local server that is OpenAI-compatible. Here's how to configure `aicommit` to use it:
+
+1.  **Start LM Studio**: Launch the LM Studio application.
+2.  **Load a Model**: Select and load the model you want to use (e.g., Llama 3, Mistral).
+3.  **Start the Server**: Navigate to the "Local Server" tab (usually represented by `<->`) and click "Start Server".
+!(How turn on server)[./docs/telegram-cloud-photo-size-2-5202061790916241349-y.jpg]
+4.  **Note the URL**: LM Studio will display the server URL, typically `http://localhost:1234/v1/chat/completions`.
+5.  **Configure aicommit** (choose one method):
+
+    **Interactive mode:**
+    ```bash
+    aicommit --add-provider
+    ```
+    Select "OpenAI Compatible" and enter:
+    - API Key: `lm-studio` (or any non-empty string, as it's often ignored by the local server)
+    - API URL: `http://localhost:1234/v1/chat/completions` (or the URL shown in LM Studio)
+    - Model: `lm-studio-model` (or any descriptive name; the actual model used is determined by what's loaded in LM Studio)
+    - Max tokens: 50 (or adjust as needed)
+    - Temperature: 0.3 (or adjust as needed)
+
+    **Important**: The `Model` field here is just a label for `aicommit`. The actual LLM used (e.g., `llama-3.2-1b-instruct`) is determined by the model you have loaded and selected within the LM Studio application's server tab.
+
+    **Non-interactive mode:**
+    ```bash
+    aicommit --add-provider --add-openai-compatible \
+      --openai-compatible-api-key "lm-studio" \
+      --openai-compatible-api-url "http://localhost:1234/v1/chat/completions" \
+      --openai-compatible-model "mlx-community/Llama-3.2-1B-Instruct-4bit" # This name is just a label for aicommit
+    ```
+
+6.  **Select the Provider**: If this isn't your only provider, make sure it's active using `aicommit --set <provider-id>`. You can find the ID using `aicommit --list`.
+7.  **Start using it**:
+    ```bash
+    aicommit
+    ```
+
+    Keep the LM Studio server running while using `aicommit`.
 
 ## Upcoming Features
 - ⏳ Hooks for Git systems (pre-commit, post-commit)
