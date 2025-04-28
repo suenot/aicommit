@@ -9,6 +9,8 @@ use std::process::Command;
 use tokio;
 use chrono;
 
+const MAX_DIFF_CHARS: usize = 15000; // Limit diff size to prevent excessive API usage
+
 #[derive(Parser, Debug)]
 #[command(name = "aicommit")]
 #[command(about = "A CLI tool that generates concise and descriptive git commit messages using LLMs", long_about = None)]
@@ -788,7 +790,31 @@ async fn setup_openrouter_provider() -> Result<OpenRouterConfig, String> {
 async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     let client = reqwest::Client::new();
 
-    let prompt = format!("Here is the git diff, please generate a concise and descriptive commit message:\n\n{}", diff);
+    // Truncate diff if it exceeds the character limit
+    let truncated_diff = if diff.len() > MAX_DIFF_CHARS {
+        format!("{}\n\n[... diff truncated due to length ...]", &diff[..MAX_DIFF_CHARS])
+    } else {
+        diff.to_string()
+    };
+
+    let prompt = format!(
+        "Generate a concise and descriptive git commit message following the Conventional Commits specification. The message should start with a type (e.g., feat, fix, chore, docs, style, refactor, test) followed by a colon and a short description in lowercase.
+Examples:
+- feat: Add user authentication feature
+- fix: Correct calculation error in payment module
+- docs: Update README with installation instructions
+- style: Format code according to style guide
+- refactor: Simplify database query logic
+- test: Add unit tests for user service
+- chore: Update dependencies
+
+Here is the git diff:
+```diff
+{}
+```
+Commit message:",
+        truncated_diff
+    );
 
     // Show context in verbose mode
     if cli.verbose {
@@ -854,7 +880,31 @@ async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &st
 async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     let client = reqwest::Client::new();
 
-    let prompt = format!("Write a clear and concise git commit message (one line, no technical terms) that describes these changes:\n\n{}", diff);
+    // Truncate diff if it exceeds the character limit
+    let truncated_diff = if diff.len() > MAX_DIFF_CHARS {
+        format!("{}\n\n[... diff truncated due to length ...]", &diff[..MAX_DIFF_CHARS])
+    } else {
+        diff.to_string()
+    };
+
+    let prompt = format!(
+        "Generate a concise and descriptive git commit message following the Conventional Commits specification (one line, max 72 chars). Start with a type (feat, fix, chore, docs, style, refactor, test), then a colon, then a short description in lowercase.
+Examples:
+- feat: add user login
+- fix: correct payment calculation
+- docs: update readme
+- style: format code
+- refactor: simplify query
+- test: add user tests
+- chore: update deps
+
+Git Diff:
+```diff
+{}
+```
+Commit message:",
+        truncated_diff
+    );
 
     // Show context in verbose mode
     if cli.verbose {
@@ -870,7 +920,7 @@ async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str, cli: 
 
     let request_body = serde_json::json!({
         "model": config.model,
-        "prompt": format!("Write a clear and concise git commit message (one line, no technical terms) that describes these changes:\n\n{}", diff),
+        "prompt": prompt,
         "stream": false,
         "options": {
             "temperature": config.temperature,
@@ -928,7 +978,7 @@ async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str, cli: 
 
 async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, String> {
     let api_key: String = Input::new()
-        .with_prompt("Enter API key")
+        .with_prompt("Enter API key (can be any non-empty string for local models like LM Studio)")
         .interact_text()
         .map_err(|e| format!("Failed to get API key: {}", e))?;
 
@@ -942,7 +992,6 @@ async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, St
         "gpt-4",
         "gpt-4-turbo",
         "gpt-4o-mini",
-        "claude-3-opus",
         "claude-3-sonnet",
         "claude-2",
         "custom (enter manually)",
@@ -995,7 +1044,31 @@ async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, St
 async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     let client = reqwest::Client::new();
 
-    let prompt = format!("Here is the git diff, please generate a concise and descriptive commit message:\n\n{}", diff);
+    // Truncate diff if it exceeds the character limit
+    let truncated_diff = if diff.len() > MAX_DIFF_CHARS {
+        format!("{}\n\n[... diff truncated due to length ...]", &diff[..MAX_DIFF_CHARS])
+    } else {
+        diff.to_string()
+    };
+
+    let prompt = format!(
+        "Generate a concise and descriptive git commit message following the Conventional Commits specification. The message should start with a type (e.g., feat, fix, chore, docs, style, refactor, test) followed by a colon and a short description in lowercase.
+Examples:
+- feat: Add user authentication feature
+- fix: Correct calculation error in payment module
+- docs: Update README with installation instructions
+- style: Format code according to style guide
+- refactor: Simplify database query logic
+- test: Add unit tests for user service
+- chore: Update dependencies
+
+Here is the git diff:
+```diff
+{}
+```
+Commit message:",
+        truncated_diff
+    );
 
     // Show context in verbose mode
     if cli.verbose {
@@ -1189,7 +1262,7 @@ async fn watch_and_commit(config: &Config, cli: &Cli) -> Result<(), String> {
                                 // Check if file is already in waiting list
                                 if waiting_files.contains_key(file) {
                                     // Reset timer for this file
-                                    let ready_time = std::time::Instant::now() + delay;
+                                    let _ready_time = std::time::Instant::now() + delay;
                                     let ready_time_str = chrono::Local::now().checked_add_signed(chrono::Duration::from_std(delay).unwrap_or_default())
                                         .map(|dt| dt.format("%H:%M:%S").to_string())
                                         .unwrap_or_else(|| "unknown time".to_string());
@@ -1198,7 +1271,7 @@ async fn watch_and_commit(config: &Config, cli: &Cli) -> Result<(), String> {
                                     waiting_files.insert(file.clone(), std::time::Instant::now());
                                 } else {
                                     // Add file to waiting list with current timestamp
-                                    let ready_time = std::time::Instant::now() + delay;
+                                    let _ready_time = std::time::Instant::now() + delay;
                                     let ready_time_str = chrono::Local::now().checked_add_signed(chrono::Duration::from_std(delay).unwrap_or_default())
                                         .map(|dt| dt.format("%H:%M:%S").to_string())
                                         .unwrap_or_else(|| "unknown time".to_string());
@@ -1241,18 +1314,18 @@ async fn watch_and_commit(config: &Config, cli: &Cli) -> Result<(), String> {
                         
                         if let Some(delay) = wait_for_edit {
                             if waiting_files.contains_key(file) {
-                                let ready_time_str = chrono::Local::now().checked_add_signed(chrono::Duration::from_std(delay).unwrap_or_default())
+                                let _ready_time_str = chrono::Local::now().checked_add_signed(chrono::Duration::from_std(delay).unwrap_or_default())
                                     .map(|dt| dt.format("%H:%M:%S").to_string())
                                     .unwrap_or_else(|| "unknown time".to_string());
                                 
-                                println!("Resetting timer for file: {} (will be ready at {})", file, ready_time_str);
+                                println!("Resetting timer for file: {} (will be ready at {})", file, _ready_time_str);
                                 waiting_files.insert(file.clone(), std::time::Instant::now());
                             } else {
-                                let ready_time_str = chrono::Local::now().checked_add_signed(chrono::Duration::from_std(delay).unwrap_or_default())
+                                let _ready_time_str = chrono::Local::now().checked_add_signed(chrono::Duration::from_std(delay).unwrap_or_default())
                                     .map(|dt| dt.format("%H:%M:%S").to_string())
                                     .unwrap_or_else(|| "unknown time".to_string());
                                 
-                                println!("Adding file to waiting list: {} (will be ready at {})", file, ready_time_str);
+                                println!("Adding file to waiting list: {} (will be ready at {})", file, _ready_time_str);
                                 waiting_files.insert(file.clone(), std::time::Instant::now());
                             }
                         } else {
