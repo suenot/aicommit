@@ -10,6 +10,7 @@ use tokio;
 use chrono;
 
 const MAX_DIFF_CHARS: usize = 15000; // Limit diff size to prevent excessive API usage
+const MAX_FILE_DIFF_CHARS: usize = 3000; // Maximum characters per file diff section
 
 #[derive(Parser, Debug)]
 #[command(name = "aicommit")]
@@ -787,15 +788,142 @@ async fn setup_openrouter_provider() -> Result<OpenRouterConfig, String> {
     })
 }
 
+async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, String> {
+    let api_key: String = Input::new()
+        .with_prompt("Enter API key (can be any non-empty string for local models like LM Studio)")
+        .interact_text()
+        .map_err(|e| format!("Failed to get API key: {}", e))?;
+
+    let api_url: String = Input::new()
+        .with_prompt("Enter complete API URL (e.g., https://api.example.com/v1/chat/completions)")
+        .interact_text()
+        .map_err(|e| format!("Failed to get API URL: {}", e))?;
+
+    let model_options = &[
+        "gpt-3.5-turbo",
+        "gpt-4",
+        "gpt-4-turbo",
+        "gpt-4o-mini",
+        "claude-3-sonnet",
+        "claude-2",
+        "custom (enter manually)",
+    ];
+    
+    let model_selection = Select::new()
+        .with_prompt("Select a model")
+        .items(model_options)
+        .default(0)
+        .interact()
+        .map_err(|e| format!("Failed to get model selection: {}", e))?;
+
+    let model = if model_selection == model_options.len() - 1 {
+        // Custom model input
+        Input::new()
+            .with_prompt("Enter model name")
+            .interact_text()
+            .map_err(|e| format!("Failed to get model name: {}", e))?
+    } else {
+        model_options[model_selection].to_string()
+    };
+
+    let max_tokens: String = Input::new()
+        .with_prompt("Enter max tokens")
+        .default("50".into())
+        .interact_text()
+        .map_err(|e| format!("Failed to get max tokens: {}", e))?;
+    let max_tokens: i32 = max_tokens.parse()
+        .map_err(|e| format!("Failed to parse max tokens: {}", e))?;
+
+    let temperature: String = Input::new()
+        .with_prompt("Enter temperature")
+        .default("0.3".into())
+        .interact_text()
+        .map_err(|e| format!("Failed to get temperature: {}", e))?;
+    let temperature: f32 = temperature.parse()
+        .map_err(|e| format!("Failed to parse temperature: {}", e))?;
+
+    Ok(OpenAICompatibleConfig {
+        id: Uuid::new_v4().to_string(),
+        provider: "openai_compatible".to_string(),
+        api_key,
+        api_url,
+        model,
+        max_tokens,
+        temperature,
+    })
+}
+
+// Add a new function to intelligently process git diff output
+fn process_git_diff_output(diff: &str) -> String {
+    // Early return if diff is small enough
+    if diff.len() <= MAX_DIFF_CHARS {
+        return diff.to_string();
+    }
+    
+    // Split the diff into file sections
+    let file_pattern = r"(?m)^diff --git ";
+    let sections: Vec<&str> = diff.split(file_pattern).collect();
+    
+    // First segment is empty or small header - keep it as is
+    let mut processed = if !sections.is_empty() && !sections[0].trim().is_empty() {
+        sections[0].to_string()
+    } else {
+        String::new()
+    };
+    
+    // Process each file section
+    for (i, section) in sections.iter().enumerate().skip(1) {
+        // Skip empty sections
+        if section.trim().is_empty() {
+            continue;
+        }
+        
+        // Add the "diff --git " prefix back (we split on it, so it's missing)
+        processed.push_str("diff --git ");
+        
+        // Check if this section is too large
+        if section.len() > MAX_FILE_DIFF_CHARS {
+            // Find the file name from the section
+            let _file_name = if let Some(end) = section.find('\n') {
+                section[..end].trim()
+            } else {
+                section.trim()
+            };
+            
+            // Take the header part (usually 4-5 lines) - this includes the file name, index, and --- +++ lines
+            let _header_end = section.lines().take(5).collect::<Vec<&str>>().join("\n").len();
+            
+            // Take the beginning of the diff content
+            let content = &section[..MAX_FILE_DIFF_CHARS.min(section.len())];
+            
+            // Add truncation notice for this specific file
+            processed.push_str(&format!("{}\n\n[... diff for this file truncated due to length ...]", content));
+        } else {
+            // Section is small enough, add it as is
+            processed.push_str(section);
+        }
+        
+        // Add separating newline if needed
+        if i < sections.len() - 1 && !processed.ends_with('\n') {
+            processed.push('\n');
+        }
+    }
+    
+    // Final overall truncation check (as a safety measure)
+    if processed.len() > MAX_DIFF_CHARS {
+        processed = format!("{}...\n\n[... total diff truncated due to length (first {} chars shown) ...]", 
+            &processed[..MAX_DIFF_CHARS - 100], 
+            MAX_DIFF_CHARS - 100);
+    }
+    
+    processed
+}
+
 async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     let client = reqwest::Client::new();
 
-    // Truncate diff if it exceeds the character limit
-    let truncated_diff = if diff.len() > MAX_DIFF_CHARS {
-        format!("{}\n\n[... diff truncated due to length ...]", &diff[..MAX_DIFF_CHARS])
-    } else {
-        diff.to_string()
-    };
+    // Use the smart diff processing function instead of simple truncation
+    let processed_diff = process_git_diff_output(diff);
 
     let prompt = format!(
         "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
@@ -813,7 +941,7 @@ Git Diff:
 {}
 ```
 Commit Message ONLY:",
-        truncated_diff
+        processed_diff
     );
 
     // Show context in verbose mode
@@ -880,12 +1008,8 @@ Commit Message ONLY:",
 async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     let client = reqwest::Client::new();
 
-    // Truncate diff if it exceeds the character limit
-    let truncated_diff = if diff.len() > MAX_DIFF_CHARS {
-        format!("{}\n\n[... diff truncated due to length ...]", &diff[..MAX_DIFF_CHARS])
-    } else {
-        diff.to_string()
-    };
+    // Use the smart diff processing function instead of simple truncation
+    let processed_diff = process_git_diff_output(diff);
 
     let prompt = format!(
         "Generate ONLY the raw git commit message string (one line, max 72 chars) based on the diff. Follow Conventional Commits (type: description). Do NOT include any introductory text, explanations, or ```.
@@ -903,7 +1027,7 @@ Git Diff:
 {}
 ```
 Commit Message ONLY:",
-        truncated_diff
+        processed_diff
     );
 
     // Show context in verbose mode
@@ -976,80 +1100,11 @@ Commit Message ONLY:",
     Ok((commit_message, usage))
 }
 
-async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, String> {
-    let api_key: String = Input::new()
-        .with_prompt("Enter API key (can be any non-empty string for local models like LM Studio)")
-        .interact_text()
-        .map_err(|e| format!("Failed to get API key: {}", e))?;
-
-    let api_url: String = Input::new()
-        .with_prompt("Enter complete API URL (e.g., https://api.example.com/v1/chat/completions)")
-        .interact_text()
-        .map_err(|e| format!("Failed to get API URL: {}", e))?;
-
-    let model_options = &[
-        "gpt-3.5-turbo",
-        "gpt-4",
-        "gpt-4-turbo",
-        "gpt-4o-mini",
-        "claude-3-sonnet",
-        "claude-2",
-        "custom (enter manually)",
-    ];
-    
-    let model_selection = Select::new()
-        .with_prompt("Select a model")
-        .items(model_options)
-        .default(0)
-        .interact()
-        .map_err(|e| format!("Failed to get model selection: {}", e))?;
-
-    let model = if model_selection == model_options.len() - 1 {
-        // Custom model input
-        Input::new()
-            .with_prompt("Enter model name")
-            .interact_text()
-            .map_err(|e| format!("Failed to get model name: {}", e))?
-    } else {
-        model_options[model_selection].to_string()
-    };
-
-    let max_tokens: String = Input::new()
-        .with_prompt("Enter max tokens")
-        .default("50".into())
-        .interact_text()
-        .map_err(|e| format!("Failed to get max tokens: {}", e))?;
-    let max_tokens: i32 = max_tokens.parse()
-        .map_err(|e| format!("Failed to parse max tokens: {}", e))?;
-
-    let temperature: String = Input::new()
-        .with_prompt("Enter temperature")
-        .default("0.3".into())
-        .interact_text()
-        .map_err(|e| format!("Failed to get temperature: {}", e))?;
-    let temperature: f32 = temperature.parse()
-        .map_err(|e| format!("Failed to parse temperature: {}", e))?;
-
-    Ok(OpenAICompatibleConfig {
-        id: Uuid::new_v4().to_string(),
-        provider: "openai_compatible".to_string(),
-        api_key,
-        api_url,
-        model,
-        max_tokens,
-        temperature,
-    })
-}
-
 async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     let client = reqwest::Client::new();
 
-    // Truncate diff if it exceeds the character limit
-    let truncated_diff = if diff.len() > MAX_DIFF_CHARS {
-        format!("{}\n\n[... diff truncated due to length ...]", &diff[..MAX_DIFF_CHARS])
-    } else {
-        diff.to_string()
-    };
+    // Use the smart diff processing function instead of simple truncation
+    let processed_diff = process_git_diff_output(diff);
 
     let prompt = format!(
         "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
@@ -1067,7 +1122,7 @@ Git Diff:
 {}
 ```
 Commit Message ONLY:",
-        truncated_diff
+        processed_diff
     );
 
     // Show context in verbose mode
