@@ -798,7 +798,7 @@ async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &st
     };
 
     let prompt = format!(
-        "Generate a concise and descriptive git commit message following the Conventional Commits specification. The message should start with a type (e.g., feat, fix, chore, docs, style, refactor, test) followed by a colon and a short description in lowercase.
+        "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
 Examples:
 - feat: Add user authentication feature
 - fix: Correct calculation error in payment module
@@ -808,11 +808,11 @@ Examples:
 - test: Add unit tests for user service
 - chore: Update dependencies
 
-Here is the git diff:
+Git Diff:
 ```diff
 {}
 ```
-Commit message:",
+Commit Message ONLY:",
         truncated_diff
     );
 
@@ -888,7 +888,7 @@ async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str, cli: 
     };
 
     let prompt = format!(
-        "Generate a concise and descriptive git commit message following the Conventional Commits specification (one line, max 72 chars). Start with a type (feat, fix, chore, docs, style, refactor, test), then a colon, then a short description in lowercase.
+        "Generate ONLY the raw git commit message string (one line, max 72 chars) based on the diff. Follow Conventional Commits (type: description). Do NOT include any introductory text, explanations, or ```.
 Examples:
 - feat: add user login
 - fix: correct payment calculation
@@ -902,7 +902,7 @@ Git Diff:
 ```diff
 {}
 ```
-Commit message:",
+Commit Message ONLY:",
         truncated_diff
     );
 
@@ -1052,7 +1052,7 @@ async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConf
     };
 
     let prompt = format!(
-        "Generate a concise and descriptive git commit message following the Conventional Commits specification. The message should start with a type (e.g., feat, fix, chore, docs, style, refactor, test) followed by a colon and a short description in lowercase.
+        "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
 Examples:
 - feat: Add user authentication feature
 - fix: Correct calculation error in payment module
@@ -1062,11 +1062,11 @@ Examples:
 - test: Add unit tests for user service
 - chore: Update dependencies
 
-Here is the git diff:
+Git Diff:
 ```diff
 {}
 ```
-Commit message:",
+Commit Message ONLY:",
         truncated_diff
     );
 
