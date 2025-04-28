@@ -46,6 +46,7 @@
     "docs:build": "vitepress build docs",
     "docs:dev": "vitepress dev docs",
     "docs:preview": "vitepress preview docs",
+    "install-globally": "cargo install --path .",
     "new-version": "aicommit --add --version-file version --version-iterate --version-cargo --version-npm --version-github --push",
     "postinstall": "chmod +x index.js",
     "start": "node index.js",
