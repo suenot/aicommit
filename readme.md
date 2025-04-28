@@ -606,8 +606,8 @@ flowchart TD
     
     %% Git operations
     N -->|--add| N1[git add .]
-    N1 --> N_Truncate[Truncate diff if too long]
-    N -->|only staged changes| N_Truncate[Truncate diff if too long]
+    N1 --> N_Truncate["Smart diff processing (truncate large files only)"]
+    N -->|only staged changes| N_Truncate["Smart diff processing (truncate large files only)"]
     N_Truncate --> O["Generate commit message (using refined prompt)"]
     
     O --> P{Success?}
@@ -652,7 +652,7 @@ flowchart TD
     K11 -->|No| K8
     K11 -->|Yes| K12[git add stable files]
     
-    K12 --> K13["Start commit process (includes diff truncation & message generation)"]
+    K12 --> K13["Start commit process (includes smart diff processing & message generation)"]
     K13 --> K14[Remove committed files from waiting list]
     K14 --> K8
     
@@ -661,7 +661,7 @@ flowchart TD
     %% Dry run
     I --> I1[Load configuration]
     I1 --> I2[Get git diff]
-    I2 --> I3_Truncate[Truncate diff if too long]
+    I2 --> I3_Truncate["Smart diff processing (truncate large files only)"]
     I3_Truncate --> I3["Generate commit message (using refined prompt)"]
     I3 --> I4[Display result without creating commit]
 ```
