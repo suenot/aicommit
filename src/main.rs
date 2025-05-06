@@ -408,16 +408,11 @@ impl Config {
 
         // If default gitignore doesn't exist, create it with default content
         if !default_gitignore_path.exists() {
-            let default_content = r#"# Универсальный .gitignore для большинства проектов
-
-## Операционные системы
-# macOS
-*.DS_Store
+            let default_content = r#"*.DS_Store
 .AppleDouble
 .LSOverride
 ._*
 
-# Windows
 Thumbs.db
 Thumbs.db:encryptable
 ehthumbs.db
@@ -425,12 +420,10 @@ ehthumbs_vista.db
 Desktop.ini
 $RECYCLE.BIN/
 
-# Linux
 .directory
 .dropbox
 .dropbox.attr
 
-## Общие файлы
 *.log
 *.log.*
 *.sql
@@ -450,7 +443,6 @@ $RECYCLE.BIN/
 *~
 *.tmp
 
-## Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -466,7 +458,6 @@ venv.bak/
 coverage.xml
 *.cover
 
-## Golang
 bin/
 pkg/
 *.test
@@ -476,7 +467,6 @@ pkg/
 target/
 *.rs.bk
 
-## C++
 build/
 *.o
 *.obj
@@ -485,7 +475,6 @@ build/
 *.lib
 *.pdb
 
-## Java
 target/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -495,7 +484,6 @@ release.properties
 tomcat*/
 *.class
 
-## C#
 bin/
 obj/
 *.user
@@ -507,18 +495,15 @@ obj/
 *.ncx
 *.nupkg
 
-## Elixir
 _build/
 deps/
 *.ez
 
-## R
 .Rhistory
 .RData
 .Rproj.user/
 *.Rout
 
-## JavaScript / TypeScript / Фронтенд
 node_modules/
 dist/
 build/
@@ -528,7 +513,6 @@ yarn-debug.log*
 yarn-error.log*
 *.tsbuildinfo
 
-## iOS
 DerivedData/
 *.pbxuser
 !default.pbxuser
@@ -544,7 +528,6 @@ DerivedData/
 *.xcworkspace
 Pods/
 
-## Android
 .gradle/
 build/
 *.apk
@@ -554,7 +537,6 @@ local.properties
 *.idea/
 *.iml
 
-## IDE и редакторы
 .idea/
 *.iml
 .vscode/
@@ -563,7 +545,6 @@ local.properties
 nbproject/
 *.code-workspace
 
-## Прочее
 .env
 .env.local
 .env.*.local

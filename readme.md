@@ -33,7 +33,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 - ✅ Auto pull functionality (`aicommit --pull`)
 - ✅ Automatic upstream branch setup for new branches
 - ✅ Interactive commit message generation (`aicommit --dry-run`)
-- ✅ Basic .gitignore file checks and management (create ~/.default_gitignore and use it as template if there is no .gitignore in this directory)
+- ✅ Basic .gitignore file checks and management (create ~/.default_gitignore with ASCII-only content and use it as template if there is no .gitignore in the directory)
 - ✅ Help information display (`aicommit --help`)
 - ✅ Publication in npm
 - ✅ Support for cross-compilation (ARM, AARCH64, etc.)
