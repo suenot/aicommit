@@ -162,11 +162,11 @@ struct Cli {
     openai_compatible_model: String,
 
     /// Max tokens for provider configuration
-    #[arg(long, default_value = "50")]
+    #[arg(long, default_value = "200")]
     max_tokens: i32,
 
     /// Temperature for provider configuration
-    #[arg(long, default_value = "0.3")]
+    #[arg(long, default_value = "0.2")]
     temperature: f32,
 
     /// List all providers
@@ -704,7 +704,7 @@ nbproject/
 
                 let max_tokens: String = Input::new()
                     .with_prompt("Enter max tokens")
-                    .default("50".into())
+                    .default("200".into())
                     .interact_text()
                     .map_err(|e| format!("Failed to get max tokens: {}", e))?;
                 let max_tokens: i32 = max_tokens.parse()
@@ -712,7 +712,7 @@ nbproject/
 
                 let temperature: String = Input::new()
                     .with_prompt("Enter temperature")
-                    .default("0.3".into())
+                    .default("0.2".into())
                     .interact_text()
                     .map_err(|e| format!("Failed to get temperature: {}", e))?;
                 let temperature: f32 = temperature.parse()
@@ -745,7 +745,7 @@ nbproject/
 
                 let max_tokens: String = Input::new()
                     .with_prompt("Enter max tokens")
-                    .default("50".into())
+                    .default("200".into())
                     .interact_text()
                     .map_err(|e| format!("Failed to get max tokens: {}", e))?;
                 let max_tokens: i32 = max_tokens.parse()
@@ -973,7 +973,7 @@ async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, St
 
     let max_tokens: String = Input::new()
         .with_prompt("Enter max tokens")
-        .default("50".into())
+        .default("200".into())
         .interact_text()
         .map_err(|e| format!("Failed to get max tokens: {}", e))?;
     let max_tokens: i32 = max_tokens.parse()
@@ -981,7 +981,7 @@ async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, St
 
     let temperature: String = Input::new()
         .with_prompt("Enter temperature")
-        .default("0.3".into())
+        .default("0.2".into())
         .interact_text()
         .map_err(|e| format!("Failed to get temperature: {}", e))?;
     let temperature: f32 = temperature.parse()
@@ -1386,8 +1386,8 @@ async fn main() -> Result<(), String> {
             println!("  --openai-compatible-api-key=<KEY> OpenAI compatible API key");
             println!("  --openai-compatible-api-url=<URL> OpenAI compatible API URL");
             println!("  --openai-compatible-model=<MODEL> OpenAI compatible model (default: gpt-3.5-turbo)");
-            println!("  --max-tokens=<TOKENS> Max tokens for response (default: 50)");
-            println!("  --temperature=<TEMP>  Temperature for generation (default: 0.3)");
+            println!("  --max-tokens=<TOKENS> Max tokens for response (default: 200)");
+            println!("  --temperature=<TEMP>  Temperature for generation (default: 0.2)");
             println!("  --list                List all providers");
             println!("  --set=<ID>            Set active provider by ID");
             println!("  --config              Edit configuration file");
