@@ -244,6 +244,18 @@ struct Cli {
     /// Force the use of offline mode (uses fallback model list) for testing purposes
     #[arg(long, hide = true)]
     simulate_offline: bool,
+    
+    /// Show status of all model jails and blacklists
+    #[arg(long = "jail-status")]
+    jail_status: bool,
+    
+    /// Release specific model from jail/blacklist (model ID as parameter)
+    #[arg(long = "unjail")]
+    unjail: Option<String>,
+    
+    /// Release all models from jail/blacklist
+    #[arg(long = "unjail-all")]
+    unjail_all: bool,
 }
 
 /// Increment version string (e.g., "0.0.37" -> "0.0.38")
@@ -427,6 +439,37 @@ struct OpenRouterConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+struct ModelStats {
+    success_count: usize,
+    failure_count: usize,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    last_success: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    last_failure: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    jail_until: Option<chrono::DateTime<chrono::Utc>>,
+    jail_count: usize,
+    blacklisted: bool,
+    #[serde(with = "chrono::serde::ts_seconds_option")]
+    blacklisted_since: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+impl Default for ModelStats {
+    fn default() -> Self {
+        Self {
+            success_count: 0,
+            failure_count: 0,
+            last_success: None,
+            last_failure: None,
+            jail_until: None,
+            jail_count: 0,
+            blacklisted: false,
+            blacklisted_since: None,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct SimpleFreeOpenRouterConfig {
     id: String,
     provider: String,
@@ -435,6 +478,12 @@ struct SimpleFreeOpenRouterConfig {
     temperature: f32,
     #[serde(default)]
     failed_models: Vec<String>,
+    #[serde(default)]
+    model_stats: std::collections::HashMap<String, ModelStats>,
+    #[serde(default)]
+    last_used_model: Option<String>,
+    #[serde(default = "chrono::Utc::now")]
+    last_config_update: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -725,6 +774,9 @@ nbproject/
                     max_tokens,
                     temperature,
                     failed_models: Vec::new(),
+                    model_stats: std::collections::HashMap::new(),
+                    last_used_model: None,
+                    last_config_update: chrono::Utc::now(),
                 };
 
                 config.providers.push(ProviderConfig::SimpleFreeOpenRouter(simple_free_config));
@@ -847,6 +899,9 @@ nbproject/
                 max_tokens: cli.max_tokens,
                 temperature: cli.temperature,
                 failed_models: Vec::new(),
+                model_stats: std::collections::HashMap::new(),
+                last_used_model: None,
+                last_config_update: chrono::Utc::now(),
             };
             config.providers.push(ProviderConfig::SimpleFreeOpenRouter(simple_free_config));
             config.active_provider = provider_id;
@@ -1405,6 +1460,9 @@ async fn main() -> Result<(), String> {
             println!("  --no-gitignore-check  Skip .gitignore check and creation");
             println!("  --watch               Watch for changes and auto-commit");
             println!("  --wait-for-edit=<DURATION> Wait for edit delay before committing (e.g. \"30s\")");
+            println!("  --jail-status         Show status of all model jails and blacklists");
+            println!("  --unjail=<MODEL>      Release specific model from jail/blacklist (model ID as parameter)");
+            println!("  --unjail-all          Release all models from jail/blacklist");
             println!("\nExamples:");
             println!("  aicommit --add-provider");
             println!("  aicommit --add");
@@ -1419,6 +1477,68 @@ async fn main() -> Result<(), String> {
         }
         _ if cli.version => {
             println!("aicommit v{}", get_version());
+            Ok(())
+        }
+        _ if cli.jail_status => {
+            // Display jail status for all models
+            let config = Config::load()?;
+            
+            // Find a Simple Free provider
+            let mut found = false;
+            
+            for provider in config.providers {
+                if let ProviderConfig::SimpleFreeOpenRouter(c) = provider {
+                    display_model_jail_status(&c)?;
+                    found = true;
+                    break;
+                }
+            }
+            
+            if !found {
+                println!("No Simple Free OpenRouter configuration found. You can add one with 'aicommit --add-simple-free'");
+            }
+            
+            Ok(())
+        }
+        _ if cli.unjail.is_some() => {
+            // Unjail a specific model
+            let model_id = cli.unjail.unwrap();
+            let mut config = Config::load()?;
+            let mut found = false;
+            
+            for provider in &mut config.providers {
+                if let ProviderConfig::SimpleFreeOpenRouter(c) = provider {
+                    unjail_model(c, &model_id)?;
+                    println!("Model '{}' successfully released from jail", model_id);
+                    found = true;
+                    break;
+                }
+            }
+            
+            if !found {
+                println!("No Simple Free OpenRouter configuration found. You can add one with 'aicommit --add-simple-free'");
+            }
+            
+            Ok(())
+        }
+        _ if cli.unjail_all => {
+            // Unjail all models
+            let mut config = Config::load()?;
+            let mut found = false;
+            
+            for provider in &mut config.providers {
+                if let ProviderConfig::SimpleFreeOpenRouter(c) = provider {
+                    unjail_all_models(c)?;
+                    println!("All models successfully released from jail");
+                    found = true;
+                    break;
+                }
+            }
+            
+            if !found {
+                println!("No Simple Free OpenRouter configuration found. You can add one with 'aicommit --add-simple-free'");
+            }
+            
             Ok(())
         }
         _ if cli.add_provider => {
@@ -2095,34 +2215,70 @@ fn fallback_to_preferred_models() -> Result<Vec<String>, String> {
 }
 
 // Function to find best available model
-fn find_best_available_model(available_models: &[String], failed_models: &[String]) -> Option<String> {
+fn find_best_available_model(available_models: &[String], config: &SimpleFreeOpenRouterConfig) -> Option<String> {
+    // Start by using the previously successful model if it's still available
+    if let Some(last_model) = &config.last_used_model {
+        if available_models.contains(last_model) {
+            let stats = config.model_stats.get(last_model);
+            if is_model_available(&stats) {
+                return Some(last_model.clone());
+            }
+        }
+    }
+
+    // Filter models that are not in jail or blacklisted
+    let available_candidates: Vec<&String> = available_models
+        .iter()
+        .filter(|model| {
+            let stats = config.model_stats.get(*model);
+            is_model_available(&stats)
+        })
+        .collect();
+    
     // First try our curated list of preferred models in order
     for preferred in PREFERRED_FREE_MODELS {
         let preferred_str = preferred.to_string();
-        if available_models.contains(&preferred_str) && !failed_models.contains(&preferred_str) {
+        if available_candidates.contains(&&preferred_str) {
             return Some(preferred_str);
         }
     }
     
     // If none of our preferred models are available, use an intelligent fallback approach
     // by analyzing model names for parameter sizes (like 70b, 32b, etc.)
-    if !available_models.is_empty() {
-        // Create a sorted list of available models that haven't failed yet
-        let mut candidate_models: Vec<_> = available_models.iter()
-            .filter(|model| !failed_models.contains(*model))
-            .collect();
+    if !available_candidates.is_empty() {
+        // Sort by estimated parameter count (highest first)
+        let mut sorted_candidates = available_candidates.clone();
+        sorted_candidates.sort_by(|a, b| {
+            let a_size = extract_model_size(a);
+            let b_size = extract_model_size(b);
+            b_size.cmp(&a_size) // Reverse order (largest first)
+        });
         
-        if !candidate_models.is_empty() {
-            // Sort by estimated parameter count (highest first)
-            candidate_models.sort_by(|a, b| {
-                let a_size = extract_model_size(a);
-                let b_size = extract_model_size(b);
-                b_size.cmp(&a_size) // Reverse order (largest first)
-            });
-            
-            // Return the largest available model that hasn't failed
-            return Some(candidate_models[0].clone());
+        // Return the largest available model
+        return Some(sorted_candidates[0].clone());
+    }
+    
+    // If all models are jailed or blacklisted, try the least recently jailed one
+    if !available_models.is_empty() {
+        // Get all jailed but not blacklisted models
+        let mut jailed_models: Vec<(String, chrono::DateTime<chrono::Utc>)> = Vec::new();
+        
+        for model in available_models {
+            if let Some(stats) = config.model_stats.get(model) {
+                if !stats.blacklisted && stats.jail_until.is_some() {
+                    jailed_models.push((model.clone(), stats.jail_until.unwrap()));
+                }
+            }
         }
+        
+        // Sort by jail expiry time (soonest first)
+        if !jailed_models.is_empty() {
+            jailed_models.sort_by_key(|x| x.1);
+            return Some(jailed_models[0].0.clone());
+        }
+        
+        // Last resort: just use any model, even blacklisted ones
+        return Some(available_models[0].clone());
     }
     
     None
@@ -2477,24 +2633,9 @@ async fn generate_simple_free_commit_message(
         return Err("No free models available on OpenRouter".to_string());
     }
     
-    // Filter out models that have previously failed
-    let filtered_models: Vec<String> = available_models
-        .iter()
-        .filter(|model| !config.failed_models.contains(model))
-        .cloned()
-        .collect();
-    
-    if filtered_models.is_empty() {
-        // If all models have failed, reset the failed_models list to try again
-        if cli.verbose {
-            println!("All available models have failed, resetting failed models list to try again");
-        }
-        config.failed_models.clear();
-    }
-    
-    // Find the best available model that hasn't failed
-    let model = find_best_available_model(&available_models, &config.failed_models)
-        .ok_or_else(|| "All available models have failed, please try again later".to_string())?;
+    // Find the best available model using our advanced management system
+    let model = find_best_available_model(&available_models, config)
+        .ok_or_else(|| "Failed to find a suitable model, please try again later".to_string())?;
     
     // Use the smart diff processing function
     let processed_diff = process_git_diff_output(diff);
@@ -2523,6 +2664,18 @@ Commit Message ONLY:",
         println!("\n=== Context for LLM ===");
         println!("Provider: Simple Free OpenRouter");
         println!("Model: {}", model);
+        let model_status = if let Some(stats) = config.model_stats.get(&model) {
+            if stats.blacklisted {
+                "BLACKLISTED (being retried)"
+            } else if stats.jail_until.is_some() && stats.jail_until.unwrap() > chrono::Utc::now() {
+                "JAILED (being retried)"
+            } else {
+                "ACTIVE"
+            }
+        } else {
+            "NEW (no history)"
+        };
+        println!("Model status: {}", model_status);
         println!("Max tokens: {}", config.max_tokens);
         println!("Temperature: {}", config.temperature);
         println!("\n=== Prompt ===\n{}", prompt);
@@ -2558,15 +2711,37 @@ Commit Message ONLY:",
     let response = match tokio::time::timeout(std::time::Duration::from_secs(30), make_request).await {
         Ok(result) => match result {
             Ok(response) => response,
-            Err(e) => return Err(format!("Request error: {}", e)),
+            Err(e) => {
+                // Record failure with the model
+                let stats = config.model_stats.entry(model.clone()).or_default();
+                record_model_failure(stats);
+                
+                // Save the updated config
+                save_simple_free_config(config)?;
+                
+                return Err(format!("Request error: {}", e));
+            },
         },
-        Err(_) => return Err("Request timed out after 30 seconds".to_string()),
+        Err(_) => {
+            // Record failure with the model - but be careful not to penalize for network timeouts
+            // Only record as a model failure if this is repeated
+            let stats = config.model_stats.entry(model.clone()).or_default();
+            
+            // Check if this is likely a network issue rather than model issue
+            let is_likely_network_issue = stats.failure_count == 0 || 
+                (stats.last_success.is_some() && 
+                 chrono::Utc::now() - stats.last_success.unwrap() < chrono::Duration::hours(1));
+            
+            if !is_likely_network_issue {
+                record_model_failure(stats);
+                save_simple_free_config(config)?;
+            }
+            
+            return Err("Request timed out after 30 seconds".to_string());
+        },
     };
 
     if !response.status().is_success() {
-        // If this model failed, add it to failed_models list
-        config.failed_models.push(model.clone());
-        
         // Get the status code before consuming the response
         let status_code = response.status();
         
@@ -2580,28 +2755,13 @@ Commit Message ONLY:",
             println!("Request failed for model {}: {}", model, error_text);
         }
         
-        // Try to save the updated config with failed model
-        let config_path = dirs::home_dir()
-            .ok_or_else(|| "Could not find home directory".to_string())?
-            .join(".aicommit.json");
-            
-        let mut full_config = Config::load()?;
-        // Update the provider in the full config
-        for provider in &mut full_config.providers {
-            if let ProviderConfig::SimpleFreeOpenRouter(simple_config) = provider {
-                if simple_config.id == config.id {
-                    simple_config.failed_models = config.failed_models.clone();
-                    break;
-                }
-            }
-        }
+        // Record failure with the model
+        let stats = config.model_stats.entry(model.clone()).or_default();
+        record_model_failure(stats);
         
-        let content = serde_json::to_string_pretty(&full_config)
-            .map_err(|e| format!("Failed to serialize config: {}", e))?;
-            
-        fs::write(&config_path, content)
-            .map_err(|e| format!("Failed to write config file: {}", e))?;
-            
+        // Save the updated config
+        save_simple_free_config(config)?;
+        
         return Err(format!("API request failed with model {}: {}", model, error_text));
     }
 
@@ -2616,19 +2776,36 @@ Commit Message ONLY:",
             println!("Failed to parse response: {}", e);
             println!("Response body: {}", response_text);
         }
+        
+        // Record failure with the model
+        let stats = config.model_stats.entry(model.clone()).or_default();
+        record_model_failure(stats);
+        
+        // Save the updated config
+        save_simple_free_config(config)?;
+        
+        return Err(format!("Failed to parse response JSON: {} (Response: {})", e, 
+                         if response_text.len() > 100 { 
+                             format!("{}...", &response_text[..100]) 
+                         } else { 
+                             response_text.clone() 
+                         }));
     }
-
-    let response_data = response_data
-        .map_err(|e| format!("Failed to parse response JSON: {} (Response: {})", e, 
-                             if response_text.len() > 100 { 
-                                 format!("{}...", &response_text[..100]) 
-                             } else { 
-                                 response_text.clone() 
-                             }))?;
+    
+    let response_data = response_data.unwrap();
     
     let message = response_data.choices
         .get(0)
-        .ok_or("No choices in response")?
+        .ok_or_else(|| {
+            // Record failure with the model
+            let stats = config.model_stats.entry(model.clone()).or_default();
+            record_model_failure(stats);
+            
+            // Save the updated config
+            let _ = save_simple_free_config(config);
+            
+            "No choices in response"
+        })?
         .message
         .content
         .clone();
@@ -2641,9 +2818,304 @@ Commit Message ONLY:",
         model_used: Some(model.clone()),
     };
 
+    // Record success with the model
+    let stats = config.model_stats.entry(model.clone()).or_default();
+    record_model_success(stats);
+    
+    // Update last used model
+    config.last_used_model = Some(model.clone());
+    
+    // Save the updated config
+    save_simple_free_config(config)?;
+
     if cli.verbose {
         println!("Successfully generated commit message using model: {}", model);
     }
 
     Ok((message, usage))
+}
+
+/// Helper function to save SimpleFreeOpenRouterConfig changes to disk
+fn save_simple_free_config(config: &SimpleFreeOpenRouterConfig) -> Result<(), String> {
+    let config_path = dirs::home_dir()
+        .ok_or_else(|| "Could not find home directory".to_string())?
+        .join(".aicommit.json");
+        
+    let mut full_config = Config::load()?;
+    
+    // Update the provider in the full config
+    for provider in &mut full_config.providers {
+        if let ProviderConfig::SimpleFreeOpenRouter(simple_config) = provider {
+            if simple_config.id == config.id {
+                *simple_config = config.clone();
+                break;
+            }
+        }
+    }
+    
+    let content = serde_json::to_string_pretty(&full_config)
+        .map_err(|e| format!("Failed to serialize config: {}", e))?;
+        
+    fs::write(&config_path, content)
+        .map_err(|e| format!("Failed to write config file: {}", e))?;
+    
+    Ok(())
+}
+
+// Helper constants for model management
+const MAX_CONSECUTIVE_FAILURES: usize = 3;
+const INITIAL_JAIL_HOURS: i64 = 24;
+const JAIL_TIME_MULTIPLIER: i64 = 2;
+const MAX_JAIL_HOURS: i64 = 168; // 7 days
+const BLACKLIST_AFTER_JAIL_COUNT: usize = 3;
+const BLACKLIST_RETRY_DAYS: i64 = 7;
+
+/// Decides if a model should be used based on its jail/blacklist status
+fn is_model_available(model_stats: &Option<&ModelStats>) -> bool {
+    match model_stats {
+        None => true, // No stats yet, model is available
+        Some(stats) => {
+            // Check if blacklisted but should be retried
+            if stats.blacklisted {
+                if let Some(blacklisted_since) = stats.blacklisted_since {
+                    let retry_duration = chrono::Duration::days(BLACKLIST_RETRY_DAYS);
+                    let now = chrono::Utc::now();
+                    
+                    // If blacklisted for more than retry period, give it another chance
+                    if now - blacklisted_since > retry_duration {
+                        return true;
+                    }
+                    return false;
+                }
+                return false;
+            }
+            
+            // Check if currently in jail
+            if let Some(jail_until) = stats.jail_until {
+                if chrono::Utc::now() < jail_until {
+                    return false;
+                }
+            }
+            
+            true
+        }
+    }
+}
+
+/// Update model stats with success result
+fn record_model_success(model_stats: &mut ModelStats) {
+    model_stats.success_count += 1;
+    model_stats.last_success = Some(chrono::Utc::now());
+    
+    // Reset consecutive failures if successful
+    if model_stats.last_failure.is_none() || 
+       model_stats.last_success.unwrap() > model_stats.last_failure.unwrap() {
+        // The model is working now, remove any jail time
+        model_stats.jail_until = None;
+    }
+}
+
+/// Update model stats with failure result and determine if it should be jailed
+fn record_model_failure(model_stats: &mut ModelStats) {
+    let now = chrono::Utc::now();
+    model_stats.failure_count += 1;
+    model_stats.last_failure = Some(now);
+    
+    // Check if we have consecutive failures
+    let has_consecutive_failures = match model_stats.last_success {
+        None => true, // Never had a success
+        Some(last_success) => {
+            // If last success is older than last failure, we have consecutive failures
+            model_stats.last_failure.unwrap() > last_success
+        }
+    };
+    
+    if has_consecutive_failures {
+        // Count consecutive failures by comparing timestamps
+        let consecutive_failures = if let Some(last_success) = model_stats.last_success {
+            let hours_since_success = (now - last_success).num_hours();
+            // If it's been more than a day since last success, count as consecutive failures
+            if hours_since_success > 24 {
+                model_stats.failure_count.min(MAX_CONSECUTIVE_FAILURES)
+            } else {
+                // Count failures since last success
+                1 // This is at least 1 consecutive failure
+            }
+        } else {
+            // No success ever, count all failures
+            model_stats.failure_count.min(MAX_CONSECUTIVE_FAILURES)
+        };
+        
+        // Jail if we hit the threshold
+        if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
+            // Calculate jail duration based on recidivism
+            let jail_hours = INITIAL_JAIL_HOURS * JAIL_TIME_MULTIPLIER.pow(model_stats.jail_count as u32);
+            let jail_hours = jail_hours.min(MAX_JAIL_HOURS); // Cap at maximum
+            
+            // Set jail expiration time
+            model_stats.jail_until = Some(now + chrono::Duration::hours(jail_hours));
+            model_stats.jail_count += 1;
+            
+            // Blacklist if consistently problematic
+            if model_stats.jail_count >= BLACKLIST_AFTER_JAIL_COUNT {
+                model_stats.blacklisted = true;
+                model_stats.blacklisted_since = Some(now);
+            }
+        }
+    }
+}
+
+/// Show formatted model jail status
+fn format_model_status(model: &str, stats: &ModelStats) -> String {
+    let status = if stats.blacklisted {
+        "BLACKLISTED".to_string()
+    } else if let Some(jail_until) = stats.jail_until {
+        if chrono::Utc::now() < jail_until {
+            let remaining = jail_until - chrono::Utc::now();
+            format!("JAILED ({}h remaining)", remaining.num_hours())
+        } else {
+            "ACTIVE".to_string()
+        }
+    } else {
+        "ACTIVE".to_string()
+    };
+    
+    let last_success = stats.last_success.map_or("Never".to_string(), |ts| {
+        let ago = chrono::Utc::now() - ts;
+        if ago.num_days() > 0 {
+            format!("{} days ago", ago.num_days())
+        } else if ago.num_hours() > 0 {
+            format!("{} hours ago", ago.num_hours())
+        } else {
+            format!("{} minutes ago", ago.num_minutes())
+        }
+    });
+    
+    let last_failure = stats.last_failure.map_or("Never".to_string(), |ts| {
+        let ago = chrono::Utc::now() - ts;
+        if ago.num_days() > 0 {
+            format!("{} days ago", ago.num_days())
+        } else if ago.num_hours() > 0 {
+            format!("{} hours ago", ago.num_hours())
+        } else {
+            format!("{} minutes ago", ago.num_minutes())
+        }
+    });
+    
+    format!("{}: {} (Success: {}, Failure: {}, Last success: {}, Last failure: {})",
+            model, status, stats.success_count, stats.failure_count, last_success, last_failure)
+}
+
+/// Display jail status for all models
+fn display_model_jail_status(config: &SimpleFreeOpenRouterConfig) -> Result<(), String> {
+    if config.model_stats.is_empty() {
+        println!("No model statistics available yet.");
+        return Ok(());
+    }
+    
+    println!("\nModel Status Report:");
+    println!("===================");
+    
+    // Group models by status
+    let mut active_models = Vec::new();
+    let mut jailed_models = Vec::new();
+    let mut blacklisted_models = Vec::new();
+    
+    for (model, stats) in &config.model_stats {
+        if stats.blacklisted {
+            blacklisted_models.push(format_model_status(model, stats));
+        } else if let Some(jail_until) = stats.jail_until {
+            if chrono::Utc::now() < jail_until {
+                jailed_models.push(format_model_status(model, stats));
+            } else {
+                active_models.push(format_model_status(model, stats));
+            }
+        } else {
+            active_models.push(format_model_status(model, stats));
+        }
+    }
+    
+    // Sort and display each group
+    if !active_models.is_empty() {
+        println!("\nACTIVE MODELS:");
+        active_models.sort();
+        for model in active_models {
+            println!("  {}", model);
+        }
+    }
+    
+    if !jailed_models.is_empty() {
+        println!("\nJAILED MODELS:");
+        jailed_models.sort();
+        for model in jailed_models {
+            println!("  {}", model);
+        }
+    }
+    
+    if !blacklisted_models.is_empty() {
+        println!("\nBLACKLISTED MODELS:");
+        blacklisted_models.sort();
+        for model in blacklisted_models {
+            println!("  {}", model);
+        }
+    }
+    
+    Ok(())
+}
+
+/// Release a specific model from jail/blacklist
+fn unjail_model(config: &mut SimpleFreeOpenRouterConfig, model_id: &str) -> Result<(), String> {
+    let model_found = if model_id == "*" {
+        // Reset all models
+        for (_, stats) in config.model_stats.iter_mut() {
+            stats.jail_until = None;
+            stats.blacklisted = false;
+            stats.jail_count = 0;
+        }
+        true
+    } else {
+        // Reset specific model
+        if let Some(stats) = config.model_stats.get_mut(model_id) {
+            stats.jail_until = None;
+            stats.blacklisted = false;
+            stats.jail_count = 0;
+            true
+        } else {
+            false
+        }
+    };
+    
+    if !model_found {
+        return Err(format!("Model '{}' not found in statistics", model_id));
+    }
+    
+    // Save updated config
+    let config_path = dirs::home_dir()
+        .ok_or_else(|| "Could not find home directory".to_string())?
+        .join(".aicommit.json");
+        
+    let mut full_config = Config::load()?;
+    
+    // Update the provider in the full config
+    for provider in &mut full_config.providers {
+        if let ProviderConfig::SimpleFreeOpenRouter(simple_config) = provider {
+            if simple_config.id == config.id {
+                *simple_config = config.clone();
+                break;
+            }
+        }
+    }
+    
+    let content = serde_json::to_string_pretty(&full_config)
+        .map_err(|e| format!("Failed to serialize config: {}", e))?;
+        
+    fs::write(&config_path, content)
+        .map_err(|e| format!("Failed to write config file: {}", e))?;
+    
+    Ok(())
+}
+
+/// Release all models from jail/blacklist
+fn unjail_all_models(config: &mut SimpleFreeOpenRouterConfig) -> Result<(), String> {
+    unjail_model(config, "*")
 }

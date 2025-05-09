@@ -297,7 +297,10 @@ For OpenRouter, token costs are automatically fetched from their API. For Ollama
     "api_key": "sk-or-v1-...",
     "max_tokens": 50,
     "temperature": 0.3,
-    "failed_models": []
+    "failed_models": [],
+    "model_stats": {},
+    "last_used_model": null,
+    "last_config_update": "2023-10-15T12:00:00Z"
   }],
   "active_provider": "550e8400-e29b-41d4-a716-446655440000"
 }
@@ -307,7 +310,8 @@ The Simple Free mode offers a hassle-free way to use OpenRouter's free models:
 
 - **Automatic Model Selection**: No need to specify a model - the system queries OpenRouter's API for all available models and filters for free ones
 - **Intelligent Ranking**: Uses an internal ranked list of preferred models (maintained in the codebase) to select the best available free model
-- **Failure Handling**: If a model fails, it's added to the `failed_models` array and won't be used again in future attempts
+- **Advanced Model Management**: Tracks success and failure rates for each model, with a sophisticated jail/blacklist system
+- **Smart Jail System**: Models with repeated failures go to "jail" temporarily, with increasing penalties for repeat offenders
 - **Fallback System**: Automatically falls back to the next best available model if the preferred one fails
 - **Network Resilience**: Can operate even when your network connection to OpenRouter is unavailable by using predefined models
 - **Free Usage**: Takes advantage of OpenRouter's free models that have free quotas or free access
@@ -598,58 +602,42 @@ flowchart TD
     N -->|only staged changes| N_Truncate["Smart diff processing (truncate large files only)"]
     N_Truncate --> O["Generate commit message (using refined prompt)"]
     
-    %% Simple Free OpenRouter branch with Advanced Failover
+    %% Simple Free OpenRouter branch
     O -->|Simple Free OpenRouter| SF1["Query OpenRouter API for available free models"]
     SF1 --> SF_Network{Network available?}
     SF_Network -->|Yes| SF2["Filter for free models"]
     SF_Network -->|No| SF3["Use fallback predefined free models list"]
-    SF2 --> SF4["Sort by preferred model order"]
+    SF2 --> SF4["Advanced Model Selection"]
     SF3 --> SF4
-    SF4 --> SF_Status["Check model status (Active/Jailed/Blacklisted)"]
-    SF_Status --> SF_Active["Select best ACTIVE model by ranking"]
     
-    SF_Active --> SF_Found{Active model found?}
-    SF_Found -->|Yes| SF_Try["Try selected active model"]
-    SF_Found -->|No| SF_Jail["Check for releasable JAILED models"]
+    %% Advanced Model Selection subgraph
+    SF4 --> SF_Last{Last successful model available?}
+    SF_Last -->|Yes| SF_LastJailed{Is model jailed or blacklisted?}
+    SF_Last -->|No| SF_Sort["Sort by model capabilities"]
+    SF_LastJailed -->|Yes| SF_Sort
+    SF_LastJailed -->|No| SF_UseLastModel["Use last successful model"]
     
-    SF_Jail --> SF_JailFound{Releasable jailed model?}
-    SF_JailFound -->|Yes| SF_JailRelease["Release from jail & try model"]
-    SF_JailFound -->|No| SF_Black["Check for retriable BLACKLISTED models"]
+    SF_Sort --> SF_Active{Any active models available?}
+    SF_Active -->|Yes| SF_SelectBest["Select best active model"]
+    SF_Active -->|No| SF_Jailed{Any jailed models (not blacklisted)?}
     
-    SF_Black --> SF_BlackFound{Retriable blacklisted?}
-    SF_BlackFound -->|Yes| SF_BlackTry["Weekly retry of blacklisted model"] 
-    SF_BlackFound -->|No| SF_Fallback["Use fallback model as last resort"]
+    SF_Jailed -->|Yes| SF_SelectJailed["Select least recently jailed model"]
+    SF_Jailed -->|No| SF_Desperate["Use any model as last resort"]
     
-    SF_Try --> SF_Success{Model worked?}
-    SF_JailRelease --> SF_Success
-    SF_BlackTry --> SF_Success
-    SF_Fallback --> SF_Success
+    SF_UseLastModel --> SF_Use["Use selected model"]
+    SF_SelectBest --> SF_Use
+    SF_SelectJailed --> SF_Use
+    SF_Desperate --> SF_Use
     
-    SF_Success -->|Yes| SF_Record["Record success & update stats"]
-    SF_Success -->|No| SF_Analyze["Analyze error type"]
+    SF_Use --> SF6["Generate commit using selected model"]
+    SF6 --> SF_Success{Model worked?}
+    SF_Success -->|Yes| SF_RecordSuccess["Record success & update model stats"]
+    SF_Success -->|No| SF_RecordFailure["Record failure & potentially jail model"]
     
-    SF_Analyze --> SF_ErrorType{Network error?}
-    SF_ErrorType -->|Yes| SF_Retry["Retry with backoff"]
-    SF_ErrorType -->|No| SF_Strike["Increment strike counter"]
-    
-    SF_Strike --> SF_StrikeCount{Strike count ≥ 3?}
-    SF_StrikeCount -->|Yes| SF_ToJail["Move model to JAILED status"]
-    SF_StrikeCount -->|No| SF_Next["Try next model"]
-    
-    SF_ToJail --> SF_JailCount{Jail count ≥ 3?}
-    SF_JailCount -->|Yes| SF_ToBlack["Move to BLACKLISTED status"]
-    SF_JailCount -->|No| SF_Next
-    
-    SF_ToBlack --> SF_Next
-    SF_Record --> SF7["Display which model was used"]
-    SF_Retry --> SF_RetryLimit{Retry limit reached?}
-    SF_RetryLimit -->|Yes| SF_Next
-    SF_RetryLimit -->|No| SF_Try
-    
-    SF7 --> P
-    SF_Next --> SF_Next2{All models tried?}
-    SF_Next2 -->|No| SF_Status
-    SF_Next2 -->|Yes| P2
+    SF_RecordSuccess --> SF7["Display which model was used"]
+    SF_RecordFailure --> SF_Retry{Retry attempt limit reached?}
+    SF_Retry -->|No| SF4
+    SF_Retry -->|Yes| SF_Fail["Display error and exit"]
     
     %% Normal provider branch
     O -->|Other providers| P{Success?}
@@ -722,3 +710,25 @@ flowchart TD
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### Advanced Model Management
+
+To help you manage and optimize the model selection process, aicommit provides several commands for working with model jails and blacklists:
+
+```bash
+# Show current status of all models in the system
+aicommit --jail-status
+
+# Release a specific model from jail or blacklist
+aicommit --unjail="meta-llama/llama-4-maverick:free"
+
+# Release all models from jail and blacklist
+aicommit --unjail-all
+```
+
+These commands can be especially useful when:
+1. You want to understand why certain models aren't being selected
+2. You need to manually reset a model after a temporary issue
+3. You want to give blacklisted models another chance
+
+The jail system distinguishes between network errors and model errors, and only penalizes models for their own failures, not for connectivity issues. This ensures that good models don't end up blacklisted due to temporary network problems.
