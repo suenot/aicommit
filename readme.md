@@ -39,8 +39,8 @@ The Simple Free mode allows you to use OpenRouter's free models without having t
 
 1. Automatically query OpenRouter for currently available free models
 2. Select the best available free model based on an internally ranked list
-3. Automatically switch to alternative models if one fails
-4. Track which models have failed and avoid them in future attempts
+3. Automatically switch to alternative models using an advanced failover mechanism
+4. Track model performance with a sophisticated jail/blacklist system
 5. Fall back to predefined free models if network connectivity is unavailable
 
 To set up Simple Free mode:
@@ -54,16 +54,42 @@ aicommit --add-provider
 aicommit --add-simple-free --openrouter-api-key=<YOUR_API_KEY>
 ```
 
+### Advanced Failover Mechanism
+
+The Simple Free mode uses a sophisticated failover mechanism to ensure optimal model selection:
+
+- **Three-Tier Model Status**: Models are categorized as `Active`, `Jailed` (temporary restriction), or `Blacklisted` (long-term ban).
+- **Counter-Based System**: Tracks success/failure ratio for each model; 3 consecutive failures move a model to `Jailed` status.
+- **Time-Based Jail**: Models are temporarily jailed for 24 hours after repeated failures, with increasing jail time for recidivism.
+- **Blacklist Management**: Models with persistent failures over multiple days are blacklisted but retried weekly.
+- **Success Rate Tracking**: Records performance history to prioritize more reliable models.
+- **Smart Reset**: Models get fresh chances daily, and users can manually reset with `--unjail` and `--unjail-all` commands.
+- **Network Error Handling**: Distinguishes between model errors and connection issues to avoid unfair penalties.
+
+Model management commands:
+```bash
+# Show status of all model jails/blacklists
+aicommit --jail-status
+
+# Release specific model from restrictions
+aicommit --unjail <model-id>
+
+# Release all models from restrictions
+aicommit --unjail-all
+```
+
 ### Benefits of Simple Free Mode
 
 - **Zero Cost**: Uses only free models from OpenRouter
 - **Automatic Selection**: No need to manually choose the best free model
 - **Resilient Operation**: If one model fails, it automatically switches to the next best model
-- **Smart Failover**: Remembers which models have failed and avoids them in future attempts
+- **Advanced Failover**: Uses a sophisticated system to track model performance over time
+- **Learning Algorithm**: Adapts to changing model reliability by tracking success rates
+- **Self-Healing**: Automatically retries previously failed models after a cooling-off period
+- **Network Resilience**: Works even when network connectivity to OpenRouter is unavailable by using predefined models
 - **Always Up-to-Date**: Checks for currently available free models each time
 - **Best Quality First**: Uses a predefined ranking of models, prioritizing the most powerful ones
 - **Future-Proof**: Intelligently handles new models by analyzing model names for parameter counts
-- **Offline Capable**: Works even when network connectivity to OpenRouter is unavailable by using predefined models
 
 The ranked list includes powerful models like:
 - Meta's Llama 4 Maverick and Scout
@@ -537,6 +563,9 @@ flowchart TD
     B -->|standard mode| J[Standard commit mode]
     B -->|--watch| K[File change monitoring mode]
     B -->|--simulate-offline| Offline[Simulate offline mode]
+    B -->|--jail-status| JailStatus[Display model jail status]
+    B -->|--unjail| Unjail[Release specific model]
+    B -->|--unjail-all| UnjailAll[Release all models]
     
     %% Provider addition
     E -->|interactive| E1[Interactive setup]
@@ -569,17 +598,58 @@ flowchart TD
     N -->|only staged changes| N_Truncate["Smart diff processing (truncate large files only)"]
     N_Truncate --> O["Generate commit message (using refined prompt)"]
     
-    %% Simple Free OpenRouter branch
+    %% Simple Free OpenRouter branch with Advanced Failover
     O -->|Simple Free OpenRouter| SF1["Query OpenRouter API for available free models"]
     SF1 --> SF_Network{Network available?}
     SF_Network -->|Yes| SF2["Filter for free models"]
     SF_Network -->|No| SF3["Use fallback predefined free models list"]
     SF2 --> SF4["Sort by preferred model order"]
     SF3 --> SF4
-    SF4 --> SF5["Select best available model"]
-    SF5 --> SF6["Generate commit using selected model"]
-    SF6 --> SF7["Display which model was used"]
+    SF4 --> SF_Status["Check model status (Active/Jailed/Blacklisted)"]
+    SF_Status --> SF_Active["Select best ACTIVE model by ranking"]
+    
+    SF_Active --> SF_Found{Active model found?}
+    SF_Found -->|Yes| SF_Try["Try selected active model"]
+    SF_Found -->|No| SF_Jail["Check for releasable JAILED models"]
+    
+    SF_Jail --> SF_JailFound{Releasable jailed model?}
+    SF_JailFound -->|Yes| SF_JailRelease["Release from jail & try model"]
+    SF_JailFound -->|No| SF_Black["Check for retriable BLACKLISTED models"]
+    
+    SF_Black --> SF_BlackFound{Retriable blacklisted?}
+    SF_BlackFound -->|Yes| SF_BlackTry["Weekly retry of blacklisted model"] 
+    SF_BlackFound -->|No| SF_Fallback["Use fallback model as last resort"]
+    
+    SF_Try --> SF_Success{Model worked?}
+    SF_JailRelease --> SF_Success
+    SF_BlackTry --> SF_Success
+    SF_Fallback --> SF_Success
+    
+    SF_Success -->|Yes| SF_Record["Record success & update stats"]
+    SF_Success -->|No| SF_Analyze["Analyze error type"]
+    
+    SF_Analyze --> SF_ErrorType{Network error?}
+    SF_ErrorType -->|Yes| SF_Retry["Retry with backoff"]
+    SF_ErrorType -->|No| SF_Strike["Increment strike counter"]
+    
+    SF_Strike --> SF_StrikeCount{Strike count ≥ 3?}
+    SF_StrikeCount -->|Yes| SF_ToJail["Move model to JAILED status"]
+    SF_StrikeCount -->|No| SF_Next["Try next model"]
+    
+    SF_ToJail --> SF_JailCount{Jail count ≥ 3?}
+    SF_JailCount -->|Yes| SF_ToBlack["Move to BLACKLISTED status"]
+    SF_JailCount -->|No| SF_Next
+    
+    SF_ToBlack --> SF_Next
+    SF_Record --> SF7["Display which model was used"]
+    SF_Retry --> SF_RetryLimit{Retry limit reached?}
+    SF_RetryLimit -->|Yes| SF_Next
+    SF_RetryLimit -->|No| SF_Try
+    
     SF7 --> P
+    SF_Next --> SF_Next2{All models tried?}
+    SF_Next2 -->|No| SF_Status
+    SF_Next2 -->|Yes| P2
     
     %% Normal provider branch
     O -->|Other providers| P{Success?}
@@ -642,6 +712,11 @@ flowchart TD
     Offline --> Offline1[Skip network API calls]
     Offline1 --> Offline2[Use predefined model list]
     Offline2 --> J
+    
+    %% Jail management commands
+    JailStatus --> JailStatus1[Display all model statuses]
+    Unjail --> Unjail1[Release specific model from jail/blacklist]
+    UnjailAll --> UnjailAll1[Reset all models to active status]
 ```
 
 ## License
