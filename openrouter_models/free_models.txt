@@ -1,0 +1,492 @@
+OpenRouter Free Models:
+
+ID: nvidia/llama-3.1-nemotron-ultra-253b-v1:free
+Name: NVIDIA: Llama 3.1 Nemotron Ultra 253B v1 (free)
+Size: 253B
+Context Length: 131072
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen3-235b-a22b:free
+Name: Qwen: Qwen3 235B A22B (free)
+Size: 235B
+Context Length: 40960
+Free Tokens: 0
+--------------------------------------------------
+
+ID: bytedance-research/ui-tars-72b:free
+Name: Bytedance: UI-TARS 72B  (free)
+Size: 72B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: featherless/qwerky-72b:free
+Name: Qwerky 72B (free)
+Size: 72B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen2.5-vl-72b-instruct:free
+Name: Qwen: Qwen2.5 VL 72B Instruct (free)
+Size: 72B
+Context Length: 131072
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen-2.5-72b-instruct:free
+Name: Qwen2.5 72B Instruct (free)
+Size: 72B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: shisa-ai/shisa-v2-llama3.3-70b:free
+Name: Shisa AI: Shisa V2 Llama 3.3 70B  (free)
+Size: 70B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: deepseek/deepseek-r1-distill-llama-70b:free
+Name: DeepSeek: R1 Distill Llama 70B (free)
+Size: 70B
+Context Length: 8192
+Free Tokens: 0
+--------------------------------------------------
+
+ID: meta-llama/llama-3.3-70b-instruct:free
+Name: Meta: Llama 3.3 70B Instruct (free)
+Size: 70B
+Context Length: 8000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen3-32b:free
+Name: Qwen: Qwen3 32B (free)
+Size: 32B
+Context Length: 40960
+Free Tokens: 0
+--------------------------------------------------
+
+ID: thudm/glm-z1-32b:free
+Name: THUDM: GLM Z1 32B (free)
+Size: 32B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: thudm/glm-4-32b:free
+Name: THUDM: GLM 4 32B (free)
+Size: 32B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: arliai/qwq-32b-arliai-rpr-v1:free
+Name: ArliAI: QwQ 32B RpR v1 (free)
+Size: 32B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen2.5-vl-32b-instruct:free
+Name: Qwen: Qwen2.5 VL 32B Instruct (free)
+Size: 32B
+Context Length: 8192
+Free Tokens: 0
+--------------------------------------------------
+
+ID: open-r1/olympiccoder-32b:free
+Name: OlympicCoder 32B (free)
+Size: 32B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwq-32b:free
+Name: Qwen: QwQ 32B (free)
+Size: 32B
+Context Length: 40000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: deepseek/deepseek-r1-distill-qwen-32b:free
+Name: DeepSeek: R1 Distill Qwen 32B (free)
+Size: 32B
+Context Length: 16000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwq-32b-preview:free
+Name: Qwen: QwQ 32B Preview (free)
+Size: 32B
+Context Length: 16384
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen-2.5-coder-32b-instruct:free
+Name: Qwen2.5 Coder 32B Instruct (free)
+Size: 32B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen3-30b-a3b:free
+Name: Qwen: Qwen3 30B A3B (free)
+Size: 30B
+Context Length: 40960
+Free Tokens: 0
+--------------------------------------------------
+
+ID: mistralai/mistral-small-3.1-24b-instruct:free
+Name: Mistral: Mistral Small 3.1 24B (free)
+Size: 24B
+Context Length: 96000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: cognitivecomputations/dolphin3.0-r1-mistral-24b:free
+Name: Dolphin3.0 R1 Mistral 24B (free)
+Size: 24B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: cognitivecomputations/dolphin3.0-mistral-24b:free
+Name: Dolphin3.0 Mistral 24B (free)
+Size: 24B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: mistralai/mistral-small-24b-instruct-2501:free
+Name: Mistral: Mistral Small 3 (free)
+Size: 24B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: moonshotai/moonlight-16b-a3b-instruct:free
+Name: Moonshot AI: Moonlight 16B A3B Instruct (free)
+Size: 16B
+Context Length: 8192
+Free Tokens: 0
+--------------------------------------------------
+
+ID: opengvlab/internvl3-14b:free
+Name: OpenGVLab: InternVL3 14B (free)
+Size: 14B
+Context Length: 32000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen3-14b:free
+Name: Qwen: Qwen3 14B (free)
+Size: 14B
+Context Length: 40960
+Free Tokens: 0
+--------------------------------------------------
+
+ID: agentica-org/deepcoder-14b-preview:free
+Name: Agentica: Deepcoder 14B Preview (free)
+Size: 14B
+Context Length: 96000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: deepseek/deepseek-r1-distill-qwen-14b:free
+Name: DeepSeek: R1 Distill Qwen 14B (free)
+Size: 14B
+Context Length: 64000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: google/gemma-3-12b-it:free
+Name: Google: Gemma 3 12B (free)
+Size: 12B
+Context Length: 131072
+Free Tokens: 0
+--------------------------------------------------
+
+ID: meta-llama/llama-3.2-11b-vision-instruct:free
+Name: Meta: Llama 3.2 11B Vision Instruct (free)
+Size: 11B
+Context Length: 131072
+Free Tokens: 0
+--------------------------------------------------
+
+ID: thudm/glm-z1-9b:free
+Name: THUDM: GLM Z1 9B (free)
+Size: 9B
+Context Length: 32000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: thudm/glm-4-9b:free
+Name: THUDM: GLM 4 9B (free)
+Size: 9B
+Context Length: 32000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: nvidia/llama-3.3-nemotron-super-49b-v1:free
+Name: NVIDIA: Llama 3.3 Nemotron Super 49B v1 (free)
+Size: 9B
+Context Length: 131072
+Free Tokens: 0
+--------------------------------------------------
+
+ID: google/gemma-2-9b-it:free
+Name: Google: Gemma 2 9B (free)
+Size: 9B
+Context Length: 8192
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen3-8b:free
+Name: Qwen: Qwen3 8B (free)
+Size: 8B
+Context Length: 40960
+Free Tokens: 0
+--------------------------------------------------
+
+ID: nousresearch/deephermes-3-llama-3-8b-preview:free
+Name: Nous: DeepHermes 3 Llama 3 8B Preview (free)
+Size: 8B
+Context Length: 131072
+Free Tokens: 0
+--------------------------------------------------
+
+ID: meta-llama/llama-3.1-8b-instruct:free
+Name: Meta: Llama 3.1 8B Instruct (free)
+Size: 8B
+Context Length: 131072
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen3-1.7b:free
+Name: Qwen: Qwen3 1.7B (free)
+Size: 7B
+Context Length: 32000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: allenai/molmo-7b-d:free
+Name: AllenAI: Molmo 7B D (free)
+Size: 7B
+Context Length: 4096
+Free Tokens: 0
+--------------------------------------------------
+
+ID: google/gemma-3-27b-it:free
+Name: Google: Gemma 3 27B (free)
+Size: 7B
+Context Length: 96000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen-2.5-7b-instruct:free
+Name: Qwen2.5 7B Instruct (free)
+Size: 7B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen-2.5-vl-7b-instruct:free
+Name: Qwen: Qwen2.5-VL 7B Instruct (free)
+Size: 7B
+Context Length: 64000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: mistralai/mistral-7b-instruct:free
+Name: Mistral: Mistral 7B Instruct (free)
+Size: 7B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen3-0.6b-04-28:free
+Name: Qwen: Qwen3 0.6B (free)
+Size: 6B
+Context Length: 32000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: meta-llama/llama-3.1-405b:free
+Name: Meta: Llama 3.1 405B (base) (free)
+Size: 5B
+Context Length: 64000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen3-4b:free
+Name: Qwen: Qwen3 4B (free)
+Size: 4B
+Context Length: 128000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: google/gemma-3-4b-it:free
+Name: Google: Gemma 3 4B (free)
+Size: 4B
+Context Length: 131072
+Free Tokens: 0
+--------------------------------------------------
+
+ID: moonshotai/kimi-vl-a3b-thinking:free
+Name: Moonshot AI: Kimi VL A3B Thinking (free)
+Size: 3B
+Context Length: 131072
+Free Tokens: 0
+--------------------------------------------------
+
+ID: qwen/qwen2.5-vl-3b-instruct:free
+Name: Qwen: Qwen2.5 VL 3B Instruct (free)
+Size: 3B
+Context Length: 64000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: meta-llama/llama-3.2-3b-instruct:free
+Name: Meta: Llama 3.2 3B Instruct (free)
+Size: 3B
+Context Length: 20000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: opengvlab/internvl3-2b:free
+Name: OpenGVLab: InternVL3 2B (free)
+Size: 2B
+Context Length: 32000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: google/gemma-3-1b-it:free
+Name: Google: Gemma 3 1B (free)
+Size: 1B
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: meta-llama/llama-3.2-1b-instruct:free
+Name: Meta: Llama 3.2 1B Instruct (free)
+Size: 1B
+Context Length: 131000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: microsoft/phi-4-reasoning-plus:free
+Name: Microsoft: Phi 4 Reasoning Plus (free)
+Size: Unknown
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: microsoft/phi-4-reasoning:free
+Name: Microsoft: Phi 4 Reasoning (free)
+Size: Unknown
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: deepseek/deepseek-prover-v2:free
+Name: DeepSeek: DeepSeek Prover V2 (free)
+Size: Unknown
+Context Length: 163840
+Free Tokens: 0
+--------------------------------------------------
+
+ID: tngtech/deepseek-r1t-chimera:free
+Name: TNG: DeepSeek R1T Chimera (free)
+Size: Unknown
+Context Length: 163840
+Free Tokens: 0
+--------------------------------------------------
+
+ID: microsoft/mai-ds-r1:free
+Name: Microsoft: MAI DS R1 (free)
+Size: Unknown
+Context Length: 163840
+Free Tokens: 0
+--------------------------------------------------
+
+ID: meta-llama/llama-4-maverick:free
+Name: Meta: Llama 4 Maverick (free)
+Size: Unknown
+Context Length: 256000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: meta-llama/llama-4-scout:free
+Name: Meta: Llama 4 Scout (free)
+Size: Unknown
+Context Length: 512000
+Free Tokens: 0
+--------------------------------------------------
+
+ID: deepseek/deepseek-v3-base:free
+Name: DeepSeek: DeepSeek V3 Base (free)
+Size: Unknown
+Context Length: 163840
+Free Tokens: 0
+--------------------------------------------------
+
+ID: deepseek/deepseek-chat-v3-0324:free
+Name: DeepSeek: DeepSeek V3 0324 (free)
+Size: Unknown
+Context Length: 163840
+Free Tokens: 0
+--------------------------------------------------
+
+ID: rekaai/reka-flash-3:free
+Name: Reka: Flash 3 (free)
+Size: Unknown
+Context Length: 32768
+Free Tokens: 0
+--------------------------------------------------
+
+ID: deepseek/deepseek-r1-zero:free
+Name: DeepSeek: DeepSeek R1 Zero (free)
+Size: Unknown
+Context Length: 163840
+Free Tokens: 0
+--------------------------------------------------
+
+ID: deepseek/deepseek-r1:free
+Name: DeepSeek: R1 (free)
+Size: Unknown
+Context Length: 163840
+Free Tokens: 0
+--------------------------------------------------
+
+ID: deepseek/deepseek-chat:free
+Name: DeepSeek: DeepSeek V3 (free)
+Size: Unknown
+Context Length: 163840
+Free Tokens: 0
+--------------------------------------------------
+
+ID: google/gemini-2.0-flash-exp:free
+Name: Google: Gemini 2.0 Flash Experimental (free)
+Size: Unknown
+Context Length: 1048576
+Free Tokens: 0
+--------------------------------------------------
+
+ID: google/learnlm-1.5-pro-experimental:free
+Name: Google: LearnLM 1.5 Pro Experimental (free)
+Size: Unknown
+Context Length: 40960
+Free Tokens: 0
+--------------------------------------------------
+
+ID: mistralai/mistral-nemo:free
+Name: Mistral: Mistral Nemo (free)
+Size: Unknown
+Context Length: 128000
+Free Tokens: 0
+--------------------------------------------------
+

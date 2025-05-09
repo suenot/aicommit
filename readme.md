@@ -14,183 +14,109 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
 
 ### Implemented Features
 - ✅ Uses LLMs to generate meaningful commit messages from your changes
-- ✅ Supports multiple LLM providers (OpenRouter, Ollama, LM Studio and any other OpenAI compatible api)
-- ✅ Custom api keys for services through open router api (for google aistudio and etc) - go to https://openrouter.ai/settings/integrations and paste key from any of them: AI21, Amazon BedRock, Anthropic, AnyScale, Avian.io, Cloudflare, Cohere, DeepInfra, **DeepSeek**, Fireworks, **Google AI Studio**, Google Vertex, Hyperbolic, Infermatic, Inflection, Lambda, Lepton, Mancer, Mistral, NovitaAI, OpenAI, Perplexity, Recursal, SambaNova, SF Compute, Together, xAI
-- ✅ Fast and efficient - works directly from your terminal
-- ✅ Easy configuration and customization
-- ✅ Transparent token usage and cost tracking
-- ✅ Automatic retry on provider errors (configurable attempts with 5s delay)
-- ✅ Version management with automatic incrementation
-- ✅ Version synchronization with Cargo.toml
-- ✅ Version synchronization with package.json
-- ✅ GitHub version management
-- ✅ VS Code integration for generating commit messages directly in the editor
-- ✅ Provider management (add, list, set active)
-- ✅ Interactive configuration setup
-- ✅ Configuration file editing
-- ✅ Add all to stash functionality (`aicommit --add`)
-- ✅ Auto push functionality (`aicommit --push`)
-- ✅ Auto pull functionality (`aicommit --pull`)
-- ✅ Automatic upstream branch setup for new branches
-- ✅ Interactive commit message generation (`aicommit --dry-run`)
-- ✅ Basic .gitignore file checks and management (create ~/.default_gitignore with ASCII-only content and use it as template if there is no .gitignore in the directory)
-- ✅ Help information display (`aicommit --help`)
-- ✅ Publication in npm
-- ✅ Support for cross-compilation (ARM, AARCH64, etc.)
-- ✅ Installation from binary
-- ✅ --verbose mode (show context for LLM)
-- ✅ Watch mode for automatic commits
+- ✅ Supports multiple LLM providers:
+  - [OpenRouter](https://openrouter.ai/) (cloud)
+  - [Simple Free OpenRouter](#simple-free-mode) (automatically uses best available free models)
+  - [Ollama](https://ollama.ai/) (local)
+  - OpenAI-compatible endpoints (LM Studio, local OpenAI proxy, etc.)
+- ✅ Automatically stages changes with `--add` option
+- ✅ Pushes commits automatically with `--push`
+- ✅ Interactive mode with `--dry-run`
+- ✅ Watch mode with `--watch`
+- ✅ Verbose mode with `--verbose`
+- ✅ Version control helpers:
+  - Automatic version bumping (`--version-iterate`)
+  - Cargo.toml version sync (`--version-cargo`)
+  - package.json version sync (`--version-npm`)
+  - GitHub version update (`--version-github`)
+- ✅ Smart retry mechanism for API failures
+- ✅ Easy configuration management
+- ✅ VS Code extension available
 
-### Planned Features
-- 🚧 MCP
-- 🚧 Support github issues (sync, auto open, auto close)
-- 🚧 Tests for each feature to prevent breaking changes
-- 🚧 Split commits by file (`aicommit --by-file`)
-- 🚧 Split commits by feature (`aicommit --by-feature`)
-- 🚧 Version management for multiple languages (requirements.txt, etc.)
-- 🚧 Branch safety checks for push operations
-- 🚧 Publication management
-- 🚧 Publication in brew/macports
-- 🚧 Publication in apt/apk/yum/pacman
-- 🚧 Publication in other package managers
-- 🚧 Support for submodules
-- 🚧 Support for mercurial
-- 🚧 Langchain support for multiple providers and custom logic
-- 🚧 Using priority for providers (if one of provider broken)
+## Simple Free Mode
 
-Legend:
-- ✅ Implemented
-- 🚧 Planned
-- 🧪 Has tests
+The Simple Free mode allows you to use OpenRouter's free models without having to manually select a model. You only need to provide an OpenRouter API key, and the system will:
+
+1. Automatically query OpenRouter for currently available free models
+2. Select the best available free model based on an internally ranked list
+3. Automatically switch to alternative models if one fails
+4. Track which models have failed and avoid them in future attempts
+5. Fall back to predefined free models if network connectivity is unavailable
+
+To set up Simple Free mode:
+
+```bash
+# Interactive setup
+aicommit --add-provider
+# Select "Simple Free OpenRouter" from the menu
+
+# Or non-interactive setup
+aicommit --add-simple-free --openrouter-api-key=<YOUR_API_KEY>
+```
+
+### Benefits of Simple Free Mode
+
+- **Zero Cost**: Uses only free models from OpenRouter
+- **Automatic Selection**: No need to manually choose the best free model
+- **Resilient Operation**: If one model fails, it automatically switches to the next best model
+- **Smart Failover**: Remembers which models have failed and avoids them in future attempts
+- **Always Up-to-Date**: Checks for currently available free models each time
+- **Best Quality First**: Uses a predefined ranking of models, prioritizing the most powerful ones
+- **Future-Proof**: Intelligently handles new models by analyzing model names for parameter counts
+- **Offline Capable**: Works even when network connectivity to OpenRouter is unavailable by using predefined models
+
+The ranked list includes powerful models like:
+- Meta's Llama 4 Maverick and Scout
+- NVIDIA's Nemotron Ultra models (253B parameters)
+- Qwen's massive 235B parameter models 
+- Many large models from the 70B+ parameter family
+- And dozens of other high-quality free options of various sizes
+
+Even if the preferred models list becomes outdated over time, the system will intelligently identify the best available models based on their parameter size by analyzing model names (e.g., models with "70b" or "32b" in their names).
+
+For developers who want to see all available free models, a utility script is included:
+
+```bash
+python bin/get_free_models.py
+```
+
+This script will:
+- Fetch all available models from OpenRouter
+- Identify which ones are free
+- Save the results to JSON and text files for reference
+- Display a summary of available options
 
 ## Installation
 
-There are several ways to install aicommit:
+To install aicommit, use the following npm command:
 
-### Using Cargo (Rust package manager)
+```
+npm install -g aicommit
+```
 
-If you have Rust installed:
-```bash
+For Rust users, you can install using cargo:
+
+```
 cargo install aicommit
 ```
 
-### Using npm/npx
+## Quick Start
 
+1. **Set up a provider:**
 ```bash
-# Run without installation
-npx @suenot/aicommit
+aicommit --add-provider
+```
 
-# Or install globally
-npm install -g @suenot/aicommit
+2. **Generate a commit message:**
+```bash
+git add .
 aicommit
 ```
 
-### Using brew
+3. **Or stage and commit in one step:**
 ```bash
-# Install Homebrew if you haven't already
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Add aicommit tap and install
-brew tap suenot/tap
-brew install suenot/tap/aicommit
+aicommit --add
 ```
-
-### Manual Installation
-
-#### Download Pre-built Binaries
-
-You can download pre-built binaries from the [GitHub Releases](https://github.com/suenot/aicommit/releases) page.
-
-Available builds:
-- Linux (x86_64, ARM64)
-- macOS (Intel x86_64, Apple Silicon ARM64)
-- Windows (x86_64, ARM64)
-
-#### Linux/macOS:
-```bash
-# 1. Download and extract (replace VERSION and ARCH with appropriate values)
-# wget https://github.com/suenot/aicommit/releases/download/vVERSION/aicommit-<ARCH>
-# chmod +x aicommit-<ARCH>
-# mv aicommit-<ARCH> aicommit
-# sudo mv aicommit /usr/local/bin/
-
-# Example for Linux x86_64:
-wget https://github.com/suenot/aicommit/releases/download/v0.1.72/aicommit-linux-x86_64
-mv aicommit-linux-x86_64 aicommit
-chmod +x aicommit
-sudo mv aicommit /usr/local/bin/
-
-# Example for macOS ARM64:
-wget https://github.com/suenot/aicommit/releases/download/v0.1.72/aicommit-macos-aarch64
-mv aicommit-macos-aarch64 aicommit
-chmod +x aicommit
-sudo mv aicommit /usr/local/bin/
-
-# Example for macOS x86_64:
-wget https://github.com/suenot/aicommit/releases/download/v0.1.72/aicommit-macos-x86_64
-mv aicommit-macos-x86_64 aicommit
-chmod +x aicommit
-sudo mv aicommit /usr/local/bin/
-
-
-# 2. Make it executable
-chmod +x aicommit-<ARCH>
-
-
-# 3. Move to a directory in your PATH (optional)
-
-```
-
-#### Windows:
-1. Download the ZIP file for your architecture
-2. Extract the executable
-3. Add the directory to your PATH or move the executable to a directory in your PATH
-
-### Build from Source
-
-If you want to build the latest version from source:
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/suenot/aicommit
-cd aicommit
-
-# 2. Build and install
-cargo install --path .
-```
-
-Requirements for building from source:
-- Rust toolchain (install from [rustup.rs](https://rustup.rs))
-- A C compiler (gcc, clang, or MSVC)
-- OpenSSL development packages (on Linux)
-
-## Quick Start
-
-1. Add a provider (choose one method):
-
-   Interactive mode:
-   ```bash
-   aicommit --add-provider
-   ```
-
-   Non-interactive mode (example with OpenRouter):
-   ```bash
-   aicommit --add-provider --add-openrouter --openrouter-api-key "your-api-key"
-   ```
-
-2. Make some changes to your code
-
-3. Create a commit:
-   ```bash
-   # Commit only staged changes (files added with git add)
-   aicommit
-
-   # Automatically stage and commit all changes
-   aicommit --add
-
-   # Stage all changes, commit, and push
-   aicommit --add --push
-   ```
 
 ## Provider Management
 
@@ -335,6 +261,36 @@ Example configuration with all options:
 For OpenRouter, token costs are automatically fetched from their API. For Ollama, you can specify your own costs if you want to track usage.
 
 ## Supported LLM Providers
+
+### Simple Free OpenRouter
+```json
+{
+  "providers": [{
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "provider": "simple_free_openrouter",
+    "api_key": "sk-or-v1-...",
+    "max_tokens": 50,
+    "temperature": 0.3,
+    "failed_models": []
+  }],
+  "active_provider": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+The Simple Free mode offers a hassle-free way to use OpenRouter's free models:
+
+- **Automatic Model Selection**: No need to specify a model - the system queries OpenRouter's API for all available models and filters for free ones
+- **Intelligent Ranking**: Uses an internal ranked list of preferred models (maintained in the codebase) to select the best available free model
+- **Failure Handling**: If a model fails, it's added to the `failed_models` array and won't be used again in future attempts
+- **Fallback System**: Automatically falls back to the next best available model if the preferred one fails
+- **Network Resilience**: Can operate even when your network connection to OpenRouter is unavailable by using predefined models
+- **Free Usage**: Takes advantage of OpenRouter's free models that have free quotas or free access
+- **Future-Proof Design**: Even when new models appear that aren't in the preferred list, the system can intelligently identify high-quality models by analyzing model names for parameter counts (e.g., models with "70b" in their name are prioritized over those with "7b")
+- **Smart Model Analysis**: Uses a sophisticated algorithm to extract parameter counts from model names and prioritize larger models when none of the preferred models are available
+
+This approach ensures that your `aicommit` installation will continue to work effectively even years later, as it can adapt to the changing landscape of available free models on OpenRouter.
+
+This is the recommended option for most users who want to use aicommit without worrying about model selection or costs.
 
 ### OpenRouter
 ```json
@@ -580,16 +536,19 @@ flowchart TD
     B -->|--dry-run| I[Message generation mode without commit]
     B -->|standard mode| J[Standard commit mode]
     B -->|--watch| K[File change monitoring mode]
+    B -->|--simulate-offline| Offline[Simulate offline mode]
     
     %% Provider addition
     E -->|interactive| E1[Interactive setup]
     E -->|--add-openrouter| E2[Add OpenRouter]
     E -->|--add-ollama| E3[Add Ollama]
     E -->|--add-openai-compatible| E4[Add OpenAI compatible API]
+    E -->|--add-simple-free| E_Free[Add Simple Free OpenRouter]
     E1 --> E5[Save configuration]
     E2 --> E5
     E3 --> E5
     E4 --> E5
+    E_Free --> E5
     
     %% Main commit process
     J --> L[Load configuration]
@@ -610,7 +569,21 @@ flowchart TD
     N -->|only staged changes| N_Truncate["Smart diff processing (truncate large files only)"]
     N_Truncate --> O["Generate commit message (using refined prompt)"]
     
-    O --> P{Success?}
+    %% Simple Free OpenRouter branch
+    O -->|Simple Free OpenRouter| SF1["Query OpenRouter API for available free models"]
+    SF1 --> SF_Network{Network available?}
+    SF_Network -->|Yes| SF2["Filter for free models"]
+    SF_Network -->|No| SF3["Use fallback predefined free models list"]
+    SF2 --> SF4["Sort by preferred model order"]
+    SF3 --> SF4
+    SF4 --> SF5["Select best available model"]
+    SF5 --> SF6["Generate commit using selected model"]
+    SF6 --> SF7["Display which model was used"]
+    SF7 --> P
+    
+    %% Normal provider branch
+    O -->|Other providers| P{Success?}
+    
     P -->|Yes| Q[Create commit]
     P -->|No| P1{Retry limit reached?}
     P1 -->|Yes| P2[Generation error]
@@ -664,6 +637,11 @@ flowchart TD
     I2 --> I3_Truncate["Smart diff processing (truncate large files only)"]
     I3_Truncate --> I3["Generate commit message (using refined prompt)"]
     I3 --> I4[Display result without creating commit]
+    
+    %% Offline mode simulation
+    Offline --> Offline1[Skip network API calls]
+    Offline1 --> Offline2[Use predefined model list]
+    Offline2 --> J
 ```
 
 ## License

@@ -12,10 +12,102 @@ use chrono;
 const MAX_DIFF_CHARS: usize = 15000; // Limit diff size to prevent excessive API usage
 const MAX_FILE_DIFF_CHARS: usize = 3000; // Maximum characters per file diff section
 
+// Define a list of preferred free models from best to worst
+const PREFERRED_FREE_MODELS: &[&str] = &[
+    // Meta models - Llama 4 series
+    "meta-llama/llama-4-maverick:free",
+    "meta-llama/llama-4-scout:free",
+    
+    // Ultra large models (200B+)
+    "nvidia/llama-3.1-nemotron-ultra-253b-v1:free",
+    "qwen/qwen3-235b-a22b:free",
+    
+    // Very large models (70B-200B)
+    "meta-llama/llama-3.1-405b:free",
+    "nvidia/llama-3.3-nemotron-super-49b-v1:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "deepseek/deepseek-r1-distill-llama-70b:free",
+    "shisa-ai/shisa-v2-llama3.3-70b:free",
+    
+    // Large models (32B-70B)
+    "qwen/qwen-2.5-72b-instruct:free",
+    "qwen/qwen2.5-vl-72b-instruct:free",
+    "bytedance-research/ui-tars-72b:free",
+    "featherless/qwerky-72b:free",
+    "thudm/glm-4-32b:free",
+    "thudm/glm-z1-32b:free",
+    "qwen/qwen3-32b:free",
+    "qwen/qwen3-30b-a3b:free",
+    "qwen/qwq-32b:free",
+    "qwen/qwq-32b-preview:free",
+    "deepseek/deepseek-r1-distill-qwen-32b:free",
+    "arliai/qwq-32b-arliai-rpr-v1:free",
+    "qwen/qwen2.5-vl-32b-instruct:free",
+    "open-r1/olympiccoder-32b:free",
+    "qwen/qwen-2.5-coder-32b-instruct:free",
+    
+    // Medium-large models (14B-30B)
+    "mistralai/mistral-small-3.1-24b-instruct:free",
+    "mistralai/mistral-small-24b-instruct-2501:free",
+    "cognitivecomputations/dolphin3.0-r1-mistral-24b:free",
+    "cognitivecomputations/dolphin3.0-mistral-24b:free",
+    "google/gemma-3-27b-it:free",
+    "google/gemini-2.0-flash-exp:free",
+    "rekaai/reka-flash-3:free",
+    
+    // Medium models (7B-14B)
+    "qwen/qwen3-14b:free",
+    "deepseek/deepseek-r1-distill-qwen-14b:free",
+    "agentica-org/deepcoder-14b-preview:free",
+    "moonshotai/moonlight-16b-a3b-instruct:free",
+    "opengvlab/internvl3-14b:free",
+    "google/gemma-3-12b-it:free",
+    "meta-llama/llama-3.2-11b-vision-instruct:free",
+    "thudm/glm-4-9b:free",
+    "thudm/glm-z1-9b:free",
+    "google/gemma-2-9b-it:free",
+    "qwen/qwen3-8b:free",
+    "meta-llama/llama-3.1-8b-instruct:free",
+    "nousresearch/deephermes-3-llama-3-8b-preview:free",
+    
+    // Specialized models (various sizes)
+    "deepseek/deepseek-r1:free",
+    "microsoft/phi-4-reasoning-plus:free",
+    "microsoft/phi-4-reasoning:free",
+    "deepseek/deepseek-v3-base:free",
+    "deepseek/deepseek-r1-zero:free",
+    "deepseek/deepseek-prover-v2:free",
+    "deepseek/deepseek-chat-v3-0324:free",
+    "deepseek/deepseek-chat:free",
+    "microsoft/mai-ds-r1:free",
+    "tngtech/deepseek-r1t-chimera:free",
+    "mistralai/mistral-nemo:free",
+    
+    // Small models (< 7B)
+    "qwen/qwen3-4b:free",
+    "google/gemma-3-4b-it:free",
+    "qwen/qwen-2.5-7b-instruct:free",
+    "mistralai/mistral-7b-instruct:free",
+    "qwen/qwen-2.5-vl-7b-instruct:free",
+    "opengvlab/internvl3-2b:free",
+    "google/gemma-3-1b-it:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+    "allenai/molmo-7b-d:free",
+    "qwen/qwen3-1.7b:free",
+    "qwen/qwen2.5-vl-3b-instruct:free",
+    "meta-llama/llama-3.2-1b-instruct:free",
+    "qwen/qwen3-0.6b-04-28:free",
+    
+    // Special cases and multimodal models
+    "google/learnlm-1.5-pro-experimental:free",
+    "moonshotai/kimi-vl-a3b-thinking:free"
+];
+
 #[derive(Parser, Debug)]
 #[command(name = "aicommit")]
 #[command(about = "A CLI tool that generates concise and descriptive git commit messages using LLMs", long_about = None)]
 #[command(disable_help_flag = true)]
+#[command(bin_name = "aicommit")]
 struct Cli {
     /// Add a new provider (interactive mode)
     #[arg(long = "add-provider")]
@@ -36,6 +128,10 @@ struct Cli {
     /// OpenRouter model name
     #[arg(long, default_value = "mistralai/mistral-tiny")]
     openrouter_model: String,
+
+    /// Add Simple Free OpenRouter provider (uses best available free models automatically)
+    #[arg(long)]
+    add_simple_free: bool,
 
     /// Add Ollama provider non-interactively
     #[arg(long)]
@@ -140,6 +236,14 @@ struct Cli {
     /// Skip .gitignore check and creation
     #[arg(long = "no-gitignore-check")]
     no_gitignore_check: bool,
+
+    /// Set the git commit message without using AI. (For CI/CD or offline use cases)
+    #[arg(long)]
+    msg: Option<String>,
+
+    /// Force the use of offline mode (uses fallback model list) for testing purposes
+    #[arg(long, hide = true)]
+    simulate_offline: bool,
 }
 
 /// Increment version string (e.g., "0.0.37" -> "0.0.38")
@@ -322,6 +426,17 @@ struct OpenRouterConfig {
     temperature: f32,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct SimpleFreeOpenRouterConfig {
+    id: String,
+    provider: String,
+    api_key: String,
+    max_tokens: i32,
+    temperature: f32,
+    #[serde(default)]
+    failed_models: Vec<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct OllamaConfig {
     id: String,
@@ -348,6 +463,7 @@ enum ProviderConfig {
     OpenRouter(OpenRouterConfig),
     Ollama(OllamaConfig),
     OpenAICompatible(OpenAICompatibleConfig),
+    SimpleFreeOpenRouter(SimpleFreeOpenRouterConfig),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -564,7 +680,7 @@ nbproject/
         let mut config = Config::load().unwrap_or_else(|_| Config::new());
 
         println!("Let's set up a provider.");
-        let provider_options = &["OpenRouter", "Ollama", "OpenAI Compatible"];
+        let provider_options = &["OpenRouter", "Simple Free OpenRouter", "Ollama", "OpenAI Compatible"];
         let provider_selection = Select::new()
             .with_prompt("Select a provider")
             .items(provider_options)
@@ -581,6 +697,40 @@ nbproject/
                 config.active_provider = provider_id;
             }
             1 => {
+                let api_key: String = Input::new()
+                    .with_prompt("Enter OpenRouter API key")
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get API key: {}", e))?;
+
+                let max_tokens: String = Input::new()
+                    .with_prompt("Enter max tokens")
+                    .default("50".into())
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get max tokens: {}", e))?;
+                let max_tokens: i32 = max_tokens.parse()
+                    .map_err(|e| format!("Failed to parse max tokens: {}", e))?;
+
+                let temperature: String = Input::new()
+                    .with_prompt("Enter temperature")
+                    .default("0.3".into())
+                    .interact_text()
+                    .map_err(|e| format!("Failed to get temperature: {}", e))?;
+                let temperature: f32 = temperature.parse()
+                    .map_err(|e| format!("Failed to parse temperature: {}", e))?;
+
+                let simple_free_config = SimpleFreeOpenRouterConfig {
+                    id: provider_id.clone(),
+                    provider: "simple_free_openrouter".to_string(),
+                    api_key,
+                    max_tokens,
+                    temperature,
+                    failed_models: Vec::new(),
+                };
+
+                config.providers.push(ProviderConfig::SimpleFreeOpenRouter(simple_free_config));
+                config.active_provider = provider_id;
+            }
+            2 => {
                 let url: String = Input::new()
                     .with_prompt("Enter Ollama API URL")
                     .default("http://localhost:11434".into())
@@ -619,7 +769,7 @@ nbproject/
                 }));
                 config.active_provider = provider_id;
             }
-            2 => {
+            3 => {
                 let mut openai_compatible_config = setup_openai_compatible_provider().await?;
                 openai_compatible_config.id = provider_id.clone();
                 config.providers.push(ProviderConfig::OpenAICompatible(openai_compatible_config));
@@ -685,6 +835,20 @@ nbproject/
                 temperature: cli.temperature,
             };
             config.providers.push(ProviderConfig::OpenRouter(openrouter_config));
+            config.active_provider = provider_id;
+        } else if cli.add_simple_free {
+            let api_key = cli.openrouter_api_key.clone()
+                .ok_or_else(|| "OpenRouter API key is required".to_string())?;
+
+            let simple_free_config = SimpleFreeOpenRouterConfig {
+                id: provider_id.clone(),
+                provider: "simple_free_openrouter".to_string(),
+                api_key,
+                max_tokens: cli.max_tokens,
+                temperature: cli.temperature,
+                failed_models: Vec::new(),
+            };
+            config.providers.push(ProviderConfig::SimpleFreeOpenRouter(simple_free_config));
             config.active_provider = provider_id;
         } else if cli.add_ollama {
             let ollama_config = OllamaConfig {
@@ -900,276 +1064,12 @@ fn process_git_diff_output(diff: &str) -> String {
     processed
 }
 
-async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
-    let client = reqwest::Client::new();
-
-    // Use the smart diff processing function instead of simple truncation
-    let processed_diff = process_git_diff_output(diff);
-
-    let prompt = format!(
-        "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
-Examples:
-- feat: Add user authentication feature
-- fix: Correct calculation error in payment module
-- docs: Update README with installation instructions
-- style: Format code according to style guide
-- refactor: Simplify database query logic
-- test: Add unit tests for user service
-- chore: Update dependencies
-
-Git Diff:
-```diff
-{}
-```
-Commit Message ONLY:",
-        processed_diff
-    );
-
-    // Show context in verbose mode
-    if cli.verbose {
-        println!("\n=== Context for LLM ===");
-        println!("Provider: OpenRouter");
-        println!("Model: {}", config.model);
-        println!("Max tokens: {}", config.max_tokens);
-        println!("Temperature: {}", config.temperature);
-        println!("\n=== Prompt ===\n{}", prompt);
-        println!("\n=== Sending request to API ===");
-    }
-
-    let request_body = json!({
-        "model": &config.model,
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        "max_tokens": config.max_tokens,
-        "temperature": config.temperature,
-    });
-
-    let response = client
-        .post("https://openrouter.ai/api/v1/chat/completions")
-        .header("Authorization", format!("Bearer {}", &config.api_key))
-        .header("HTTP-Referer", "https://suenot.github.io/aicommit/")
-        .header("X-Title", "aicommit")
-        .header("X-Description", "A CLI tool that generates concise and descriptive git commit messages")
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to send request: {}", e))?;
-
-    if !response.status().is_success() {
-        return Err(format!("API request failed: {}", response.status()));
-    }
-
-    let response_data: OpenRouterResponse = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
-    
-    let message = response_data.choices
-        .get(0)
-        .ok_or("No choices in response")?
-        .message
-        .content
-        .clone();
-
-    // Используем информацию о токенах из ответа API
-    let usage = UsageInfo {
-        input_tokens: response_data.usage.prompt_tokens,
-        output_tokens: response_data.usage.completion_tokens,
-        // Примерная стоимость: $0.14/100K токенов для mistral-tiny
-        total_cost: (response_data.usage.total_tokens as f32) * 0.0000014,
-    };
-
-    Ok((message, usage))
-}
-
-async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
-    let client = reqwest::Client::new();
-
-    // Use the smart diff processing function instead of simple truncation
-    let processed_diff = process_git_diff_output(diff);
-
-    let prompt = format!(
-        "Generate ONLY the raw git commit message string (one line, max 72 chars) based on the diff. Follow Conventional Commits (type: description). Do NOT include any introductory text, explanations, or ```.
-Examples:
-- feat: add user login
-- fix: correct payment calculation
-- docs: update readme
-- style: format code
-- refactor: simplify query
-- test: add user tests
-- chore: update deps
-
-Git Diff:
-```diff
-{}
-```
-Commit Message ONLY:",
-        processed_diff
-    );
-
-    // Show context in verbose mode
-    if cli.verbose {
-        println!("\n=== Context for LLM ===");
-        println!("Provider: Ollama");
-        println!("Model: {}", config.model);
-        println!("URL: {}", config.url);
-        println!("Max tokens: {}", config.max_tokens);
-        println!("Temperature: {}", config.temperature);
-        println!("\n=== Prompt ===\n{}", prompt);
-        println!("\n=== Sending request to API ===");
-    }
-
-    let request_body = serde_json::json!({
-        "model": config.model,
-        "prompt": prompt,
-        "stream": false,
-        "options": {
-            "temperature": config.temperature,
-            "num_predict": config.max_tokens
-        }
-    });
-
-    let response = client
-        .post(format!("{}/api/generate", config.url))
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|e| format!("HTTP request failed: {}", e))?;
-
-    let status = response.status();
-    if !status.is_success() {
-        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("API returned an error ({}): {}", status, error_text));
-    }
-
-    let json: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
-
-    let commit_message = json["response"]
-        .as_str()
-        .map(|s| s.trim()
-            .trim_start_matches(['\\', '/', '-', ' '])
-            .trim_end_matches(['\\', '/', '-', ' ', '.'])
-            .trim()
-            .to_string())
-        .ok_or_else(|| "No text found in API response".to_string())?;
-
-    if commit_message.is_empty() || commit_message.len() < 3 {
-        return Err("Generated commit message is too short or empty".to_string());
-    }
-
-    // For Ollama, we estimate tokens based on characters (rough approximation)
-    let input_tokens = (diff.len() / 4) as i32;
-    let output_tokens = (commit_message.len() / 4) as i32;
-    
-    let input_cost = input_tokens as f32 * 0.0 / 1000.0;
-    let output_cost = output_tokens as f32 * 0.0 / 1000.0;
-    let total_cost = input_cost + output_cost;
-
-    let usage = UsageInfo {
-        input_tokens,
-        output_tokens,
-        total_cost,
-    };
-
-    Ok((commit_message, usage))
-}
-
-async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
-    let client = reqwest::Client::new();
-
-    // Use the smart diff processing function instead of simple truncation
-    let processed_diff = process_git_diff_output(diff);
-
-    let prompt = format!(
-        "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
-Examples:
-- feat: Add user authentication feature
-- fix: Correct calculation error in payment module
-- docs: Update README with installation instructions
-- style: Format code according to style guide
-- refactor: Simplify database query logic
-- test: Add unit tests for user service
-- chore: Update dependencies
-
-Git Diff:
-```diff
-{}
-```
-Commit Message ONLY:",
-        processed_diff
-    );
-
-    // Show context in verbose mode
-    if cli.verbose {
-        println!("\n=== Context for LLM ===");
-        println!("Provider: OpenAI Compatible");
-        println!("Model: {}", config.model);
-        println!("API URL: {}", config.api_url);
-        println!("Max tokens: {}", config.max_tokens);
-        println!("Temperature: {}", config.temperature);
-        println!("\n=== Prompt ===\n{}", prompt);
-        println!("\n=== Sending request to API ===");
-    }
-
-    let request_body = json!({
-        "model": &config.model,
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        "max_tokens": config.max_tokens,
-        "temperature": config.temperature,
-    });
-
-    let response = client
-        .post(&config.api_url)
-        .header("Authorization", format!("Bearer {}", &config.api_key))
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to send request: {}", e))?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("API request failed: {} - {}", status, error_text));
-    }
-
-    let response_data: OpenRouterResponse = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
-    
-    let message = response_data.choices
-        .get(0)
-        .ok_or("No choices in response")?
-        .message
-        .content
-        .clone();
-
-    let usage = UsageInfo {
-        input_tokens: response_data.usage.prompt_tokens,
-        output_tokens: response_data.usage.completion_tokens,
-        total_cost: 0.0, // Set to 0 for OpenAI compatible APIs as we don't know the actual cost
-    };
-
-    Ok((message, usage))
-}
-
 #[derive(Debug)]
 struct UsageInfo {
     input_tokens: i32,
     output_tokens: i32,
     total_cost: f32,
+    model_used: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1476,52 +1376,59 @@ async fn main() -> Result<(), String> {
             println!("  --add-provider       Add a new provider (interactive mode)");
             println!("  --add                Automatically stage all changes before commit");
             println!("  --add-openrouter     Add OpenRouter provider non-interactively");
-            println!("  --openrouter-api-key OpenRouter API key");
-            println!("  --openrouter-model   OpenRouter model name");
-            println!("  --add-ollama        Add Ollama provider non-interactively");
-            println!("  --ollama-url        Ollama API URL");
-            println!("  --ollama-model      Ollama model name");
-            println!("  --add-openai-compatible Add OpenAI compatible provider non-interactively (e.g., LM Studio, custom)");
-            println!("  --openai-compatible-api-key OpenAI compatible API key");
-            println!("  --openai-compatible-api-url OpenAI compatible API URL (e.g., for LM Studio)");
-            println!("  --openai-compatible-model OpenAI compatible model name");
-            println!("  --max-tokens         Max tokens for provider configuration");
-            println!("  --temperature        Temperature for provider configuration");
-            println!("  --list              List all providers");
-            println!("  --set               Set active provider");
-            println!("  --config            Edit configuration file");
-            println!("  --version-file      Path to version file");
-            println!("  --version-iterate   Automatically increment version in version file");
-            println!("  --version-cargo     Synchronize version with Cargo.toml");
-            println!("  --version-npm       Synchronize version with package.json");
-            println!("  --version-github    Update version on GitHub");
-            println!("  --dry-run           Interactive commit message generation");
-            println!("  --pull              Pull changes before commit");
-            println!("  --watch             Watch for changes and auto-commit");
-            println!("  --wait-for-edit     Wait for edit delay before committing");
-            println!("  --push              Automatically push changes after commit");
-            println!("  --version           Display version information");
-            println!("  --help              Display help information");
-            println!("  --verbose           Display verbose information");
-            println!("  --no-gitignore-check Skip .gitignore check and creation");
+            println!("  --add-simple-free    Add Simple Free OpenRouter provider (uses best available free models)");
+            println!("  --add-ollama         Add Ollama provider non-interactively");
+            println!("  --add-openai-compatible Add OpenAI compatible provider non-interactively");
+            println!("  --openrouter-api-key=<KEY> OpenRouter API key (required for --add-openrouter)");
+            println!("  --openrouter-model=<MODEL> OpenRouter model (default: mistralai/mistral-tiny)");
+            println!("  --ollama-url=<URL>    Ollama API URL (default: http://localhost:11434)");
+            println!("  --ollama-model=<MODEL> Ollama model (default: llama2)");
+            println!("  --openai-compatible-api-key=<KEY> OpenAI compatible API key");
+            println!("  --openai-compatible-api-url=<URL> OpenAI compatible API URL");
+            println!("  --openai-compatible-model=<MODEL> OpenAI compatible model (default: gpt-3.5-turbo)");
+            println!("  --max-tokens=<TOKENS> Max tokens for response (default: 50)");
+            println!("  --temperature=<TEMP>  Temperature for generation (default: 0.3)");
+            println!("  --list                List all providers");
+            println!("  --set=<ID>            Set active provider by ID");
+            println!("  --config              Edit configuration file");
+            println!("  --version-file=<FILE> Path to version file");
+            println!("  --version-iterate     Automatically increment version in version file");
+            println!("  --version-cargo       Synchronize version with Cargo.toml");
+            println!("  --version-npm         Synchronize version with package.json");
+            println!("  --version-github      Update version on GitHub");
+            println!("  --dry-run             Interactive commit message generation");
+            println!("  --pull                Pull changes before commit");
+            println!("  --push                Automatically push changes after commit");
+            println!("  --help                Display this help message");
+            println!("  --version             Display version information");
+            println!("  --verbose             Display verbose information");
+            println!("  --no-gitignore-check  Skip .gitignore check and creation");
+            println!("  --watch               Watch for changes and auto-commit");
+            println!("  --wait-for-edit=<DURATION> Wait for edit delay before committing (e.g. \"30s\")");
+            println!("\nExamples:");
+            println!("  aicommit --add-provider");
+            println!("  aicommit --add");
+            println!("  aicommit --add-openrouter --openrouter-api-key=<KEY>");
+            println!("  aicommit --add-simple-free --openrouter-api-key=<KEY>");
+            println!("  aicommit --list");
+            println!("  aicommit --set=<ID>");
+            println!("  aicommit --version-file=version.txt --version-iterate");
+            println!("  aicommit --watch");
+            println!("  aicommit");
             Ok(())
         }
         _ if cli.version => {
-            // Получаем версию с помощью вспомогательной функции
-            let version = get_version();
-            println!("aicommit version {}", version);
+            println!("aicommit v{}", get_version());
             Ok(())
         }
         _ if cli.add_provider => {
-            if cli.add_openrouter || cli.add_ollama || cli.add_openai_compatible {
-                // Non-interactive provider configuration
-                let _config = Config::setup_non_interactive(&cli).await?;
-                println!("Provider successfully configured and set as default.");
-            } else {
-                // Interactive provider configuration
-                let _config = Config::setup_interactive().await?;
-                println!("Provider successfully configured and set as default.");
-            }
+            Config::setup_interactive().await?;
+            println!("Provider added successfully!");
+            Ok(())
+        }
+        _ if cli.add_openrouter || cli.add_ollama || cli.add_openai_compatible || cli.add_simple_free => {
+            Config::setup_non_interactive(&cli).await?;
+            println!("Provider added successfully!");
             Ok(())
         }
         _ if cli.list => {
@@ -1532,6 +1439,7 @@ async fn main() -> Result<(), String> {
                     ProviderConfig::OpenRouter(c) => println!("OpenRouter: {}", c.id),
                     ProviderConfig::Ollama(c) => println!("Ollama: {}", c.id),
                     ProviderConfig::OpenAICompatible(c) => println!("OpenAI Compatible: {}", c.id),
+                    ProviderConfig::SimpleFreeOpenRouter(c) => println!("Simple Free OpenRouter: {}", c.id),
                 }
             }
             Ok(())
@@ -1559,6 +1467,13 @@ async fn main() -> Result<(), String> {
                         }
                     }
                     ProviderConfig::OpenAICompatible(c) => {
+                        if c.id == new_active_provider {
+                            config.active_provider = c.id.clone();
+                            found = true;
+                            break;
+                        }
+                    }
+                    ProviderConfig::SimpleFreeOpenRouter(c) => {
                         if c.id == new_active_provider {
                             config.active_provider = c.id.clone();
                             found = true;
@@ -1754,6 +1669,7 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
             ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
             ProviderConfig::Ollama(c) => c.id == config.active_provider,
             ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
+            ProviderConfig::SimpleFreeOpenRouter(c) => c.id == config.active_provider,
         }).ok_or_else(|| "No active provider found".to_string())?;
 
         let mut attempt_count = 0;
@@ -1767,6 +1683,12 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
                 ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
                 ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
                 ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
+                ProviderConfig::SimpleFreeOpenRouter(c) => {
+                    let mut c_clone = c.clone();
+                    let result = generate_simple_free_commit_message(&mut c_clone, &diff, cli).await;
+                    // We don't need to save failed models in dry-run mode
+                    result
+                },
             };
 
             match result {
@@ -1855,6 +1777,7 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
             ProviderConfig::Ollama(c) => c.id == config.active_provider,
             ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
+            ProviderConfig::SimpleFreeOpenRouter(c) => c.id == config.active_provider,
         }).ok_or("No active provider found")?;
 
         let mut attempt_count = 0;
@@ -1868,6 +1791,14 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
                 ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
                 ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
                 ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
+                ProviderConfig::SimpleFreeOpenRouter(c) => {
+                    // We need to mutate the config to track failed models, so we need to load it again to update later
+                    let mut c_clone = c.clone();
+                    let result = generate_simple_free_commit_message(&mut c_clone, &diff, cli).await;
+                    
+                    // We've already saved the model information in the result
+                    result
+                },
             };
 
             match result {
@@ -1891,6 +1822,11 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
     println!("Generated commit message: \"{}\"\n", message);
     println!("Tokens: {}↑ {}↓", usage_info.input_tokens, usage_info.output_tokens);
     println!("API Cost: ${:.4}", usage_info.total_cost);
+    
+    // Display which model was used for Simple Free mode if applicable
+    if let Some(model) = &usage_info.model_used {
+        println!("Model used: {}", model);
+    }
 
     create_git_commit(&message)?;
     println!("Commit successfully created.");
@@ -2008,4 +1944,706 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+// Function to get available free models from OpenRouter
+async fn get_available_free_models(api_key: &str, simulate_offline: bool) -> Result<Vec<String>, String> {
+    // If simulate_offline is true, immediately return the fallback list
+    if simulate_offline {
+        println!("Debug: Simulating offline mode, using fallback model list");
+        return fallback_to_preferred_models();
+    }
+    
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10)) // Add a reasonable timeout
+        .build()
+        .unwrap_or_default();
+    
+    // Try to fetch models from OpenRouter API
+    let response = match tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        client.get("https://openrouter.ai/api/v1/models")
+            .header("Authorization", format!("Bearer {}", api_key))
+            .header("HTTP-Referer", "https://suenot.github.io/aicommit/")
+            .header("X-Title", "aicommit")
+            .send()
+    ).await {
+        Ok(result) => match result {
+            Ok(response) => {
+                if !response.status().is_success() {
+                    println!("Warning: OpenRouter API returned status code: {}", response.status());
+                    return fallback_to_preferred_models();
+                }
+                response
+            },
+            Err(e) => {
+                println!("Warning: Failed to connect to OpenRouter API: {}", e);
+                println!("Using predefined free models as fallback...");
+                return fallback_to_preferred_models();
+            }
+        },
+        Err(_) => {
+            println!("Warning: Request to OpenRouter API timed out after 15 seconds");
+            println!("Using predefined free models as fallback...");
+            return fallback_to_preferred_models();
+        }
+    };
+    
+    // Try to parse the response
+    let models_response: Result<serde_json::Value, _> = response.json().await;
+    if let Err(e) = &models_response {
+        println!("Warning: Failed to parse OpenRouter API response: {}", e);
+        println!("Using predefined free models as fallback...");
+        return fallback_to_preferred_models();
+    }
+    
+    let models_response = models_response.unwrap();
+    let mut free_models = Vec::new();
+    
+    if let Some(data) = models_response["data"].as_array() {
+        // First pass: check all models that are explicitly marked as free
+        for model in data {
+            if let Some(id) = model["id"].as_str() {
+                // Multiple ways to detect if a model is free:
+                
+                // 1. Check if the model ID contains ":free"
+                if id.contains(":free") {
+                    free_models.push(id.to_string());
+                    continue;
+                }
+                
+                // 2. Check if "free" field is true
+                if let Some(true) = model["free"].as_bool() {
+                    free_models.push(id.to_string());
+                    continue;
+                }
+                
+                // 3. Check if "free_tokens" is greater than 0
+                if let Some(tokens) = model["free_tokens"].as_u64() {
+                    if tokens > 0 {
+                        free_models.push(id.to_string());
+                        continue;
+                    }
+                }
+                
+                // 4. Check if pricing is 0 for both prompt and completion
+                if let Some(pricing) = model["pricing"].as_object() {
+                    let prompt_price = pricing.get("prompt")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(1.0);
+                    
+                    let completion_price = pricing.get("completion")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(1.0);
+                    
+                    if prompt_price == 0.0 && completion_price == 0.0 {
+                        free_models.push(id.to_string());
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        // If no free models found, try a second pass with more relaxed criteria
+        if free_models.is_empty() {
+            // Look for models with very low pricing (<= 0.0001)
+            for model in data {
+                if let Some(id) = model["id"].as_str() {
+                    if let Some(pricing) = model["pricing"].as_object() {
+                        let prompt_price = pricing.get("prompt")
+                            .and_then(|v| v.as_f64())
+                            .unwrap_or(1.0);
+                        
+                        let completion_price = pricing.get("completion")
+                            .and_then(|v| v.as_f64())
+                            .unwrap_or(1.0);
+                        
+                        // Consider very low-priced models as "effectively free"
+                        if prompt_price <= 0.0001 && completion_price <= 0.0001 {
+                            free_models.push(id.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // If we still found no free models, fall back to predefined list
+    if free_models.is_empty() {
+        println!("Warning: No free models found from OpenRouter API");
+        println!("Using predefined free models as fallback...");
+        return fallback_to_preferred_models();
+    }
+    
+    Ok(free_models)
+}
+
+// Helper function to fall back to predefined models
+fn fallback_to_preferred_models() -> Result<Vec<String>, String> {
+    let mut models = Vec::new();
+    
+    // Add all predefined free models
+    for model in PREFERRED_FREE_MODELS {
+        models.push(model.to_string());
+    }
+    
+    if models.is_empty() {
+        return Err("No free models available, and fallback model list is empty".to_string());
+    }
+    
+    Ok(models)
+}
+
+// Function to find best available model
+fn find_best_available_model(available_models: &[String], failed_models: &[String]) -> Option<String> {
+    // First try our curated list of preferred models in order
+    for preferred in PREFERRED_FREE_MODELS {
+        let preferred_str = preferred.to_string();
+        if available_models.contains(&preferred_str) && !failed_models.contains(&preferred_str) {
+            return Some(preferred_str);
+        }
+    }
+    
+    // If none of our preferred models are available, use an intelligent fallback approach
+    // by analyzing model names for parameter sizes (like 70b, 32b, etc.)
+    if !available_models.is_empty() {
+        // Create a sorted list of available models that haven't failed yet
+        let mut candidate_models: Vec<_> = available_models.iter()
+            .filter(|model| !failed_models.contains(*model))
+            .collect();
+        
+        if !candidate_models.is_empty() {
+            // Sort by estimated parameter count (highest first)
+            candidate_models.sort_by(|a, b| {
+                let a_size = extract_model_size(a);
+                let b_size = extract_model_size(b);
+                b_size.cmp(&a_size) // Reverse order (largest first)
+            });
+            
+            // Return the largest available model that hasn't failed
+            return Some(candidate_models[0].clone());
+        }
+    }
+    
+    None
+}
+
+// Helper function to extract model size from name (e.g., "llama-70b" -> 70)
+fn extract_model_size(model_name: &str) -> u32 {
+    let lower_name = model_name.to_lowercase();
+    
+    // Look for patterns like "70b", "32b", "7b", etc.
+    let patterns = [
+        "253b", "235b", "200b", "124b",
+        "70b", "80b", "90b", "72b", "65b", 
+        "40b", "32b", "30b", "24b", "20b",
+        "16b", "14b", "13b", "12b", "11b", "10b",
+        "9b", "8b", "7b", "6b", "5b", "4b", "3b", "2b", "1b"
+    ];
+    
+    for pattern in patterns {
+        if lower_name.contains(pattern) {
+            // Extract the number from the pattern (e.g., "70b" -> 70)
+            if let Ok(size) = pattern.trim_end_matches(|c| c == 'b' || c == 'B').parse::<u32>() {
+                return size;
+            }
+        }
+    }
+    
+    // Default size if no pattern matches
+    // Check for specific keywords that might indicate a more powerful model
+    if lower_name.contains("large") || lower_name.contains("ultra") {
+        return 15; // Assume it's a medium-large model
+    } else if lower_name.contains("medium") {
+        return 10;
+    } else if lower_name.contains("small") || lower_name.contains("tiny") {
+        return 5;
+    }
+    
+    // Default fallback
+    0
+}
+
+async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
+    let client = reqwest::Client::new();
+
+    // Use the smart diff processing function instead of simple truncation
+    let processed_diff = process_git_diff_output(diff);
+
+    let prompt = format!(
+        "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
+Examples:
+- feat: Add user authentication feature
+- fix: Correct calculation error in payment module
+- docs: Update README with installation instructions
+- style: Format code according to style guide
+- refactor: Simplify database query logic
+- test: Add unit tests for user service
+- chore: Update dependencies
+
+Git Diff:
+```diff
+{}
+```
+Commit Message ONLY:",
+        processed_diff
+    );
+
+    // Show context in verbose mode
+    if cli.verbose {
+        println!("\n=== Context for LLM ===");
+        println!("Provider: OpenRouter");
+        println!("Model: {}", config.model);
+        println!("Max tokens: {}", config.max_tokens);
+        println!("Temperature: {}", config.temperature);
+        println!("\n=== Prompt ===\n{}", prompt);
+        println!("\n=== Sending request to API ===");
+    }
+
+    let request_body = json!({
+        "model": &config.model,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "max_tokens": config.max_tokens,
+        "temperature": config.temperature,
+    });
+
+    let response = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .header("Authorization", format!("Bearer {}", &config.api_key))
+        .header("HTTP-Referer", "https://suenot.github.io/aicommit/")
+        .header("X-Title", "aicommit")
+        .header("X-Description", "A CLI tool that generates concise and descriptive git commit messages")
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send request: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("API request failed: {}", response.status()));
+    }
+
+    let response_data: OpenRouterResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+    
+    let message = response_data.choices
+        .get(0)
+        .ok_or("No choices in response")?
+        .message
+        .content
+        .clone();
+
+    // Используем информацию о токенах из ответа API
+    let usage = UsageInfo {
+        input_tokens: response_data.usage.prompt_tokens,
+        output_tokens: response_data.usage.completion_tokens,
+        // Примерная стоимость: $0.14/100K токенов для mistral-tiny
+        total_cost: (response_data.usage.total_tokens as f32) * 0.0000014,
+        model_used: Some(config.model.clone()),
+    };
+
+    Ok((message, usage))
+}
+
+async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
+    let client = reqwest::Client::new();
+
+    // Use the smart diff processing function instead of simple truncation
+    let processed_diff = process_git_diff_output(diff);
+
+    let prompt = format!(
+        "Generate ONLY the raw git commit message string (one line, max 72 chars) based on the diff. Follow Conventional Commits (type: description). Do NOT include any introductory text, explanations, or ```.
+Examples:
+- feat: add user login
+- fix: correct payment calculation
+- docs: update readme
+- style: format code
+- refactor: simplify query
+- test: add user tests
+- chore: update deps
+
+Git Diff:
+```diff
+{}
+```
+Commit Message ONLY:",
+        processed_diff
+    );
+
+    // Show context in verbose mode
+    if cli.verbose {
+        println!("\n=== Context for LLM ===");
+        println!("Provider: Ollama");
+        println!("Model: {}", config.model);
+        println!("URL: {}", config.url);
+        println!("Max tokens: {}", config.max_tokens);
+        println!("Temperature: {}", config.temperature);
+        println!("\n=== Prompt ===\n{}", prompt);
+        println!("\n=== Sending request to API ===");
+    }
+
+    let request_body = serde_json::json!({
+        "model": config.model,
+        "prompt": prompt,
+        "stream": false,
+        "options": {
+            "temperature": config.temperature,
+            "num_predict": config.max_tokens
+        }
+    });
+
+    let response = client
+        .post(format!("{}/api/generate", config.url))
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(format!("API returned an error ({}): {}", status, error_text));
+    }
+
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
+
+    let commit_message = json["response"]
+        .as_str()
+        .map(|s| s.trim()
+            .trim_start_matches(['\\', '/', '-', ' '])
+            .trim_end_matches(['\\', '/', '-', ' ', '.'])
+            .trim()
+            .to_string())
+        .ok_or_else(|| "No text found in API response".to_string())?;
+
+    if commit_message.is_empty() || commit_message.len() < 3 {
+        return Err("Generated commit message is too short or empty".to_string());
+    }
+
+    // For Ollama, we estimate tokens based on characters (rough approximation)
+    let input_tokens = (diff.len() / 4) as i32;
+    let output_tokens = (commit_message.len() / 4) as i32;
+    
+    let input_cost = input_tokens as f32 * 0.0 / 1000.0;
+    let output_cost = output_tokens as f32 * 0.0 / 1000.0;
+    let total_cost = input_cost + output_cost;
+
+    let usage = UsageInfo {
+        input_tokens,
+        output_tokens,
+        total_cost,
+        model_used: Some(config.model.clone()),
+    };
+
+    Ok((commit_message, usage))
+}
+
+async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
+    let client = reqwest::Client::new();
+
+    // Use the smart diff processing function instead of simple truncation
+    let processed_diff = process_git_diff_output(diff);
+
+    let prompt = format!(
+        "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
+Examples:
+- feat: Add user authentication feature
+- fix: Correct calculation error in payment module
+- docs: Update README with installation instructions
+- style: Format code according to style guide
+- refactor: Simplify database query logic
+- test: Add unit tests for user service
+- chore: Update dependencies
+
+Git Diff:
+```diff
+{}
+```
+Commit Message ONLY:",
+        processed_diff
+    );
+
+    // Show context in verbose mode
+    if cli.verbose {
+        println!("\n=== Context for LLM ===");
+        println!("Provider: OpenAI Compatible");
+        println!("Model: {}", config.model);
+        println!("API URL: {}", config.api_url);
+        println!("Max tokens: {}", config.max_tokens);
+        println!("Temperature: {}", config.temperature);
+        println!("\n=== Prompt ===\n{}", prompt);
+        println!("\n=== Sending request to API ===");
+    }
+
+    let request_body = json!({
+        "model": &config.model,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "max_tokens": config.max_tokens,
+        "temperature": config.temperature,
+    });
+
+    let response = client
+        .post(&config.api_url)
+        .header("Authorization", format!("Bearer {}", &config.api_key))
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send request: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(format!("API request failed: {} - {}", status, error_text));
+    }
+
+    let response_data: OpenRouterResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+    
+    let message = response_data.choices
+        .get(0)
+        .ok_or("No choices in response")?
+        .message
+        .content
+        .clone();
+
+    let usage = UsageInfo {
+        input_tokens: response_data.usage.prompt_tokens,
+        output_tokens: response_data.usage.completion_tokens,
+        total_cost: 0.0, // Set to 0 for OpenAI compatible APIs as we don't know the actual cost
+        model_used: Some(config.model.clone()),
+    };
+
+    Ok((message, usage))
+}
+
+async fn generate_simple_free_commit_message(
+    config: &mut SimpleFreeOpenRouterConfig, 
+    diff: &str, 
+    cli: &Cli
+) -> Result<(String, UsageInfo), String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .unwrap_or_default();
+    
+    // Get available free models
+    if cli.verbose {
+        println!("\n=== Getting available free models from OpenRouter ===");
+        println!("API Key: {}", config.api_key.chars().take(8).collect::<String>() + "..." + &config.api_key.chars().rev().take(4).collect::<String>());
+    }
+    
+    let available_models = match get_available_free_models(&config.api_key, cli.simulate_offline).await {
+        Ok(models) => models,
+        Err(e) => {
+            println!("Error fetching models from OpenRouter: {}", e);
+            println!("This could be due to network connectivity issues or API changes.");
+            println!("Using fallback predefined free models list...");
+            
+            // As a last resort, try to use our predefined list directly
+            match fallback_to_preferred_models() {
+                Ok(models) => models,
+                Err(e) => return Err(format!("Failed to get models and fallback also failed: {}", e)),
+            }
+        }
+    };
+    
+    if cli.verbose {
+        println!("Found {} free models:", available_models.len());
+        for (i, model) in available_models.iter().enumerate().take(10) {
+            println!("  {}. {}", i+1, model);
+        }
+        if available_models.len() > 10 {
+            println!("  ... and {} more", available_models.len() - 10);
+        }
+    }
+    
+    if available_models.is_empty() {
+        return Err("No free models available on OpenRouter".to_string());
+    }
+    
+    // Filter out models that have previously failed
+    let filtered_models: Vec<String> = available_models
+        .iter()
+        .filter(|model| !config.failed_models.contains(model))
+        .cloned()
+        .collect();
+    
+    if filtered_models.is_empty() {
+        // If all models have failed, reset the failed_models list to try again
+        if cli.verbose {
+            println!("All available models have failed, resetting failed models list to try again");
+        }
+        config.failed_models.clear();
+    }
+    
+    // Find the best available model that hasn't failed
+    let model = find_best_available_model(&available_models, &config.failed_models)
+        .ok_or_else(|| "All available models have failed, please try again later".to_string())?;
+    
+    // Use the smart diff processing function
+    let processed_diff = process_git_diff_output(diff);
+
+    let prompt = format!(
+        "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
+Examples:
+- feat: Add user authentication feature
+- fix: Correct calculation error in payment module
+- docs: Update README with installation instructions
+- style: Format code according to style guide
+- refactor: Simplify database query logic
+- test: Add unit tests for user service
+- chore: Update dependencies
+
+Git Diff:
+```diff
+{}
+```
+Commit Message ONLY:",
+        processed_diff
+    );
+
+    // Show context in verbose mode
+    if cli.verbose {
+        println!("\n=== Context for LLM ===");
+        println!("Provider: Simple Free OpenRouter");
+        println!("Model: {}", model);
+        println!("Max tokens: {}", config.max_tokens);
+        println!("Temperature: {}", config.temperature);
+        println!("\n=== Prompt ===\n{}", prompt);
+        println!("\n=== Sending request to API ===");
+    }
+
+    let request_body = json!({
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "max_tokens": config.max_tokens,
+        "temperature": config.temperature,
+    });
+
+    // Function to make an API request
+    let make_request = async {
+        client
+            .post("https://openrouter.ai/api/v1/chat/completions")
+            .header("Authorization", format!("Bearer {}", &config.api_key))
+            .header("HTTP-Referer", "https://suenot.github.io/aicommit/")
+            .header("X-Title", "aicommit")
+            .header("X-Description", "A CLI tool that generates concise and descriptive git commit messages")
+            .json(&request_body)
+            .send()
+            .await
+    };
+
+    // Make the request with a timeout
+    let response = match tokio::time::timeout(std::time::Duration::from_secs(30), make_request).await {
+        Ok(result) => match result {
+            Ok(response) => response,
+            Err(e) => return Err(format!("Request error: {}", e)),
+        },
+        Err(_) => return Err("Request timed out after 30 seconds".to_string()),
+    };
+
+    if !response.status().is_success() {
+        // If this model failed, add it to failed_models list
+        config.failed_models.push(model.clone());
+        
+        // Get the status code before consuming the response
+        let status_code = response.status();
+        
+        // Try to get the error message from the response
+        let error_text = match response.text().await {
+            Ok(text) => format!("API error response: {}", text),
+            Err(_) => format!("API returned status code: {}", status_code),
+        };
+        
+        if cli.verbose {
+            println!("Request failed for model {}: {}", model, error_text);
+        }
+        
+        // Try to save the updated config with failed model
+        let config_path = dirs::home_dir()
+            .ok_or_else(|| "Could not find home directory".to_string())?
+            .join(".aicommit.json");
+            
+        let mut full_config = Config::load()?;
+        // Update the provider in the full config
+        for provider in &mut full_config.providers {
+            if let ProviderConfig::SimpleFreeOpenRouter(simple_config) = provider {
+                if simple_config.id == config.id {
+                    simple_config.failed_models = config.failed_models.clone();
+                    break;
+                }
+            }
+        }
+        
+        let content = serde_json::to_string_pretty(&full_config)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+            
+        fs::write(&config_path, content)
+            .map_err(|e| format!("Failed to write config file: {}", e))?;
+            
+        return Err(format!("API request failed with model {}: {}", model, error_text));
+    }
+
+    // Try to parse the response body
+    let response_text = response.text().await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    let response_data: Result<OpenRouterResponse, _> = serde_json::from_str(&response_text);
+
+    if let Err(e) = &response_data {
+        if cli.verbose {
+            println!("Failed to parse response: {}", e);
+            println!("Response body: {}", response_text);
+        }
+    }
+
+    let response_data = response_data
+        .map_err(|e| format!("Failed to parse response JSON: {} (Response: {})", e, 
+                             if response_text.len() > 100 { 
+                                 format!("{}...", &response_text[..100]) 
+                             } else { 
+                                 response_text.clone() 
+                             }))?;
+    
+    let message = response_data.choices
+        .get(0)
+        .ok_or("No choices in response")?
+        .message
+        .content
+        .clone();
+
+    // Calculate usage info
+    let usage = UsageInfo {
+        input_tokens: response_data.usage.prompt_tokens,
+        output_tokens: response_data.usage.completion_tokens,
+        total_cost: 0.0, // It's free!
+        model_used: Some(model.clone()),
+    };
+
+    if cli.verbose {
+        println!("Successfully generated commit message using model: {}", model);
+    }
+
+    Ok((message, usage))
 }
