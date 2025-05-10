@@ -117,7 +117,7 @@ This script will:
 To install aicommit, use the following npm command:
 
 ```
-npm install -g aicommit
+npm install -g @suenot/aicommit
 ```
 
 For Rust users, you can install using cargo:
