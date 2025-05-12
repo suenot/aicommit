@@ -1093,8 +1093,9 @@ fn process_git_diff_output(diff: &str) -> String {
             // Take the header part (usually 4-5 lines) - this includes the file name, index, and --- +++ lines
             let _header_end = section.lines().take(5).collect::<Vec<&str>>().join("\n").len();
             
-            // Take the beginning of the diff content
-            let content = &section[..MAX_FILE_DIFF_CHARS.min(section.len())];
+            // Take the beginning of the diff content - safely truncate at char boundary
+            let safe_len = get_safe_slice_length(section, MAX_FILE_DIFF_CHARS.min(section.len()));
+            let content = &section[..safe_len];
             
             // Add truncation notice for this specific file
             processed.push_str(&format!("{}\n\n[... diff for this file truncated due to length ...]", content));
@@ -1111,12 +1112,28 @@ fn process_git_diff_output(diff: &str) -> String {
     
     // Final overall truncation check (as a safety measure)
     if processed.len() > MAX_DIFF_CHARS {
+        let safe_len = get_safe_slice_length(&processed, MAX_DIFF_CHARS - 100);
         processed = format!("{}...\n\n[... total diff truncated due to length (first {} chars shown) ...]", 
-            &processed[..MAX_DIFF_CHARS - 100], 
-            MAX_DIFF_CHARS - 100);
+            &processed[..safe_len], 
+            safe_len);
     }
     
     processed
+}
+
+// Helper function to get a safe slice length that respects UTF-8 character boundaries
+fn get_safe_slice_length(s: &str, max_len: usize) -> usize {
+    if max_len >= s.len() {
+        return s.len();
+    }
+    
+    // Find the largest index <= max_len that is a char boundary
+    let mut safe_len = max_len;
+    while safe_len > 0 && !s.is_char_boundary(safe_len) {
+        safe_len -= 1;
+    }
+    
+    safe_len
 }
 
 #[derive(Debug)]
