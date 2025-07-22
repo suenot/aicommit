@@ -1842,6 +1842,11 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
         }
     };
 
+    // Final validation before returning in dry-run mode
+    if message.trim().is_empty() {
+        return Err("Aborting commit due to empty commit message.".to_string());
+    }
+
     // In dry-run mode, only return the generated message
     Ok(message)
 }
@@ -1957,10 +1962,15 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         }
     };
 
+    // Final validation before committing
+    if message.trim().is_empty() {
+        return Err("Aborting commit due to empty commit message.".to_string());
+    }
+
     println!("Generated commit message: \"{}\"\n", message);
     println!("Tokens: {}↑ {}↓", usage_info.input_tokens, usage_info.output_tokens);
     println!("API Cost: ${:.4}", usage_info.total_cost);
-    
+
     // Display which model was used for Simple Free mode if applicable
     if let Some(model) = &usage_info.model_used {
         println!("Model used: {}", model);
@@ -2406,12 +2416,24 @@ Commit Message ONLY:",
         .await
         .map_err(|e| format!("Failed to parse response: {}", e))?;
     
-    let message = response_data.choices
+    let raw_message = response_data.choices
         .get(0)
         .ok_or("No choices in response")?
         .message
         .content
         .clone();
+
+    // Clean and validate the message (consistent with other implementations)
+    let message = raw_message
+        .trim()
+        .trim_start_matches(['\\', '/', '-', ' '])
+        .trim_end_matches(['\\', '/', '-', ' ', '.'])
+        .trim()
+        .to_string();
+
+    if message.is_empty() || message.len() < 3 {
+        return Err("Generated commit message is too short or empty".to_string());
+    }
 
     // Используем информацию о токенах из ответа API
     let usage = UsageInfo {
@@ -2589,12 +2611,24 @@ Commit Message ONLY:",
         .await
         .map_err(|e| format!("Failed to parse response: {}", e))?;
     
-    let message = response_data.choices
+    let raw_message = response_data.choices
         .get(0)
         .ok_or("No choices in response")?
         .message
         .content
         .clone();
+
+    // Clean and validate the message (consistent with other implementations)
+    let message = raw_message
+        .trim()
+        .trim_start_matches(['\\', '/', '-', ' '])
+        .trim_end_matches(['\\', '/', '-', ' ', '.'])
+        .trim()
+        .to_string();
+
+    if message.is_empty() || message.len() < 3 {
+        return Err("Generated commit message is too short or empty".to_string());
+    }
 
     let usage = UsageInfo {
         input_tokens: response_data.usage.prompt_tokens,
@@ -2812,21 +2846,40 @@ Commit Message ONLY:",
     
     let response_data = response_data.unwrap();
     
-    let message = response_data.choices
+    let raw_message = response_data.choices
         .get(0)
         .ok_or_else(|| {
             // Record failure with the model
             let stats = config.model_stats.entry(model.clone()).or_default();
             record_model_failure(stats);
-            
+
             // Save the updated config
             let _ = save_simple_free_config(config);
-            
+
             "No choices in response"
         })?
         .message
         .content
         .clone();
+
+    // Clean and validate the message (similar to Ollama implementation)
+    let message = raw_message
+        .trim()
+        .trim_start_matches(['\\', '/', '-', ' '])
+        .trim_end_matches(['\\', '/', '-', ' ', '.'])
+        .trim()
+        .to_string();
+
+    if message.is_empty() || message.len() < 3 {
+        // Record failure with the model
+        let stats = config.model_stats.entry(model.clone()).or_default();
+        record_model_failure(stats);
+
+        // Save the updated config
+        let _ = save_simple_free_config(config);
+
+        return Err("Generated commit message is too short or empty".to_string());
+    }
 
     // Calculate usage info
     let usage = UsageInfo {

@@ -1,6 +1,8 @@
 # aicommit
 ![logo](./docs/aicommit-logo.png)
 
+<!-- Test change for debugging empty commit message issue -->
+
 [![Crates.io](https://img.shields.io/crates/v/aicommit.svg)](https://crates.io/crates/aicommit)
 [![Documentation](https://docs.rs/aicommit/badge.svg)](https://docs.rs/aicommit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
