@@ -729,10 +729,11 @@ nbproject/
         let mut config = Config::load().unwrap_or_else(|_| Config::new());
 
         println!("Let's set up a provider.");
-        let provider_options = &["OpenRouter", "Simple Free OpenRouter", "Ollama", "OpenAI Compatible"];
+        let provider_options = &["Free OpenRouter (recommended)", "OpenRouter", "Ollama", "OpenAI Compatible"];
         let provider_selection = Select::new()
             .with_prompt("Select a provider")
             .items(provider_options)
+            .default(0)
             .interact()
             .map_err(|e| format!("Failed to get provider selection: {}", e))?;
 
@@ -740,12 +741,6 @@ nbproject/
 
         match provider_selection {
             0 => {
-                let mut openrouter_config = setup_openrouter_provider().await?;
-                openrouter_config.id = provider_id.clone();
-                config.providers.push(ProviderConfig::OpenRouter(openrouter_config));
-                config.active_provider = provider_id;
-            }
-            1 => {
                 let api_key: String = Input::new()
                     .with_prompt("Enter OpenRouter API key")
                     .interact_text()
@@ -780,6 +775,12 @@ nbproject/
                 };
 
                 config.providers.push(ProviderConfig::SimpleFreeOpenRouter(simple_free_config));
+                config.active_provider = provider_id;
+            }
+            1 => {
+                let mut openrouter_config = setup_openrouter_provider().await?;
+                openrouter_config.id = provider_id.clone();
+                config.providers.push(ProviderConfig::OpenRouter(openrouter_config));
                 config.active_provider = provider_id;
             }
             2 => {
