@@ -619,7 +619,7 @@ flowchart TD
     
     SF_Sort --> SF_Active{Any active models available?}
     SF_Active -->|Yes| SF_SelectBest["Select best active model"]
-    SF_Active -->|No| SF_Jailed{Any jailed models (not blacklisted)?}
+    SF_Active -->|No| SF_Jailed{Any jailed models not blacklisted?}
     
     SF_Jailed -->|Yes| SF_SelectJailed["Select least recently jailed model"]
     SF_Jailed -->|No| SF_Desperate["Use any model as last resort"]
