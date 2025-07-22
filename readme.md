@@ -112,6 +112,24 @@ This script will:
 - Save the results to JSON and text files for reference
 - Display a summary of available options
 
+## BingX Position Manager
+
+An additional Python script for automated BingX futures position management:
+
+```bash
+python bin/setup_bingx.py    # Quick setup
+python bin/bingx_monitor.py start  # Start the manager
+```
+
+Features:
+- ✅ Automatically adds stop loss to positions without one
+- ✅ Partial position closing at 1% profit (without leverage)
+- ✅ Moves stop loss to breakeven after partial close
+- ✅ Comprehensive logging and error handling
+- ✅ Risk management and safety features
+
+See `bin/QUICKSTART_bingx.md` for quick start guide or `bin/README_bingx.md` for full documentation.
+
 ## Installation
 
 To install aicommit, use the following npm command:

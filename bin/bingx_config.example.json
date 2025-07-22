@@ -1,0 +1,28 @@
+{
+  "api_key": "YOUR_API_KEY_HERE",
+  "secret_key": "YOUR_SECRET_KEY_HERE",
+  "testnet": true,
+  "check_interval": 60,
+  "profit_threshold": 0.01,
+  "partial_close_percent": 0.5,
+  "stop_loss_offset": 0.005,
+  "min_position_size": 10,
+  "enabled_symbols": [],
+  "disabled_symbols": ["BTCUSDT"],
+  "max_retries": 3,
+  "retry_delay": 5,
+  "emergency_stop": false,
+  "dry_run": false,
+  "notifications": {
+    "enabled": false,
+    "webhook_url": "",
+    "telegram_bot_token": "",
+    "telegram_chat_id": ""
+  },
+  "risk_management": {
+    "max_daily_trades": 50,
+    "max_position_value": 1000,
+    "blacklist_on_errors": true,
+    "error_threshold": 5
+  }
+}

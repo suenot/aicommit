@@ -1,0 +1,3 @@
+# Зависимости для BingX Position Manager
+bingx-py>=1.0.0
+requests>=2.25.0
