@@ -10,6 +10,16 @@ license = "MIT"
 keywords = ["git", "commit", "ai", "llm", "cli"]
 categories = ["command-line-utilities", "development-tools", "development-tools::build-utils"]
 
+# Binary target
+[[bin]]
+name = "aicommit"
+path = "src/main.rs"
+
+# Library target
+[lib]
+name = "aicommit"
+path = "src/lib.rs"
+
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
 reqwest = { version = "0.11", features = ["json", "native-tls"] }
@@ -26,3 +36,12 @@ log = "0.4"
 env_logger = "0.10"
 lazy_static = "1.4.0"
 chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockall = "0.12"
+tempfile = "3.8"
+assert_cmd = "2.0"
+predicates = "3.0"
+httpmock = "0.7"
+insta = "1.0"

@@ -1,0 +1,85 @@
+{
+  "openai_success_response": {
+    "choices": [
+      {
+        "message": {
+          "content": "feat: add new user authentication feature"
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 120,
+      "completion_tokens": 15,
+      "total_tokens": 135
+    },
+    "model": "gpt-3.5-turbo"
+  },
+  "openai_error_response": {
+    "error": {
+      "message": "Invalid API key provided",
+      "type": "invalid_request_error",
+      "code": "invalid_api_key"
+    }
+  },
+  "ollama_success_response": {
+    "model": "llama2",
+    "message": {
+      "content": "fix: resolve issue with config loading"
+    },
+    "done": true,
+    "total_duration": 1500000000,
+    "load_duration": 500000000,
+    "prompt_eval_count": 45,
+    "eval_count": 12
+  },
+  "openrouter_success_response": {
+    "choices": [
+      {
+        "message": {
+          "content": "docs: update README with installation instructions"
+        }
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 80,
+      "completion_tokens": 20,
+      "total_tokens": 100
+    }
+  },
+  "rate_limit_error": {
+    "error": {
+      "message": "Rate limit exceeded. Please try again later.",
+      "type": "rate_limit_error",
+      "code": "rate_limit_exceeded"
+    }
+  },
+  "empty_message_response": {
+    "choices": [
+      {
+        "message": {
+          "content": ""
+        }
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 50,
+      "completion_tokens": 0,
+      "total_tokens": 50
+    }
+  },
+  "short_message_response": {
+    "choices": [
+      {
+        "message": {
+          "content": "ok"
+        }
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 50,
+      "completion_tokens": 1,
+      "total_tokens": 51
+    }
+  }
+}

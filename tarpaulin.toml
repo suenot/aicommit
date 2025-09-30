@@ -1,0 +1,51 @@
+[tool.tarpaulin.aicommit]
+# Configuration for cargo-tarpaulin code coverage tool
+# Run with: cargo tarpaulin --config tarpaulin.toml
+
+# Output formats
+out = ["Html", "Lcov", "Json"]
+
+# Output directory for reports
+output-dir = "target/coverage/"
+
+# Exclude files/directories from coverage
+exclude = [
+    "tests/*",
+    "target/*",
+    "*/tests/*"
+]
+
+# Include only source files
+include = [
+    "src/*"
+]
+
+# Timeout for tests (in seconds)
+timeout = 120
+
+# Run in release mode for better performance
+release = false
+
+# Generate coverage for all targets
+all-targets = true
+
+# Show uncovered code
+verbose = true
+
+# Fail if coverage is below threshold (set to 0 initially)
+fail-under = 0
+
+# Follow symbolic links
+follow-symbolic-links = false
+
+# Engine to use for coverage
+engine = "Auto"
+
+# Additional rustflags
+rustflags = ""
+
+# Additional features to enable during testing
+features = []
+
+# Workspace members to include
+workspace = true

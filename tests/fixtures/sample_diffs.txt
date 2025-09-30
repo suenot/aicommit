@@ -1,0 +1,55 @@
+diff --git a/src/main.rs b/src/main.rs
+index 1234567..abcdefg 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1,10 +1,15 @@
+ use std::fs;
+ use serde::{Serialize, Deserialize};
++use dialoguer::{Input, Select};
++use uuid::Uuid;
+
+ fn main() {
+     println!("Hello, world!");
++
++    // Initialize configuration
++    let config = load_config().unwrap_or_default();
++    process_git_diff(&config).await.unwrap();
+ }
+
+ #[derive(Serialize, Deserialize)]
+ struct Config {
+     api_key: String,
++    provider: String,
++    model: String,
+ }
+
+diff --git a/tests/test_utils.rs b/tests/test_utils.rs
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/tests/test_utils.rs
+@@ -0,0 +1,25 @@
++use crate::common::*;
++
++#[cfg(test)]
++mod test_utilities {
++    use super::*;
++
++    #[test]
++    fn test_environment_creation() {
++        let env = TestEnvironment::new().unwrap();
++        assert!(std::path::Path::new(env.path()).exists());
++    }
++
++    #[test]
++    fn test_file_creation() {
++        let env = TestEnvironment::new().unwrap();
++        env.create_file("test.txt", "content").unwrap();
++
++        let file_path = std::path::Path::new(env.path()).join("test.txt");
++        assert!(file_path.exists());
++
++        let content = std::fs::read_to_string(file_path).unwrap();
++        assert_eq!(content, "content");
++    }
++}

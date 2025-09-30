@@ -1,0 +1,39 @@
+{
+  "openai_config": {
+    "provider": "openai",
+    "api_key": "sk-test-api-key-for-testing",
+    "model": "gpt-3.5-turbo",
+    "base_url": "https://api.openai.com",
+    "max_tokens": 150,
+    "temperature": 0.7
+  },
+  "ollama_config": {
+    "provider": "ollama",
+    "model": "llama2",
+    "base_url": "http://localhost:11434",
+    "max_tokens": 150
+  },
+  "openrouter_config": {
+    "provider": "openrouter",
+    "api_key": "sk-or-test-key",
+    "model": "meta-llama/llama-3.1-8b-instruct:free",
+    "base_url": "https://openrouter.ai/api/v1",
+    "max_tokens": 150
+  },
+  "simple_free_config": {
+    "provider": "simple_free",
+    "last_used_model": "meta-llama/llama-3.1-8b-instruct:free",
+    "model_stats": {
+      "meta-llama/llama-3.1-8b-instruct:free": {
+        "success_count": 5,
+        "failure_count": 1,
+        "last_failure": null,
+        "total_requests": 6
+      }
+    }
+  },
+  "invalid_config": {
+    "provider": "unknown_provider",
+    "missing_required_fields": true
+  }
+}
