@@ -8,6 +8,11 @@ use clap::Parser;
 use std::process::Command;
 use tokio;
 use chrono;
+use tracing::{info, warn, error, debug, trace};
+use anyhow::Result as AnyhowResult;
+
+mod logging;
+use logging::{LoggingConfig, init_logging, init_default_logging, log_error, log_info, log_warning};
 
 const MAX_DIFF_CHARS: usize = 15000; // Limit diff size to prevent excessive API usage
 const MAX_FILE_DIFF_CHARS: usize = 3000; // Maximum characters per file diff section
@@ -279,17 +284,33 @@ fn increment_version(version: &str) -> Result<String, Box<dyn std::error::Error>
 
 /// Update version in file
 async fn update_version_file(file_path: &str) -> Result<(), String> {
+    debug!("Reading version file: {}", file_path);
     let content = tokio::fs::read_to_string(file_path)
         .await
-        .map_err(|e| format!("Failed to read version file: {}", e))?;
-    
+        .map_err(|e| {
+            let error_msg = format!("Failed to read version file: {}", e);
+            error!("Version file read error: {}", error_msg);
+            error_msg
+        })?;
+
+    debug!("Incrementing version from: {}", content.trim());
     let new_version = increment_version(&content)
-        .map_err(|e| format!("Failed to increment version: {}", e))?;
-    
-    tokio::fs::write(file_path, new_version)
+        .map_err(|e| {
+            let error_msg = format!("Failed to increment version: {}", e);
+            error!("Version increment error: {}", error_msg);
+            error_msg
+        })?;
+
+    debug!("Writing new version: {}", new_version.trim());
+    tokio::fs::write(file_path, &new_version)
         .await
-        .map_err(|e| format!("Failed to write version file: {}", e))?;
-    
+        .map_err(|e| {
+            let error_msg = format!("Failed to write version file: {}", e);
+            error!("Version file write error: {}", error_msg);
+            error_msg
+        })?;
+
+    info!("Successfully updated version file {} to {}", file_path, new_version.trim());
     Ok(())
 }
 
@@ -560,7 +581,7 @@ impl Config {
                 let default_content = Self::get_default_gitignore()?;
                 fs::write(".gitignore", default_content)
                     .map_err(|e| format!("Failed to create .gitignore: {}", e))?;
-                println!("Created default .gitignore file");
+                info!("Created default .gitignore file");
             }
         }
         Ok(())
@@ -728,7 +749,7 @@ nbproject/
     async fn setup_interactive() -> Result<Self, String> {
         let mut config = Config::load().unwrap_or_else(|_| Config::new());
 
-        println!("Let's set up a provider.");
+        info!("Setting up a provider");
         let provider_options = &["Free OpenRouter (recommended)", "OpenRouter", "Ollama", "OpenAI Compatible"];
         let provider_selection = Select::new()
             .with_prompt("Select a provider")
@@ -1210,9 +1231,9 @@ async fn watch_and_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         .map(|w| parse_duration(w))
         .transpose()?;
 
-    println!("Watching for changes...");
+    info!("Watching for changes...");
     if let Some(delay) = wait_for_edit {
-        println!("Waiting {:?} after edits before committing", delay);
+        info!("Waiting {:?} after edits before committing", delay);
     }
 
     // Initialize waiting list for files with their last modification timestamps
@@ -1431,6 +1452,25 @@ async fn watch_and_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 #[tokio::main]
 async fn main() -> Result<(), String> {
     let cli = Cli::parse();
+
+    // Initialize logging system
+    let mut logging_config = LoggingConfig::new();
+
+    // Adjust logging level based on CLI flags
+    if cli.verbose {
+        logging_config.with_debug();
+    }
+
+    let _logging_guard = match init_logging(&logging_config) {
+        Ok(guard) => guard,
+        Err(e) => {
+            eprintln!("Failed to initialize logging: {}", e);
+            // Continue execution even if logging fails
+            None
+        }
+    };
+
+    info!("Starting aicommit version {}", get_version());
 
     // Check .gitignore at startup
     if !cli.no_gitignore_check {
