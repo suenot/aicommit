@@ -3,6 +3,17 @@ const vscode = require('vscode');
 const { execSync, exec } = require('child_process');
 const { resolve } = require('path');
 
+// Import error handling framework
+const { AICommitError, VSCodeError, GitError, BinaryError, ConfigError } = require('../lib/errors');
+const { ErrorHandler, ErrorRecovery } = require('../lib/error-handler');
+
+// Setup error handler for VSCode extension
+const errorHandler = new ErrorHandler({
+  logLevel: 'info',
+  exitOnError: false, // Don't exit on error in VSCode extension
+  logToFile: true // Log to file for debugging VSCode issues
+});
+
 /**
  * Run a command in the given directory and return the output
  * @param {string} command The command to execute
@@ -14,9 +25,22 @@ function execPromise(command, cwd) {
     console.log(`Executing command: ${command} in directory: ${cwd}`);
     exec(command, { cwd, encoding: 'utf8' }, (error, stdout, stderr) => {
       if (error) {
+        let aicommitError;
+
+        if (error.code === 'ENOENT') {
+          aicommitError = new BinaryError(`Command not found: ${command}`, command);
+        } else if (command.includes('git')) {
+          aicommitError = new GitError(`Git command failed: ${stderr || error.message}`, command, cwd);
+        } else if (command.includes('aicommit')) {
+          aicommitError = new BinaryError(`AICommit execution failed: ${stderr || error.message}`, command);
+        } else {
+          aicommitError = new VSCodeError(`Command execution failed: ${stderr || error.message}`, command);
+        }
+
+        errorHandler.logError(aicommitError, { command, cwd });
         console.error(`Command execution error: ${error.message}`);
         console.error(`Command stderr: ${stderr}`);
-        reject(`Command failed: ${command}\n${stderr || error.message}`);
+        reject(aicommitError);
         return;
       }
       console.log(`Command succeeded with output: ${stdout.trim()}`);
@@ -44,7 +68,10 @@ function activate(context) {
       // Get repository
       const repositories = git.repositories;
       if (!repositories.length) {
-        vscode.window.showErrorMessage('No git repository found');
+        const gitError = new GitError('No git repository found');
+        errorHandler.logError(gitError, { operation: 'getRepository' });
+        vscode.window.showErrorMessage(gitError.getUserMessage());
+        ErrorRecovery.displayRecoverySuggestions(gitError);
         return;
       }
       
@@ -71,11 +98,11 @@ function activate(context) {
         await execPromise('git status --porcelain', repoRoot).then(result => {
           if (!result) {
             vscode.window.showInformationMessage('No changes to commit');
-            throw new Error('No changes to commit');
+            throw new GitError('No changes to commit', 'git status --porcelain', repoRoot);
           }
         });
       } catch (error) {
-        if (error.message === 'No changes to commit') {
+        if (error instanceof GitError && error.message.includes('No changes to commit')) {
           return;
         }
         throw error;
@@ -99,7 +126,12 @@ function activate(context) {
           return await execPromise(cmd, repoRoot);
         } catch (error) {
           console.error(`Error generating commit message: ${error}`);
-          throw new Error(`Command failed: ${error}`);
+
+          if (error instanceof AICommitError) {
+            throw error;
+          } else {
+            throw new BinaryError(`AICommit command failed: ${error.message || error}`, cmd);
+          }
         }
       });
       
@@ -110,9 +142,17 @@ function activate(context) {
         vscode.window.showInformationMessage('Commit message generated successfully');
       }
     } catch (error) {
-      console.error(`Error in aicommit extension: ${error.message}`);
-      console.error(`Stack trace: ${error.stack}`);
-      vscode.window.showErrorMessage(`AICommit error: ${error.message}`);
+      let aicommitError;
+
+      if (error instanceof AICommitError) {
+        aicommitError = error;
+      } else {
+        aicommitError = new VSCodeError(`Unexpected error in aicommit extension: ${error.message}`);
+      }
+
+      errorHandler.handleError(aicommitError, { operation: 'generateCommitMessage', extension: 'vscode' });
+      vscode.window.showErrorMessage(aicommitError.getUserMessage());
+      ErrorRecovery.displayRecoverySuggestions(aicommitError);
     }
   });
 
