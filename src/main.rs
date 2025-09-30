@@ -1461,10 +1461,14 @@ async fn main() -> Result<(), String> {
         logging_config.with_debug();
     }
 
-    if let Err(e) = init_logging(&logging_config) {
-        eprintln!("Failed to initialize logging: {}", e);
-        // Continue execution even if logging fails
-    }
+    let _logging_guard = match init_logging(&logging_config) {
+        Ok(guard) => guard,
+        Err(e) => {
+            eprintln!("Failed to initialize logging: {}", e);
+            // Continue execution even if logging fails
+            None
+        }
+    };
 
     info!("Starting aicommit version {}", get_version());
 

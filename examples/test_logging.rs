@@ -1,14 +1,13 @@
 use aicommit::logging::{LoggingConfig, init_logging};
 use tracing::{info, warn, error, debug, trace};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test basic logging configuration
     let mut config = LoggingConfig::new();
     config.with_debug();
 
     // Initialize logging
-    init_logging(&config)?;
+    let _logging_guard = init_logging(&config)?;
 
     // Test different log levels
     trace!("This is a trace message");

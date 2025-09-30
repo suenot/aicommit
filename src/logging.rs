@@ -118,7 +118,8 @@ fn get_default_log_dir() -> String {
 }
 
 /// Initialize the logging system with the given configuration
-pub fn init_logging(config: &LoggingConfig) -> Result<()> {
+/// Returns an optional WorkerGuard that must be kept alive for file logging to work properly
+pub fn init_logging(config: &LoggingConfig) -> Result<Option<tracing_appender::non_blocking::WorkerGuard>> {
     // Create log directory if it doesn't exist
     if config.file_enabled {
         ensure_log_dir(&config.log_dir)?;
@@ -129,6 +130,7 @@ pub fn init_logging(config: &LoggingConfig) -> Result<()> {
         .unwrap_or_else(|_| EnvFilter::new(&config.level));
 
     let mut layers = Vec::new();
+    let mut guard = None;
 
     // Console layer
     if config.console_enabled {
@@ -149,7 +151,7 @@ pub fn init_logging(config: &LoggingConfig) -> Result<()> {
     // File layer with rotation
     if config.file_enabled {
         let file_appender = rolling::daily(&config.log_dir, &config.file_prefix);
-        let (non_blocking_appender, _guard) = non_blocking(file_appender);
+        let (non_blocking_appender, worker_guard) = non_blocking(file_appender);
 
         let file_layer = if config.json_format {
             fmt::layer()
@@ -177,10 +179,8 @@ pub fn init_logging(config: &LoggingConfig) -> Result<()> {
 
         layers.push(file_layer);
 
-        // Store the guard to prevent it from being dropped
-        // In a real application, you'd want to store this somewhere
-        // to keep the non-blocking writer alive
-        std::mem::forget(_guard);
+        // Store the guard to return it to the caller
+        guard = Some(worker_guard);
     }
 
     // Initialize the subscriber
@@ -194,7 +194,7 @@ pub fn init_logging(config: &LoggingConfig) -> Result<()> {
         info!("Log directory: {}", config.log_dir);
     }
 
-    Ok(())
+    Ok(guard)
 }
 
 /// Ensure the log directory exists
@@ -238,20 +238,20 @@ pub fn log_info(message: &str, context: &str) {
 }
 
 /// Initialize logging with default configuration
-pub fn init_default_logging() -> Result<()> {
+pub fn init_default_logging() -> Result<Option<tracing_appender::non_blocking::WorkerGuard>> {
     let config = LoggingConfig::new();
     init_logging(&config)
 }
 
 /// Initialize logging for development (debug level, verbose output)
-pub fn init_dev_logging() -> Result<()> {
+pub fn init_dev_logging() -> Result<Option<tracing_appender::non_blocking::WorkerGuard>> {
     let mut config = LoggingConfig::new();
     config.with_debug();
     init_logging(&config)
 }
 
 /// Initialize logging for production (info level, structured)
-pub fn init_prod_logging() -> Result<()> {
+pub fn init_prod_logging() -> Result<Option<tracing_appender::non_blocking::WorkerGuard>> {
     let mut config = LoggingConfig::new();
     config.json_format = true;
     config.ansi_colors = false;

@@ -119,7 +119,7 @@ let _span = operation_span!("git_commit", repo = "aicommit");
 ### 7. Log Output Examples
 
 #### Console Output (Human-readable)
-```
+```text
 2024-01-15T10:30:45.123Z  INFO aicommit: Starting aicommit version 0.1.139
 2024-01-15T10:30:45.124Z  INFO aicommit: Logging system initialized
 2024-01-15T10:30:45.125Z DEBUG aicommit: Reading version file: version

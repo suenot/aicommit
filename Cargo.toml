@@ -22,7 +22,6 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 dotenv = "0.15"
 clap = { version = "4.4", features = ["derive"] }
 regex = "1.5"
-log = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt", "chrono"] }
 tracing-appender = "0.2"
