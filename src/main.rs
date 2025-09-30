@@ -103,6 +103,100 @@ const PREFERRED_FREE_MODELS: &[&str] = &[
     "moonshotai/kimi-vl-a3b-thinking:free"
 ];
 
+// =============================================================================
+// Core Traits - Task 1.3: Implement Core Traits
+// =============================================================================
+
+/// Provider trait for AI service abstractions
+/// Provides a common interface for different AI service providers
+#[async_trait::async_trait]
+pub trait Provider {
+    /// The configuration type for this provider
+    type Config;
+
+    /// Generate a commit message using the provider's AI service
+    async fn generate_commit_message(
+        &self,
+        config: &Self::Config,
+        diff: &str,
+        cli: &Cli,
+    ) -> Result<(String, UsageInfo), String>;
+
+    /// Get the provider's identifier/name
+    fn provider_name(&self) -> &str;
+
+    /// Validate the provider's configuration
+    fn validate_config(&self, config: &Self::Config) -> Result<(), String>;
+}
+
+/// ConfigurableComponent trait for modules with configuration
+/// Allows components to be configured, validated, and managed consistently
+pub trait ConfigurableComponent {
+    /// The configuration type for this component
+    type Config: serde::Serialize + serde::de::DeserializeOwned;
+
+    /// Load configuration from file or default values
+    fn load_config(&self) -> Result<Self::Config, String>;
+
+    /// Save configuration to file
+    fn save_config(&self, config: &Self::Config) -> Result<(), String>;
+
+    /// Validate the configuration
+    fn validate_config(&self, config: &Self::Config) -> Result<(), String>;
+
+    /// Get the component's identifier/name
+    fn component_name(&self) -> &str;
+
+    /// Apply configuration changes
+    fn apply_config(&mut self, config: Self::Config) -> Result<(), String>;
+}
+
+/// GitOperations trait for git-related functionality
+/// Provides a common interface for git operations needed by the application
+pub trait GitOperations {
+    /// Get the git diff for staging/committing
+    fn get_diff(&self, cli: &Cli) -> Result<String, String>;
+
+    /// Create a git commit with the given message
+    fn create_commit(&self, message: &str) -> Result<(), String>;
+
+    /// Check if we're in a git repository
+    fn is_git_repository(&self) -> bool;
+
+    /// Stage all changes (equivalent to git add .)
+    fn stage_all_changes(&self) -> Result<(), String>;
+
+    /// Check if there are any staged changes
+    fn has_staged_changes(&self) -> Result<bool, String>;
+
+    /// Check if there are any unstaged changes
+    fn has_unstaged_changes(&self) -> Result<bool, String>;
+
+    /// Get current branch name
+    fn get_current_branch(&self) -> Result<String, String>;
+}
+
+/// MessageGenerator trait for commit message generation
+/// Provides a common interface for generating commit messages from different sources
+#[async_trait::async_trait]
+pub trait MessageGenerator {
+    /// Generate a commit message from the given diff
+    async fn generate_message(
+        &self,
+        diff: &str,
+        cli: &Cli,
+    ) -> Result<(String, UsageInfo), String>;
+
+    /// Get the generator's identifier/name
+    fn generator_name(&self) -> &str;
+
+    /// Check if the generator is available/configured
+    fn is_available(&self) -> bool;
+
+    /// Get any usage statistics or information
+    fn get_usage_info(&self) -> Option<UsageInfo>;
+}
+
 #[derive(Parser, Debug)]
 #[command(name = "aicommit")]
 #[command(about = "A CLI tool that generates concise and descriptive git commit messages using LLMs", long_about = None)]
@@ -948,6 +1042,130 @@ nbproject/
             .map_err(|e| format!("Failed to write config file: {}", e))?;
 
         Ok(config)
+    }
+}
+
+// =============================================================================
+// Example Trait Implementations - Demonstrating the Core Traits Usage
+// =============================================================================
+
+/// GitManager - Example implementation of GitOperations trait
+pub struct GitManager;
+
+impl GitOperations for GitManager {
+    fn get_diff(&self, cli: &Cli) -> Result<String, String> {
+        get_git_diff(cli)
+    }
+
+    fn create_commit(&self, message: &str) -> Result<(), String> {
+        create_git_commit(message)
+    }
+
+    fn is_git_repository(&self) -> bool {
+        std::path::Path::new(".git").exists()
+    }
+
+    fn stage_all_changes(&self) -> Result<(), String> {
+        let output = Command::new("git")
+            .args(&["add", "."])
+            .output()
+            .map_err(|e| format!("Failed to execute git add: {}", e))?;
+
+        if !output.status.success() {
+            return Err(format!("Failed to stage changes: {}", String::from_utf8_lossy(&output.stderr)));
+        }
+        Ok(())
+    }
+
+    fn has_staged_changes(&self) -> Result<bool, String> {
+        let output = Command::new("git")
+            .args(&["diff", "--cached", "--quiet"])
+            .output()
+            .map_err(|e| format!("Failed to check staged changes: {}", e))?;
+
+        Ok(!output.status.success())
+    }
+
+    fn has_unstaged_changes(&self) -> Result<bool, String> {
+        let output = Command::new("git")
+            .args(&["diff", "--quiet"])
+            .output()
+            .map_err(|e| format!("Failed to check unstaged changes: {}", e))?;
+
+        Ok(!output.status.success())
+    }
+
+    fn get_current_branch(&self) -> Result<String, String> {
+        let output = Command::new("git")
+            .args(&["branch", "--show-current"])
+            .output()
+            .map_err(|e| format!("Failed to get current branch: {}", e))?;
+
+        if !output.status.success() {
+            return Err(format!("Failed to get branch: {}", String::from_utf8_lossy(&output.stderr)));
+        }
+
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    }
+}
+
+/// ConfigManager - Example implementation of ConfigurableComponent trait
+pub struct ConfigManager;
+
+impl ConfigurableComponent for ConfigManager {
+    type Config = Config;
+
+    fn load_config(&self) -> Result<Self::Config, String> {
+        Config::load()
+    }
+
+    fn save_config(&self, config: &Self::Config) -> Result<(), String> {
+        let config_path = dirs::home_dir()
+            .ok_or_else(|| "Could not find home directory".to_string())?
+            .join(".aicommit.json");
+
+        let content = serde_json::to_string_pretty(config)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+
+        fs::write(&config_path, content)
+            .map_err(|e| format!("Failed to write config file: {}", e))?;
+
+        Ok(())
+    }
+
+    fn validate_config(&self, config: &Self::Config) -> Result<(), String> {
+        if config.providers.is_empty() {
+            return Err("At least one provider must be configured".to_string());
+        }
+
+        if config.active_provider.is_empty() {
+            return Err("Active provider must be specified".to_string());
+        }
+
+        // Check if active provider exists in providers list
+        let provider_exists = config.providers.iter().any(|p| {
+            match p {
+                ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
+                ProviderConfig::Ollama(c) => c.id == config.active_provider,
+                ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
+                ProviderConfig::SimpleFreeOpenRouter(c) => c.id == config.active_provider,
+            }
+        });
+
+        if !provider_exists {
+            return Err(format!("Active provider '{}' not found in configured providers", config.active_provider));
+        }
+
+        Ok(())
+    }
+
+    fn component_name(&self) -> &str {
+        "ConfigManager"
+    }
+
+    fn apply_config(&mut self, _config: Self::Config) -> Result<(), String> {
+        // In a real implementation, this would apply the configuration to the component
+        Ok(())
     }
 }
 
