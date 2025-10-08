@@ -166,22 +166,6 @@ struct Cli {
     #[arg(long, default_value = "gpt-3.5-turbo")]
     openai_compatible_model: String,
 
-    /// Add OpenCode provider non-interactively
-    #[arg(long)]
-    add_opencode: bool,
-
-    /// OpenCode API key
-    #[arg(long)]
-    opencode_api_key: Option<String>,
-
-    /// OpenCode API URL
-    #[arg(long)]
-    opencode_api_url: Option<String>,
-
-    /// OpenCode model name
-    #[arg(long, default_value = "gpt-4")]
-    opencode_model: String,
-
     /// Max tokens for provider configuration
     #[arg(long, default_value = "200")]
     max_tokens: i32,
@@ -545,22 +529,10 @@ struct OpenAICompatibleConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct OpenCodeConfig {
-    id: String,
-    provider: String,
-    api_key: String,
-    api_url: String,
-    model: String,
-    max_tokens: i32,
-    temperature: f32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 enum ProviderConfig {
     OpenRouter(OpenRouterConfig),
     Ollama(OllamaConfig),
     OpenAICompatible(OpenAICompatibleConfig),
-    OpenCode(OpenCodeConfig),
     SimpleFreeOpenRouter(SimpleFreeOpenRouterConfig),
 }
 
@@ -778,7 +750,7 @@ nbproject/
         let mut config = Config::load().unwrap_or_else(|_| Config::new());
 
         info!("Setting up a provider");
-        let provider_options = &["Free OpenRouter (recommended)", "OpenRouter", "Ollama", "OpenAI Compatible", "OpenCode"];
+        let provider_options = &["Free OpenRouter (recommended)", "OpenRouter", "Ollama", "OpenAI Compatible"];
         let provider_selection = Select::new()
             .with_prompt("Select a provider")
             .items(provider_options)
@@ -875,12 +847,6 @@ nbproject/
                 let mut openai_compatible_config = setup_openai_compatible_provider().await?;
                 openai_compatible_config.id = provider_id.clone();
                 config.providers.push(ProviderConfig::OpenAICompatible(openai_compatible_config));
-                config.active_provider = provider_id;
-            }
-            4 => {
-                let mut opencode_config = setup_opencode_provider().await?;
-                opencode_config.id = provider_id.clone();
-                config.providers.push(ProviderConfig::OpenCode(opencode_config));
                 config.active_provider = provider_id;
             }
             _ => return Err("Invalid provider selection".to_string()),
@@ -988,23 +954,6 @@ nbproject/
                 temperature: cli.temperature,
             };
             config.providers.push(ProviderConfig::OpenAICompatible(openai_compatible_config));
-            config.active_provider = provider_id;
-        } else if cli.add_opencode {
-            let api_key = cli.opencode_api_key.clone()
-                .ok_or_else(|| "OpenCode API key is required".to_string())?;
-            let api_url = cli.opencode_api_url.clone()
-                .unwrap_or_else(|| "https://api.opencode.ai/v1/chat/completions".to_string());
-
-            let opencode_config = OpenCodeConfig {
-                id: provider_id.clone(),
-                provider: "opencode".to_string(),
-                api_key,
-                api_url,
-                model: cli.opencode_model.clone(),
-                max_tokens: cli.max_tokens,
-                temperature: cli.temperature,
-            };
-            config.providers.push(ProviderConfig::OpenCode(opencode_config));
             config.active_provider = provider_id;
         }
 
@@ -1118,71 +1067,6 @@ async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, St
     Ok(OpenAICompatibleConfig {
         id: Uuid::new_v4().to_string(),
         provider: "openai_compatible".to_string(),
-        api_key,
-        api_url,
-        model,
-        max_tokens,
-        temperature,
-    })
-}
-
-async fn setup_opencode_provider() -> Result<OpenCodeConfig, String> {
-    let api_key: String = Input::new()
-        .with_prompt("Enter OpenCode API key")
-        .interact_text()
-        .map_err(|e| format!("Failed to get API key: {}", e))?;
-
-    let api_url: String = Input::new()
-        .with_prompt("Enter OpenCode API URL (default: https://api.opencode.ai/v1/chat/completions)")
-        .default("https://api.opencode.ai/v1/chat/completions".into())
-        .interact_text()
-        .map_err(|e| format!("Failed to get API URL: {}", e))?;
-
-    let model_options = &[
-        "gpt-4",
-        "gpt-4-turbo",
-        "gpt-3.5-turbo",
-        "claude-3-sonnet",
-        "claude-3-haiku",
-        "custom (enter manually)",
-    ];
-
-    let model_selection = Select::new()
-        .with_prompt("Select a model")
-        .items(model_options)
-        .default(0)
-        .interact()
-        .map_err(|e| format!("Failed to get model selection: {}", e))?;
-
-    let model = if model_selection == model_options.len() - 1 {
-        // Custom model input
-        Input::new()
-            .with_prompt("Enter model name")
-            .interact_text()
-            .map_err(|e| format!("Failed to get model name: {}", e))?
-    } else {
-        model_options[model_selection].to_string()
-    };
-
-    let max_tokens: String = Input::new()
-        .with_prompt("Enter max tokens")
-        .default("200".into())
-        .interact_text()
-        .map_err(|e| format!("Failed to get max tokens: {}", e))?;
-    let max_tokens: i32 = max_tokens.parse()
-        .map_err(|e| format!("Failed to parse max tokens: {}", e))?;
-
-    let temperature: String = Input::new()
-        .with_prompt("Enter temperature")
-        .default("0.2".into())
-        .interact_text()
-        .map_err(|e| format!("Failed to get temperature: {}", e))?;
-    let temperature: f32 = temperature.parse()
-        .map_err(|e| format!("Failed to parse temperature: {}", e))?;
-
-    Ok(OpenCodeConfig {
-        id: Uuid::new_v4().to_string(),
-        provider: "opencode".to_string(),
         api_key,
         api_url,
         model,
@@ -1720,7 +1604,7 @@ async fn main() -> Result<(), String> {
             println!("Provider added successfully!");
             Ok(())
         }
-        _ if cli.add_openrouter || cli.add_ollama || cli.add_openai_compatible || cli.add_opencode || cli.add_simple_free => {
+        _ if cli.add_openrouter || cli.add_ollama || cli.add_openai_compatible || cli.add_simple_free => {
             Config::setup_non_interactive(&cli).await?;
             println!("Provider added successfully!");
             Ok(())
@@ -1733,7 +1617,6 @@ async fn main() -> Result<(), String> {
                     ProviderConfig::OpenRouter(c) => println!("OpenRouter: {}", c.id),
                     ProviderConfig::Ollama(c) => println!("Ollama: {}", c.id),
                     ProviderConfig::OpenAICompatible(c) => println!("OpenAI Compatible: {}", c.id),
-                    ProviderConfig::OpenCode(c) => println!("OpenCode: {}", c.id),
                     ProviderConfig::SimpleFreeOpenRouter(c) => println!("Simple Free OpenRouter: {}", c.id),
                 }
             }
@@ -1762,13 +1645,6 @@ async fn main() -> Result<(), String> {
                         }
                     }
                     ProviderConfig::OpenAICompatible(c) => {
-                        if c.id == new_active_provider {
-                            config.active_provider = c.id.clone();
-                            found = true;
-                            break;
-                        }
-                    }
-                    ProviderConfig::OpenCode(c) => {
                         if c.id == new_active_provider {
                             config.active_provider = c.id.clone();
                             found = true;
@@ -1971,7 +1847,6 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
             ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
             ProviderConfig::Ollama(c) => c.id == config.active_provider,
             ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
-            ProviderConfig::OpenCode(c) => c.id == config.active_provider,
             ProviderConfig::SimpleFreeOpenRouter(c) => c.id == config.active_provider,
         }).ok_or_else(|| "No active provider found".to_string())?;
 
@@ -1986,7 +1861,6 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
                 ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
                 ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
                 ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
-                ProviderConfig::OpenCode(c) => generate_opencode_commit_message(c, &diff, cli).await,
                 ProviderConfig::SimpleFreeOpenRouter(c) => {
                     let mut c_clone = c.clone();
                     let result = generate_simple_free_commit_message(&mut c_clone, &diff, cli).await;
@@ -2086,7 +1960,6 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
             ProviderConfig::Ollama(c) => c.id == config.active_provider,
             ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
-            ProviderConfig::OpenCode(c) => c.id == config.active_provider,
             ProviderConfig::SimpleFreeOpenRouter(c) => c.id == config.active_provider,
         }).ok_or("No active provider found")?;
 
@@ -2101,7 +1974,6 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
                 ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
                 ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
                 ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
-                ProviderConfig::OpenCode(c) => generate_opencode_commit_message(c, &diff, cli).await,
                 ProviderConfig::SimpleFreeOpenRouter(c) => {
                     // We need to mutate the config to track failed models, so we need to load it again to update later
                     let mut c_clone = c.clone();
@@ -2802,103 +2674,6 @@ Commit Message ONLY:",
         input_tokens: response_data.usage.prompt_tokens,
         output_tokens: response_data.usage.completion_tokens,
         total_cost: 0.0, // Set to 0 for OpenAI compatible APIs as we don't know the actual cost
-        model_used: Some(config.model.clone()),
-    };
-
-    Ok((message, usage))
-}
-
-async fn generate_opencode_commit_message(config: &OpenCodeConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
-    let client = reqwest::Client::new();
-
-    // Use the smart diff processing function instead of simple truncation
-    let processed_diff = process_git_diff_output(diff);
-
-    let prompt = format!(
-        "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
-Examples:
-- feat: Add user authentication feature
-- fix: Correct calculation error in payment module
-- docs: Update README with installation instructions
-- style: Format code according to style guide
-- refactor: Simplify database query logic
-- test: Add unit tests for user service
-- chore: Update dependencies
-
-Git Diff:
-```diff
-{}
-```
-Commit Message ONLY:",
-        processed_diff
-    );
-
-    // Show context in verbose mode
-    if cli.verbose {
-        println!("\n=== Context for LLM ===");
-        println!("Provider: OpenCode");
-        println!("Model: {}", config.model);
-        println!("API URL: {}", config.api_url);
-        println!("Max tokens: {}", config.max_tokens);
-        println!("Temperature: {}", config.temperature);
-        println!("\n=== Prompt ===\n{}", prompt);
-        println!("\n=== Sending request to API ===");
-    }
-
-    let request_body = json!({
-        "model": &config.model,
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        "max_tokens": config.max_tokens,
-        "temperature": config.temperature,
-    });
-
-    let response = client
-        .post(&config.api_url)
-        .header("Authorization", format!("Bearer {}", &config.api_key))
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to send request: {}", e))?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-        return Err(format!("API request failed: {} - {}", status, error_text));
-    }
-
-    let response_data: OpenRouterResponse = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
-
-    let raw_message = response_data.choices
-        .get(0)
-        .ok_or("No choices in response")?
-        .message
-        .content
-        .clone();
-
-    // Clean and validate the message (consistent with other implementations)
-    let message = raw_message
-        .trim()
-        .trim_start_matches(['\\', '/', '-', ' '])
-        .trim_end_matches(['\\', '/', '-', ' ', '.'])
-        .trim()
-        .to_string();
-
-    if message.is_empty() || message.len() < 3 {
-        return Err("Generated commit message is too short or empty".to_string());
-    }
-
-    let usage = UsageInfo {
-        input_tokens: response_data.usage.prompt_tokens,
-        output_tokens: response_data.usage.completion_tokens,
-        total_cost: 0.0, // Set to 0 for OpenCode APIs as we don't know the actual cost
         model_used: Some(config.model.clone()),
     };
 
