@@ -166,6 +166,14 @@ struct Cli {
     #[arg(long, default_value = "gpt-3.5-turbo")]
     openai_compatible_model: String,
 
+    /// Add Claude Code provider non-interactively
+    #[arg(long)]
+    add_claude_code: bool,
+
+    /// Claude Code API key
+    #[arg(long)]
+    claude_code_api_key: Option<String>,
+
     /// Max tokens for provider configuration
     #[arg(long, default_value = "200")]
     max_tokens: i32,
@@ -529,11 +537,21 @@ struct OpenAICompatibleConfig {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+struct ClaudeCodeConfig {
+    id: String,
+    provider: String,
+    api_key: String,
+    max_tokens: i32,
+    temperature: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 enum ProviderConfig {
     OpenRouter(OpenRouterConfig),
     Ollama(OllamaConfig),
     OpenAICompatible(OpenAICompatibleConfig),
     SimpleFreeOpenRouter(SimpleFreeOpenRouterConfig),
+    ClaudeCode(ClaudeCodeConfig),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -750,7 +768,7 @@ nbproject/
         let mut config = Config::load().unwrap_or_else(|_| Config::new());
 
         info!("Setting up a provider");
-        let provider_options = &["Free OpenRouter (recommended)", "OpenRouter", "Ollama", "OpenAI Compatible"];
+        let provider_options = &["Free OpenRouter (recommended)", "OpenRouter", "Ollama", "OpenAI Compatible", "Claude Code"];
         let provider_selection = Select::new()
             .with_prompt("Select a provider")
             .items(provider_options)
@@ -847,6 +865,12 @@ nbproject/
                 let mut openai_compatible_config = setup_openai_compatible_provider().await?;
                 openai_compatible_config.id = provider_id.clone();
                 config.providers.push(ProviderConfig::OpenAICompatible(openai_compatible_config));
+                config.active_provider = provider_id;
+            }
+            4 => {
+                let mut claude_code_config = setup_claude_code_provider().await?;
+                claude_code_config.id = provider_id.clone();
+                config.providers.push(ProviderConfig::ClaudeCode(claude_code_config));
                 config.active_provider = provider_id;
             }
             _ => return Err("Invalid provider selection".to_string()),
@@ -954,6 +978,19 @@ nbproject/
                 temperature: cli.temperature,
             };
             config.providers.push(ProviderConfig::OpenAICompatible(openai_compatible_config));
+            config.active_provider = provider_id;
+        } else if cli.add_claude_code {
+            let api_key = cli.claude_code_api_key.clone()
+                .ok_or_else(|| "Claude Code API key is required".to_string())?;
+
+            let claude_code_config = ClaudeCodeConfig {
+                id: provider_id.clone(),
+                provider: "claude_code".to_string(),
+                api_key,
+                max_tokens: cli.max_tokens,
+                temperature: cli.temperature,
+            };
+            config.providers.push(ProviderConfig::ClaudeCode(claude_code_config));
             config.active_provider = provider_id;
         }
 
@@ -1070,6 +1107,37 @@ async fn setup_openai_compatible_provider() -> Result<OpenAICompatibleConfig, St
         api_key,
         api_url,
         model,
+        max_tokens,
+        temperature,
+    })
+}
+
+async fn setup_claude_code_provider() -> Result<ClaudeCodeConfig, String> {
+    let api_key: String = Input::new()
+        .with_prompt("Enter Claude Code API key")
+        .interact_text()
+        .map_err(|e| format!("Failed to get API key: {}", e))?;
+
+    let max_tokens: String = Input::new()
+        .with_prompt("Enter max tokens")
+        .default("200".into())
+        .interact_text()
+        .map_err(|e| format!("Failed to get max tokens: {}", e))?;
+    let max_tokens: i32 = max_tokens.parse()
+        .map_err(|e| format!("Failed to parse max tokens: {}", e))?;
+
+    let temperature: String = Input::new()
+        .with_prompt("Enter temperature")
+        .default("0.2".into())
+        .interact_text()
+        .map_err(|e| format!("Failed to get temperature: {}", e))?;
+    let temperature: f32 = temperature.parse()
+        .map_err(|e| format!("Failed to parse temperature: {}", e))?;
+
+    Ok(ClaudeCodeConfig {
+        id: Uuid::new_v4().to_string(),
+        provider: "claude_code".to_string(),
+        api_key,
         max_tokens,
         temperature,
     })
@@ -1492,6 +1560,7 @@ async fn main() -> Result<(), String> {
             println!("  --add-simple-free    Add Simple Free OpenRouter provider (uses best available free models)");
             println!("  --add-ollama         Add Ollama provider non-interactively");
             println!("  --add-openai-compatible Add OpenAI compatible provider non-interactively");
+            println!("  --add-claude-code     Add Claude Code provider non-interactively");
             println!("  --openrouter-api-key=<KEY> OpenRouter API key (required for --add-openrouter)");
             println!("  --openrouter-model=<MODEL> OpenRouter model (default: mistralai/mistral-tiny)");
             println!("  --ollama-url=<URL>    Ollama API URL (default: http://localhost:11434)");
@@ -1499,6 +1568,7 @@ async fn main() -> Result<(), String> {
             println!("  --openai-compatible-api-key=<KEY> OpenAI compatible API key");
             println!("  --openai-compatible-api-url=<URL> OpenAI compatible API URL");
             println!("  --openai-compatible-model=<MODEL> OpenAI compatible model (default: gpt-3.5-turbo)");
+            println!("  --claude-code-api-key=<KEY> Claude Code API key (required for --add-claude-code)");
             println!("  --max-tokens=<TOKENS> Max tokens for response (default: 200)");
             println!("  --temperature=<TEMP>  Temperature for generation (default: 0.2)");
             println!("  --list                List all providers");
@@ -1604,7 +1674,7 @@ async fn main() -> Result<(), String> {
             println!("Provider added successfully!");
             Ok(())
         }
-        _ if cli.add_openrouter || cli.add_ollama || cli.add_openai_compatible || cli.add_simple_free => {
+        _ if cli.add_openrouter || cli.add_ollama || cli.add_openai_compatible || cli.add_simple_free || cli.add_claude_code => {
             Config::setup_non_interactive(&cli).await?;
             println!("Provider added successfully!");
             Ok(())
@@ -1618,6 +1688,7 @@ async fn main() -> Result<(), String> {
                     ProviderConfig::Ollama(c) => println!("Ollama: {}", c.id),
                     ProviderConfig::OpenAICompatible(c) => println!("OpenAI Compatible: {}", c.id),
                     ProviderConfig::SimpleFreeOpenRouter(c) => println!("Simple Free OpenRouter: {}", c.id),
+                    ProviderConfig::ClaudeCode(c) => println!("Claude Code: {}", c.id),
                 }
             }
             Ok(())
@@ -1652,6 +1723,13 @@ async fn main() -> Result<(), String> {
                         }
                     }
                     ProviderConfig::SimpleFreeOpenRouter(c) => {
+                        if c.id == new_active_provider {
+                            config.active_provider = c.id.clone();
+                            found = true;
+                            break;
+                        }
+                    }
+                    ProviderConfig::ClaudeCode(c) => {
                         if c.id == new_active_provider {
                             config.active_provider = c.id.clone();
                             found = true;
@@ -1848,6 +1926,7 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
             ProviderConfig::Ollama(c) => c.id == config.active_provider,
             ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
             ProviderConfig::SimpleFreeOpenRouter(c) => c.id == config.active_provider,
+            ProviderConfig::ClaudeCode(c) => c.id == config.active_provider,
         }).ok_or_else(|| "No active provider found".to_string())?;
 
         let mut attempt_count = 0;
@@ -1867,6 +1946,7 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
                     // We don't need to save failed models in dry-run mode
                     result
                 },
+                ProviderConfig::ClaudeCode(c) => generate_claude_code_commit_message(c, &diff, cli).await,
             };
 
             match result {
@@ -1961,6 +2041,7 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             ProviderConfig::Ollama(c) => c.id == config.active_provider,
             ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
             ProviderConfig::SimpleFreeOpenRouter(c) => c.id == config.active_provider,
+            ProviderConfig::ClaudeCode(c) => c.id == config.active_provider,
         }).ok_or("No active provider found")?;
 
         let mut attempt_count = 0;
@@ -1978,10 +2059,11 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
                     // We need to mutate the config to track failed models, so we need to load it again to update later
                     let mut c_clone = c.clone();
                     let result = generate_simple_free_commit_message(&mut c_clone, &diff, cli).await;
-                    
+
                     // We've already saved the model information in the result
                     result
                 },
+                ProviderConfig::ClaudeCode(c) => generate_claude_code_commit_message(c, &diff, cli).await,
             };
 
             match result {
@@ -2675,6 +2757,103 @@ Commit Message ONLY:",
         output_tokens: response_data.usage.completion_tokens,
         total_cost: 0.0, // Set to 0 for OpenAI compatible APIs as we don't know the actual cost
         model_used: Some(config.model.clone()),
+    };
+
+    Ok((message, usage))
+}
+
+async fn generate_claude_code_commit_message(config: &ClaudeCodeConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
+    let client = reqwest::Client::new();
+
+    // Use the smart diff processing function instead of simple truncation
+    let processed_diff = process_git_diff_output(diff);
+
+    let prompt = format!(
+        "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
+Examples:
+- feat: Add user authentication feature
+- fix: Correct calculation error in payment module
+- docs: Update README with installation instructions
+- style: Format code according to style guide
+- refactor: Simplify database query logic
+- test: Add unit tests for user service
+- chore: Update dependencies
+
+Git Diff:
+```diff
+{}
+```
+Commit Message ONLY:",
+        processed_diff
+    );
+
+    // Show context in verbose mode
+    if cli.verbose {
+        println!("\n=== Context for LLM ===");
+        println!("Provider: Claude Code");
+        println!("Max tokens: {}", config.max_tokens);
+        println!("Temperature: {}", config.temperature);
+        println!("\n=== Prompt ===\n{}", prompt);
+        println!("\n=== Sending request to Claude Code API ===");
+    }
+
+    let request_body = json!({
+        "model": "claude-3-sonnet-20240229",
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "max_tokens": config.max_tokens,
+        "temperature": config.temperature,
+    });
+
+    let response = client
+        .post("https://api.anthropic.com/v1/messages")
+        .header("x-api-key", &config.api_key)
+        .header("anthropic-version", "2023-06-01")
+        .header("content-type", "application/json")
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send request: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(format!("API request failed: {} - {}", status, error_text));
+    }
+
+    let response_data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+    let raw_message = response_data["content"]
+        .as_array()
+        .and_then(|arr| arr.get(0))
+        .and_then(|obj| obj["text"].as_str())
+        .ok_or("Invalid response format from Claude Code API")?
+        .to_string();
+
+    // Clean and validate the message (consistent with other implementations)
+    let message = raw_message
+        .trim()
+        .trim_start_matches(['\\', '/', '-', ' '])
+        .trim_end_matches(['\\', '/', '-', ' ', '.'])
+        .trim()
+        .to_string();
+
+    if message.is_empty() || message.len() < 3 {
+        return Err("Generated commit message is too short or empty".to_string());
+    }
+
+    let usage = UsageInfo {
+        input_tokens: response_data["usage"]["input_tokens"].as_i64().unwrap_or(0) as i32,
+        output_tokens: response_data["usage"]["output_tokens"].as_i64().unwrap_or(0) as i32,
+        total_cost: 0.0, // Set to 0 for Claude Code API as we don't know the actual cost
+        model_used: Some("claude-3-sonnet-20240229".to_string()),
     };
 
     Ok((message, usage))
