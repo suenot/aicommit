@@ -3,6 +3,12 @@
 use std::process::Command;
 use dialoguer::Input;
 use tracing::{info, error, debug};
+use serde_json::json;
+use crate::types::*;
+use crate::{MAX_DIFF_CHARS, MAX_FILE_DIFF_CHARS};
+use crate::utils::{get_safe_slice_length, parse_duration, save_simple_free_config};
+use crate::version::{update_version_file, update_cargo_version, update_npm_version, update_github_version};
+use crate::models::{get_available_free_models, fallback_to_preferred_models, find_best_available_model, record_model_failure, record_model_success};
 
 // From: 020_function_process_git_diff_output.rs
 pub fn process_git_diff_output(diff: &str) -> String {

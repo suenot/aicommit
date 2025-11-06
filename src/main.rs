@@ -128,17 +128,9 @@ const PREFERRED_FREE_MODELS: &[&str] = &[
 
 const MAX_CONSECUTIVE_FAILURES: usize = 3;
 const INITIAL_JAIL_HOURS: i64 = 24;
-
-const INITIAL_JAIL_HOURS: i64 = 24;
-const JAIL_TIME_MULTIPLIER: i64 = 2;
-
 const JAIL_TIME_MULTIPLIER: i64 = 2;
 const MAX_JAIL_HOURS: i64 = 168; // 7 days
 const BLACKLIST_AFTER_JAIL_COUNT: usize = 3;
-
-const BLACKLIST_AFTER_JAIL_COUNT: usize = 3;
-const BLACKLIST_RETRY_DAYS: i64 = 7;
-
 const BLACKLIST_RETRY_DAYS: i64 = 7;
 
 /// Decides if a model should be used based on its jail/blacklist status
@@ -150,8 +142,31 @@ fn is_model_available(model_stats: &Option<&ModelStats>) -> bool {
             if stats.blacklisted {
                 if let Some(blacklisted_since) = stats.blacklisted_since {
                     let retry_duration = chrono::Duration::days(BLACKLIST_RETRY_DAYS);
+                    let now = chrono::Utc::now();
+
+                    // If blacklisted for more than retry period, give it another chance
+                    if now - blacklisted_since > retry_duration {
+                        return true;
+                    }
+                    return false;
+                }
+                return false;
+            }
+
+            // Check if currently in jail
+            if let Some(jail_until) = stats.jail_until {
+                if chrono::Utc::now() < jail_until {
+                    return false;
+                }
+            }
+
+            true
+        }
+    }
+}
 
 // From: 029_function_main.rs
+#[tokio::main]
 async fn main() -> Result<(), String> {
     let cli = Cli::parse();
 
@@ -320,6 +335,8 @@ async fn main() -> Result<(), String> {
                     ProviderConfig::Ollama(c) => println!("Ollama: {}", c.id),
                     ProviderConfig::OpenAICompatible(c) => println!("OpenAI Compatible: {}", c.id),
                     ProviderConfig::SimpleFreeOpenRouter(c) => println!("Simple Free OpenRouter: {}", c.id),
+                    ProviderConfig::ClaudeCode(c) => println!("Claude Code: {}", c.id),
+                    ProviderConfig::OpenCode(c) => println!("OpenCode: {}", c.id),
                 }
             }
             Ok(())
@@ -354,6 +371,20 @@ async fn main() -> Result<(), String> {
                         }
                     }
                     ProviderConfig::SimpleFreeOpenRouter(c) => {
+                        if c.id == new_active_provider {
+                            config.active_provider = c.id.clone();
+                            found = true;
+                            break;
+                        }
+                    }
+                    ProviderConfig::ClaudeCode(c) => {
+                        if c.id == new_active_provider {
+                            config.active_provider = c.id.clone();
+                            found = true;
+                            break;
+                        }
+                    }
+                    ProviderConfig::OpenCode(c) => {
                         if c.id == new_active_provider {
                             config.active_provider = c.id.clone();
                             found = true;

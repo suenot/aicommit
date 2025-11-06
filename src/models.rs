@@ -1,6 +1,7 @@
 // Model management functions
 
 use crate::types::*;
+use crate::{PREFERRED_FREE_MODELS, MAX_CONSECUTIVE_FAILURES, INITIAL_JAIL_HOURS, JAIL_TIME_MULTIPLIER, MAX_JAIL_HOURS, BLACKLIST_AFTER_JAIL_COUNT, BLACKLIST_RETRY_DAYS};
 use std::fs;
 use chrono;
 use tracing::{info, error, debug};
