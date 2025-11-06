@@ -3,6 +3,13 @@
 use serde::{Serialize, Deserialize};
 use clap::Parser;
 use chrono;
+use tracing::info;
+use std::fs;
+use std::env;
+use std::process::Command;
+use dialoguer::{Select, Input};
+use uuid::Uuid;
+use crate::providers::{setup_openrouter_provider, setup_openai_compatible_provider};
 
 // From: 000_struct_Cli.rs
 #[derive(Parser, Debug)]
@@ -13,279 +20,279 @@ use chrono;
 pub struct Cli {
     /// Add a new provider (interactive mode)
     #[arg(long = "add-provider")]
-    add_provider: bool,
+    pub add_provider: bool,
 
     /// Automatically stage all changes before commit
     #[arg(long = "add")]
-    add: bool,
+    pub add: bool,
 
     /// Add OpenRouter provider non-interactively
     #[arg(long)]
-    add_openrouter: bool,
+    pub add_openrouter: bool,
 
     /// OpenRouter API key
     #[arg(long)]
-    openrouter_api_key: Option<String>,
+    pub openrouter_api_key: Option<String>,
 
     /// OpenRouter model name
     #[arg(long, default_value = "mistralai/mistral-tiny")]
-    openrouter_model: String,
+    pub openrouter_model: String,
 
     /// Add Simple Free OpenRouter provider (uses best available free models automatically)
     #[arg(long)]
-    add_simple_free: bool,
+    pub add_simple_free: bool,
 
     /// Add Ollama provider non-interactively
     #[arg(long)]
-    add_ollama: bool,
+    pub add_ollama: bool,
 
     /// Ollama API URL
     #[arg(long, default_value = "http://localhost:11434")]
-    ollama_url: String,
+    pub ollama_url: String,
 
     /// Ollama model name
     #[arg(long, default_value = "llama2")]
-    ollama_model: String,
+    pub ollama_model: String,
 
     /// Add OpenAI compatible provider non-interactively (e.g., LM Studio, custom endpoints)
     #[arg(long)]
-    add_openai_compatible: bool,
+    pub add_openai_compatible: bool,
 
     /// OpenAI compatible API key
     #[arg(long)]
-    openai_compatible_api_key: Option<String>,
+    pub openai_compatible_api_key: Option<String>,
 
     /// OpenAI compatible API URL
     #[arg(long)]
-    openai_compatible_api_url: Option<String>,
+    pub openai_compatible_api_url: Option<String>,
 
     /// OpenAI compatible model name
     #[arg(long, default_value = "gpt-3.5-turbo")]
-    openai_compatible_model: String,
+    pub openai_compatible_model: String,
 
     /// Max tokens for provider configuration
     #[arg(long, default_value = "200")]
-    max_tokens: i32,
+    pub max_tokens: i32,
 
     /// Temperature for provider configuration
     #[arg(long, default_value = "0.2")]
-    temperature: f32,
+    pub temperature: f32,
 
     /// List all providers
     #[arg(long)]
-    list: bool,
+    pub list: bool,
 
     /// Set active provider
     #[arg(long)]
-    set: Option<String>,
+    pub set: Option<String>,
 
     /// Edit configuration file
     #[arg(long)]
-    config: bool,
+    pub config: bool,
 
     /// Path to version file
     #[arg(long = "version-file")]
-    version_file: Option<String>,
+    pub version_file: Option<String>,
 
     /// Automatically increment version in version file
     #[arg(long = "version-iterate")]
-    version_iterate: bool,
+    pub version_iterate: bool,
 
     /// Synchronize version with Cargo.toml
     #[arg(long = "version-cargo")]
-    version_cargo: bool,
+    pub version_cargo: bool,
 
     /// Synchronize version with package.json
     #[arg(long = "version-npm")]
-    version_npm: bool,
+    pub version_npm: bool,
 
     /// Update version on GitHub
     #[arg(long = "version-github")]
-    version_github: bool,
+    pub version_github: bool,
 
     /// Interactive commit message generation
     #[arg(long = "dry-run")]
-    dry_run: bool,
+    pub dry_run: bool,
 
     /// Pull changes before commit
     #[arg(long = "pull")]
-    pull: bool,
+    pub pull: bool,
 
     /// Watch for changes and auto-commit
     #[arg(long = "watch")]
-    watch: bool,
+    pub watch: bool,
 
     /// Wait for edit delay before committing (e.g. "30s" for 30 seconds)
     #[arg(long = "wait-for-edit")]
-    wait_for_edit: Option<String>,
+    pub wait_for_edit: Option<String>,
 
     /// Automatically push changes after commit
     #[arg(long = "push")]
-    push: bool,
+    pub push: bool,
 
     /// Display help information
     #[arg(long = "help")]
-    help: bool,
+    pub help: bool,
 
     /// Display version information
     #[arg(long = "version")]
-    version: bool,
+    pub version: bool,
 
     /// Display verbose information
     #[arg(long = "verbose")]
-    verbose: bool,
+    pub verbose: bool,
     
     /// Skip .gitignore check and creation
     #[arg(long = "no-gitignore-check")]
-    no_gitignore_check: bool,
+    pub no_gitignore_check: bool,
 
     /// Set the git commit message without using AI. (For CI/CD or offline use cases)
     #[arg(long)]
-    msg: Option<String>,
+    pub msg: Option<String>,
 
     /// Force the use of offline mode (uses fallback model list) for testing purposes
     #[arg(long, hide = true)]
-    simulate_offline: bool,
+    pub simulate_offline: bool,
     
     /// Show status of all model jails and blacklists
     #[arg(long = "jail-status")]
-    jail_status: bool,
+    pub jail_status: bool,
     
     /// Release specific model from jail/blacklist (model ID as parameter)
     #[arg(long = "unjail")]
-    unjail: Option<String>,
+    pub unjail: Option<String>,
     
     /// Release all models from jail/blacklist
     #[arg(long = "unjail-all")]
-    unjail_all: bool,
+    pub unjail_all: bool,
 }
 
 // From: 006_struct_OpenRouterConfig.rs
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenRouterConfig {
-    id: String,
-    provider: String,
-    api_key: String,
-    model: String,
-    max_tokens: i32,
-    temperature: f32,
+    pub id: String,
+    pub provider: String,
+    pub api_key: String,
+    pub model: String,
+    pub max_tokens: i32,
+    pub temperature: f32,
 }
 
 // From: 007_struct_ModelStats.rs
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ModelStats {
-    success_count: usize,
-    failure_count: usize,
+    pub success_count: usize,
+    pub failure_count: usize,
     #[serde(with = "chrono::serde::ts_seconds_option")]
-    last_success: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_success: Option<chrono::DateTime<chrono::Utc>>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
-    last_failure: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_failure: Option<chrono::DateTime<chrono::Utc>>,
     #[serde(with = "chrono::serde::ts_seconds_option")]
-    jail_until: Option<chrono::DateTime<chrono::Utc>>,
-    jail_count: usize,
-    blacklisted: bool,
+    pub jail_until: Option<chrono::DateTime<chrono::Utc>>,
+    pub jail_count: usize,
+    pub blacklisted: bool,
     #[serde(with = "chrono::serde::ts_seconds_option")]
-    blacklisted_since: Option<chrono::DateTime<chrono::Utc>>,
+    pub blacklisted_since: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 // From: 009_struct_SimpleFreeOpenRouterConfig.rs
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SimpleFreeOpenRouterConfig {
-    id: String,
-    provider: String,
-    api_key: String,
-    max_tokens: i32,
-    temperature: f32,
+    pub id: String,
+    pub provider: String,
+    pub api_key: String,
+    pub max_tokens: i32,
+    pub temperature: f32,
     #[serde(default)]
-    failed_models: Vec<String>,
+    pub failed_models: Vec<String>,
     #[serde(default)]
-    model_stats: std::collections::HashMap<String, ModelStats>,
+    pub model_stats: std::collections::HashMap<String, ModelStats>,
     #[serde(default)]
-    last_used_model: Option<String>,
+    pub last_used_model: Option<String>,
     #[serde(default = "chrono::Utc::now")]
-    last_config_update: chrono::DateTime<chrono::Utc>,
+    pub last_config_update: chrono::DateTime<chrono::Utc>,
 }
 
 // From: 010_struct_OllamaConfig.rs
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OllamaConfig {
-    id: String,
-    provider: String,
-    model: String,
-    url: String,
-    max_tokens: i32,
-    temperature: f32,
+    pub id: String,
+    pub provider: String,
+    pub model: String,
+    pub url: String,
+    pub max_tokens: i32,
+    pub temperature: f32,
 }
 
 // From: 011_struct_OpenAICompatibleConfig.rs
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenAICompatibleConfig {
-    id: String,
-    provider: String,
-    api_key: String,
-    api_url: String,
-    model: String,
-    max_tokens: i32,
-    temperature: f32,
+    pub id: String,
+    pub provider: String,
+    pub api_key: String,
+    pub api_url: String,
+    pub model: String,
+    pub max_tokens: i32,
+    pub temperature: f32,
 }
 
 // From: 012_struct_ClaudeCodeConfig.rs
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClaudeCodeConfig {
-    id: String,
-    provider: String,
+    pub id: String,
+    pub provider: String,
 }
 
 // From: 013_struct_OpenCodeConfig.rs
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OpenCodeConfig {
-    id: String,
-    provider: String,
+    pub id: String,
+    pub provider: String,
 }
 
 // From: 015_struct_Config.rs
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
-    providers: Vec<ProviderConfig>,
-    active_provider: String,
+    pub providers: Vec<ProviderConfig>,
+    pub active_provider: String,
     #[serde(default = "default_retry_attempts")]
-    retry_attempts: u32,
+    pub retry_attempts: u32,
 }
 
 // From: 022_struct_UsageInfo.rs
 #[derive(Debug)]
 pub struct UsageInfo {
-    input_tokens: i32,
-    output_tokens: i32,
-    total_cost: f32,
-    model_used: Option<String>,
+    pub input_tokens: i32,
+    pub output_tokens: i32,
+    pub total_cost: f32,
+    pub model_used: Option<String>,
 }
 
 // From: 023_struct_OpenRouterResponse.rs
 #[derive(Debug, Deserialize)]
 pub struct OpenRouterResponse {
-    choices: Vec<OpenRouterChoice>,
-    usage: OpenRouterUsage,
+    pub choices: Vec<OpenRouterChoice>,
+    pub usage: OpenRouterUsage,
 }
 
 // From: 024_struct_OpenRouterChoice.rs
 #[derive(Debug, Deserialize)]
 pub struct OpenRouterChoice {
-    message: OpenRouterMessage,
+    pub message: OpenRouterMessage,
 }
 
 // From: 025_struct_OpenRouterMessage.rs
 #[derive(Debug, Deserialize)]
 pub struct OpenRouterMessage {
-    content: String,
+    pub content: String,
 }
 
 // From: 026_struct_OpenRouterUsage.rs
 #[derive(Debug, Deserialize)]
 pub struct OpenRouterUsage {
-    prompt_tokens: i32,
-    completion_tokens: i32,
-    total_tokens: i32,
+    pub prompt_tokens: i32,
+    pub completion_tokens: i32,
+    pub total_tokens: i32,
 }
 
 // From: 014_enum_ProviderConfig.rs
@@ -300,8 +307,8 @@ pub enum ProviderConfig {
 }
 
 // From: 008_impl_impl_Default.rs
-pub impl Default for ModelStats {
-    pub fn default() -> Self {
+impl Default for ModelStats {
+    fn default() -> Self {
         Self {
             success_count: 0,
             failure_count: 0,
@@ -315,8 +322,13 @@ pub impl Default for ModelStats {
     }
 }
 
+// From: 016_function_default_retry_attempts.rs
+fn default_retry_attempts() -> u32 {
+    3
+}
+
 // From: 017_impl_impl_Config.rs
-pub impl Config {
+impl Config {
     pub fn new() -> Self {
         Config {
             providers: Vec::new(),
