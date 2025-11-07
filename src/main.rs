@@ -1,18 +1,10 @@
 // Main module - orchestrates all functionality
 
 use std::fs;
-use serde::{Serialize, Deserialize};
-use dialoguer::{Input, Select};
-use uuid::Uuid;
-use serde_json::json;
-use std::env;
 use clap::Parser;
-use std::process::Command;
 use tokio;
-use chrono;
-use tracing::{info, warn, error, debug, trace};
-use anyhow::Result as AnyhowResult;
-use logging::{LoggingConfig, init_logging, init_default_logging, log_error, log_info, log_warning};
+use tracing::info;
+use logging::{LoggingConfig, init_logging};
 
 // Module declarations
 mod logging;
@@ -27,9 +19,7 @@ mod utils;
 use types::*;
 use version::*;
 use git::*;
-use providers::*;
 use models::*;
-use utils::*;
 
 // Constants
 const MAX_DIFF_CHARS: usize = 15000; // Limit diff size to prevent excessive API usage
@@ -132,38 +122,6 @@ const JAIL_TIME_MULTIPLIER: i64 = 2;
 const MAX_JAIL_HOURS: i64 = 168; // 7 days
 const BLACKLIST_AFTER_JAIL_COUNT: usize = 3;
 const BLACKLIST_RETRY_DAYS: i64 = 7;
-
-/// Decides if a model should be used based on its jail/blacklist status
-fn is_model_available(model_stats: &Option<&ModelStats>) -> bool {
-    match model_stats {
-        None => true, // No stats yet, model is available
-        Some(stats) => {
-            // Check if blacklisted but should be retried
-            if stats.blacklisted {
-                if let Some(blacklisted_since) = stats.blacklisted_since {
-                    let retry_duration = chrono::Duration::days(BLACKLIST_RETRY_DAYS);
-                    let now = chrono::Utc::now();
-
-                    // If blacklisted for more than retry period, give it another chance
-                    if now - blacklisted_since > retry_duration {
-                        return true;
-                    }
-                    return false;
-                }
-                return false;
-            }
-
-            // Check if currently in jail
-            if let Some(jail_until) = stats.jail_until {
-                if chrono::Utc::now() < jail_until {
-                    return false;
-                }
-            }
-
-            true
-        }
-    }
-}
 
 // From: 029_function_main.rs
 #[tokio::main]
