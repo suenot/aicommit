@@ -4,7 +4,6 @@ use crate::types::*;
 use crate::{PREFERRED_FREE_MODELS, MAX_CONSECUTIVE_FAILURES, INITIAL_JAIL_HOURS, JAIL_TIME_MULTIPLIER, MAX_JAIL_HOURS, BLACKLIST_AFTER_JAIL_COUNT, BLACKLIST_RETRY_DAYS};
 use std::fs;
 use chrono;
-use tracing::{info, error, debug};
 
 // From: 035_function_get_available_free_models.rs
 pub async fn get_available_free_models(api_key: &str, simulate_offline: bool) -> Result<Vec<String>, String> {

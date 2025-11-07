@@ -3,9 +3,6 @@
 use crate::types::*;
 use dialoguer::{Input, Select};
 use uuid::Uuid;
-use std::fs;
-use serde_json;
-use tracing::{info, error, debug};
 
 // From: 018_function_setup_openrouter_provider.rs
 pub async fn setup_openrouter_provider() -> Result<OpenRouterConfig, String> {

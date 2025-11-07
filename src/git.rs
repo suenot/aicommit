@@ -1,8 +1,7 @@
 // Git operations
 
 use std::process::Command;
-use dialoguer::Input;
-use tracing::{info, error, debug};
+use tracing::info;
 use serde_json::json;
 use crate::types::*;
 use crate::{MAX_DIFF_CHARS, MAX_FILE_DIFF_CHARS};
@@ -1208,7 +1207,7 @@ Commit Message ONLY:",
 }
 
 // From: 043_function_generate_claude_code_commit_message.rs
-pub async fn generate_claude_code_commit_message(config: &ClaudeCodeConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
+pub async fn generate_claude_code_commit_message(_config: &ClaudeCodeConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     // Use the smart diff processing function
     let processed_diff = process_git_diff_output(diff);
 
@@ -1287,7 +1286,7 @@ Commit Message ONLY:",
 }
 
 // From: 044_function_generate_opencode_commit_message.rs
-pub async fn generate_opencode_commit_message(config: &OpenCodeConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
+pub async fn generate_opencode_commit_message(_config: &OpenCodeConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     // Use the smart diff processing function
     let processed_diff = process_git_diff_output(diff);
 

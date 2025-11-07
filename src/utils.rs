@@ -2,7 +2,6 @@
 
 use std::time::Duration;
 use std::fs;
-use tracing::{info, error, debug};
 use crate::types::*;
 
 // From: 016_function_default_retry_attempts.rs
