@@ -3,7 +3,6 @@
 use std::fs;
 use clap::Parser;
 use tokio;
-use chrono;
 use tracing::info;
 use logging::{LoggingConfig, init_logging};
 

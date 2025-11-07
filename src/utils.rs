@@ -1,10 +1,11 @@
 // Utility functions
 
-use std::time::Duration;
 use std::fs;
 use crate::types::*;
 
 // From: 016_function_default_retry_attempts.rs
+// Used by serde(default) in types.rs
+#[allow(dead_code)]
 pub fn default_retry_attempts() -> u32 {
     3
 }

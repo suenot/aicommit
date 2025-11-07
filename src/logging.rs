@@ -88,6 +88,7 @@ impl LoggingConfig {
     }
 
     /// Enable trace logging with full verbosity
+    #[allow(dead_code)]
     pub fn with_trace(&mut self) -> &mut Self {
         self.level = "trace".to_string();
         self.show_target = true;
@@ -96,12 +97,14 @@ impl LoggingConfig {
     }
 
     /// Disable console logging (file only)
+    #[allow(dead_code)]
     pub fn file_only(&mut self) -> &mut Self {
         self.console_enabled = false;
         self
     }
 
     /// Disable file logging (console only)
+    #[allow(dead_code)]
     pub fn console_only(&mut self) -> &mut Self {
         self.file_enabled = false;
         self
@@ -219,6 +222,7 @@ macro_rules! operation_span {
 }
 
 /// Log an error with context and return it
+#[allow(dead_code)]
 pub fn log_error<E>(error: E, context: &str) -> E
 where
     E: std::fmt::Display + std::fmt::Debug,
@@ -228,22 +232,26 @@ where
 }
 
 /// Log a warning with context
+#[allow(dead_code)]
 pub fn log_warning(message: &str, context: &str) {
     warn!("{}: {}", context, message);
 }
 
 /// Log an info message with context
+#[allow(dead_code)]
 pub fn log_info(message: &str, context: &str) {
     info!("{}: {}", context, message);
 }
 
 /// Initialize logging with default configuration
+#[allow(dead_code)]
 pub fn init_default_logging() -> Result<Option<tracing_appender::non_blocking::WorkerGuard>> {
     let config = LoggingConfig::new();
     init_logging(&config)
 }
 
 /// Initialize logging for development (debug level, verbose output)
+#[allow(dead_code)]
 pub fn init_dev_logging() -> Result<Option<tracing_appender::non_blocking::WorkerGuard>> {
     let mut config = LoggingConfig::new();
     config.with_debug();
@@ -251,6 +259,7 @@ pub fn init_dev_logging() -> Result<Option<tracing_appender::non_blocking::Worke
 }
 
 /// Initialize logging for production (info level, structured)
+#[allow(dead_code)]
 pub fn init_prod_logging() -> Result<Option<tracing_appender::non_blocking::WorkerGuard>> {
     let mut config = LoggingConfig::new();
     config.json_format = true;
