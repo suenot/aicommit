@@ -4,6 +4,7 @@ use std::fs;
 use clap::Parser;
 use tokio;
 use tracing::info;
+use dialoguer::Select;
 use logging::{LoggingConfig, init_logging};
 
 // Module declarations
@@ -196,6 +197,7 @@ async fn main() -> Result<(), String> {
             println!("  --jail-status         Show status of all model jails and blacklists");
             println!("  --unjail=<MODEL>      Release specific model from jail/blacklist (model ID as parameter)");
             println!("  --unjail-all          Release all models from jail/blacklist");
+            println!("  -g, --generate=<N>    Generate N commit message options (1-5) and let you choose (default: 1)");
             println!("\nExamples:");
             println!("  aicommit --add-provider");
             println!("  aicommit --add");
@@ -205,6 +207,8 @@ async fn main() -> Result<(), String> {
             println!("  aicommit --set=<ID>");
             println!("  aicommit --version-file=version.txt --version-iterate");
             println!("  aicommit --watch");
+            println!("  aicommit -g 3  # Generate 3 options to choose from");
+            println!("  aicommit --generate 5  # Generate 5 options to choose from");
             println!("  aicommit");
             Ok(())
         }
@@ -416,15 +420,15 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
     if !cli.no_gitignore_check {
         Config::check_gitignore()?;
     }
-    
+
     // Load configuration
     let config = Config::load()?;
-    
+
     // Make sure we have a provider
     if config.providers.is_empty() {
         return Err("No providers configured. Please run with --add-provider to add a provider.".to_string());
     }
-    
+
     // Check if we're in a git repository and get the diff
     let diff = match get_git_diff(cli) {
         Ok(diff) => diff,
@@ -432,9 +436,9 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
             return Err(format!("Failed to get git diff: {}", e));
         }
     };
-    
+
     // Generate commit message
-    let (message, _) = {
+    let message = {
         let active_provider = config.providers.iter().find(|p| match p {
             ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
             ProviderConfig::Ollama(c) => c.id == config.active_provider,
@@ -444,34 +448,86 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
             ProviderConfig::OpenCode(c) => c.id == config.active_provider,
         }).ok_or_else(|| "No active provider found".to_string())?;
 
-        let mut attempt_count = 0;
-        loop {
-            if attempt_count > 0 {
-                eprintln!("Retry attempt {} of {}", attempt_count + 1, config.retry_attempts);
-                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        // Check if we need to generate multiple messages
+        if cli.generate > 1 {
+            eprintln!("Generating {} commit message options...\n", cli.generate);
+
+            let mut messages: Vec<String> = Vec::new();
+
+            // Generate messages sequentially
+            for i in 0..cli.generate {
+                eprint!("  Generating option {}... ", i + 1);
+
+                let result = match active_provider {
+                    ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
+                    ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
+                    ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
+                    ProviderConfig::SimpleFreeOpenRouter(c) => {
+                        let mut c_clone = c.clone();
+                        generate_simple_free_commit_message(&mut c_clone, &diff, cli).await
+                    },
+                    ProviderConfig::ClaudeCode(c) => generate_claude_code_commit_message(c, &diff, cli).await,
+                    ProviderConfig::OpenCode(c) => generate_opencode_commit_message(c, &diff, cli).await,
+                };
+
+                match result {
+                    Ok((msg, _)) => {
+                        eprintln!("done");
+                        messages.push(msg);
+                    }
+                    Err(e) => {
+                        eprintln!("failed: {}", e);
+                    }
+                }
             }
 
-            let result = match active_provider {
-                ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
-                ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
-                ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
-                ProviderConfig::SimpleFreeOpenRouter(c) => {
-                    let mut c_clone = c.clone();
-                    let result = generate_simple_free_commit_message(&mut c_clone, &diff, cli).await;
-                    // We don't need to save failed models in dry-run mode
-                    result
-                },
-                ProviderConfig::ClaudeCode(c) => generate_claude_code_commit_message(c, &diff, cli).await,
-                ProviderConfig::OpenCode(c) => generate_opencode_commit_message(c, &diff, cli).await,
-            };
+            if messages.is_empty() {
+                return Err("Failed to generate any commit messages".to_string());
+            }
 
-            match result {
-                Ok(result) => break result,
-                Err(e) => {
-                    eprintln!("Attempt {} failed: {}", attempt_count + 1, e);
-                    attempt_count += 1;
-                    if attempt_count >= config.retry_attempts {
-                        return Err(format!("Failed to generate commit message after {} attempts. Last error: {}", config.retry_attempts, e));
+            eprintln!(); // Empty line before selection
+
+            // Prepare options for selection
+            let options: Vec<&str> = messages.iter().map(|s| s.as_str()).collect();
+
+            // Use dialoguer to let user select
+            let selection = Select::new()
+                .with_prompt("Select a commit message")
+                .items(&options)
+                .default(0)
+                .interact()
+                .map_err(|e| format!("Failed to get selection: {}", e))?;
+
+            messages.remove(selection)
+        } else {
+            // Original single message generation with retry
+            let mut attempt_count = 0;
+            loop {
+                if attempt_count > 0 {
+                    eprintln!("Retry attempt {} of {}", attempt_count + 1, config.retry_attempts);
+                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                }
+
+                let result = match active_provider {
+                    ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
+                    ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
+                    ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
+                    ProviderConfig::SimpleFreeOpenRouter(c) => {
+                        let mut c_clone = c.clone();
+                        generate_simple_free_commit_message(&mut c_clone, &diff, cli).await
+                    },
+                    ProviderConfig::ClaudeCode(c) => generate_claude_code_commit_message(c, &diff, cli).await,
+                    ProviderConfig::OpenCode(c) => generate_opencode_commit_message(c, &diff, cli).await,
+                };
+
+                match result {
+                    Ok((msg, _)) => break msg,
+                    Err(e) => {
+                        eprintln!("Attempt {} failed: {}", attempt_count + 1, e);
+                        attempt_count += 1;
+                        if attempt_count >= config.retry_attempts {
+                            return Err(format!("Failed to generate commit message after {} attempts. Last error: {}", config.retry_attempts, e));
+                        }
                     }
                 }
             }

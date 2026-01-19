@@ -3,6 +3,7 @@
 use std::process::Command;
 use tracing::info;
 use serde_json::json;
+use dialoguer::Select;
 use crate::types::*;
 use crate::{MAX_DIFF_CHARS, MAX_FILE_DIFF_CHARS};
 use crate::utils::{get_safe_slice_length, parse_duration, save_simple_free_config};
@@ -471,41 +472,114 @@ pub async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             ProviderConfig::OpenCode(c) => c.id == config.active_provider,
         }).ok_or("No active provider found")?;
 
-        let mut attempt_count = 0;
-        loop {
-            if attempt_count > 0 {
-                println!("Retry attempt {} of {}", attempt_count + 1, config.retry_attempts);
-                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        // Check if we need to generate multiple messages
+        if cli.generate > 1 {
+            println!("Generating {} commit message options...\n", cli.generate);
+
+            let mut messages: Vec<(String, UsageInfo)> = Vec::new();
+            let mut total_input_tokens = 0i32;
+            let mut total_output_tokens = 0i32;
+            let mut total_cost = 0.0f32;
+            let mut last_model: Option<String> = None;
+
+            // Generate messages sequentially (to avoid rate limiting and for SimpleFree model tracking)
+            for i in 0..cli.generate {
+                print!("  Generating option {}... ", i + 1);
+
+                // Single attempt per option (retries happen at the main level if all fail)
+                let result = match active_provider {
+                    ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
+                    ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
+                    ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
+                    ProviderConfig::SimpleFreeOpenRouter(c) => {
+                        let mut c_clone = c.clone();
+                        generate_simple_free_commit_message(&mut c_clone, &diff, cli).await
+                    },
+                    ProviderConfig::ClaudeCode(c) => generate_claude_code_commit_message(c, &diff, cli).await,
+                    ProviderConfig::OpenCode(c) => generate_opencode_commit_message(c, &diff, cli).await,
+                };
+
+                match result {
+                    Ok((msg, usage)) => {
+                        println!("done");
+                        total_input_tokens += usage.input_tokens;
+                        total_output_tokens += usage.output_tokens;
+                        total_cost += usage.total_cost;
+                        if usage.model_used.is_some() {
+                            last_model = usage.model_used.clone();
+                        }
+                        messages.push((msg, usage));
+                    }
+                    Err(e) => {
+                        println!("failed: {}", e);
+                        // Continue with other generations even if one fails
+                    }
+                }
             }
 
-            let result = match active_provider {
-                ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
-                ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
-                ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
-                ProviderConfig::SimpleFreeOpenRouter(c) => {
-                    // We need to mutate the config to track failed models, so we need to load it again to update later
-                    let mut c_clone = c.clone();
-                    let result = generate_simple_free_commit_message(&mut c_clone, &diff, cli).await;
+            if messages.is_empty() {
+                return Err("Failed to generate any commit messages".to_string());
+            }
 
-                    // We've already saved the model information in the result
-                    result
-                },
-                ProviderConfig::ClaudeCode(c) => generate_claude_code_commit_message(c, &diff, cli).await,
-                ProviderConfig::OpenCode(c) => generate_opencode_commit_message(c, &diff, cli).await,
+            println!(); // Empty line before selection
+
+            // Prepare options for selection - show just the messages
+            let options: Vec<&str> = messages.iter().map(|(msg, _)| msg.as_str()).collect();
+
+            // Use dialoguer to let user select
+            let selection = Select::new()
+                .with_prompt("Select a commit message")
+                .items(&options)
+                .default(0)
+                .interact()
+                .map_err(|e| format!("Failed to get selection: {}", e))?;
+
+            let (selected_message, _) = messages.remove(selection);
+
+            // Create aggregated usage info
+            let usage_info = UsageInfo {
+                input_tokens: total_input_tokens,
+                output_tokens: total_output_tokens,
+                total_cost,
+                model_used: last_model,
             };
 
-            match result {
-                Ok(result) => {
-                    if attempt_count > 0 {
-                        println!("Successfully generated commit message after {} attempts", attempt_count + 1);
-                    }
-                    break result;
+            (selected_message, usage_info)
+        } else {
+            // Original single message generation with retry
+            let mut attempt_count = 0;
+            loop {
+                if attempt_count > 0 {
+                    println!("Retry attempt {} of {}", attempt_count + 1, config.retry_attempts);
+                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                 }
-                Err(e) => {
-                    println!("Attempt {} failed: {}", attempt_count + 1, e);
-                    attempt_count += 1;
-                    if attempt_count >= config.retry_attempts {
-                        return Err(format!("Failed to generate commit message after {} attempts. Last error: {}", config.retry_attempts, e));
+
+                let result = match active_provider {
+                    ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
+                    ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
+                    ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
+                    ProviderConfig::SimpleFreeOpenRouter(c) => {
+                        let mut c_clone = c.clone();
+                        let result = generate_simple_free_commit_message(&mut c_clone, &diff, cli).await;
+                        result
+                    },
+                    ProviderConfig::ClaudeCode(c) => generate_claude_code_commit_message(c, &diff, cli).await,
+                    ProviderConfig::OpenCode(c) => generate_opencode_commit_message(c, &diff, cli).await,
+                };
+
+                match result {
+                    Ok(result) => {
+                        if attempt_count > 0 {
+                            println!("Successfully generated commit message after {} attempts", attempt_count + 1);
+                        }
+                        break result;
+                    }
+                    Err(e) => {
+                        println!("Attempt {} failed: {}", attempt_count + 1, e);
+                        attempt_count += 1;
+                        if attempt_count >= config.retry_attempts {
+                            return Err(format!("Failed to generate commit message after {} attempts. Last error: {}", config.retry_attempts, e));
+                        }
                     }
                 }
             }

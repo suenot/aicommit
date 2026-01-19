@@ -165,6 +165,55 @@ pub struct Cli {
     /// Release all models from jail/blacklist
     #[arg(long = "unjail-all")]
     pub unjail_all: bool,
+
+    /// Generate multiple commit message options (1-5) and let the user choose
+    #[arg(short = 'g', long = "generate", default_value = "1", value_parser = clap::value_parser!(u8).range(1..=5))]
+    pub generate: u8,
+}
+
+impl Default for Cli {
+    fn default() -> Self {
+        Self {
+            add_provider: false,
+            add: false,
+            add_openrouter: false,
+            openrouter_api_key: None,
+            openrouter_model: "mistralai/mistral-tiny".to_string(),
+            add_simple_free: false,
+            add_ollama: false,
+            ollama_url: "http://localhost:11434".to_string(),
+            ollama_model: "llama2".to_string(),
+            add_openai_compatible: false,
+            openai_compatible_api_key: None,
+            openai_compatible_api_url: None,
+            openai_compatible_model: "gpt-3.5-turbo".to_string(),
+            max_tokens: 200,
+            temperature: 0.2,
+            list: false,
+            set: None,
+            config: false,
+            version_file: None,
+            version_iterate: false,
+            version_cargo: false,
+            version_npm: false,
+            version_github: false,
+            dry_run: false,
+            pull: false,
+            watch: false,
+            wait_for_edit: None,
+            push: false,
+            help: false,
+            version: false,
+            verbose: false,
+            no_gitignore_check: false,
+            msg: None,
+            simulate_offline: false,
+            jail_status: false,
+            unjail: None,
+            unjail_all: false,
+            generate: 1,
+        }
+    }
 }
 
 // From: 006_struct_OpenRouterConfig.rs
