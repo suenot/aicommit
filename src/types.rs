@@ -165,6 +165,38 @@ pub struct Cli {
     /// Release all models from jail/blacklist
     #[arg(long = "unjail-all")]
     pub unjail_all: bool,
+
+    /// Run in GitHub Action mode (non-interactive, reads from stdin or env vars)
+    #[arg(long = "github-action")]
+    pub github_action: bool,
+
+    /// Input diff from file (for --github-action mode)
+    #[arg(long = "input-diff")]
+    pub input_diff: Option<String>,
+
+    /// Read diff from stdin (for --github-action mode)
+    #[arg(long = "stdin")]
+    pub stdin: bool,
+
+    /// Output format for --github-action mode (text, json, github)
+    #[arg(long = "output-format", default_value = "text")]
+    pub output_format: String,
+
+    /// API key for GitHub Action mode (overrides config)
+    #[arg(long = "api-key")]
+    pub api_key: Option<String>,
+
+    /// Provider type for GitHub Action mode (openrouter, simple-free, ollama, openai-compatible)
+    #[arg(long = "provider")]
+    pub provider: Option<String>,
+
+    /// Model name for GitHub Action mode (overrides config)
+    #[arg(long = "model")]
+    pub model: Option<String>,
+
+    /// Analyze commits from GitHub event and suggest improved messages
+    #[arg(long = "analyze-commits")]
+    pub analyze_commits: bool,
 }
 
 // From: 006_struct_OpenRouterConfig.rs

@@ -196,6 +196,15 @@ async fn main() -> Result<(), String> {
             println!("  --jail-status         Show status of all model jails and blacklists");
             println!("  --unjail=<MODEL>      Release specific model from jail/blacklist (model ID as parameter)");
             println!("  --unjail-all          Release all models from jail/blacklist");
+            println!("\nGitHub Action Options:");
+            println!("  --github-action       Run in GitHub Action mode (non-interactive)");
+            println!("  --input-diff=<FILE>   Input diff from file (for --github-action mode)");
+            println!("  --stdin               Read diff from stdin (for --github-action mode)");
+            println!("  --output-format=<FMT> Output format: text, json, github (default: text)");
+            println!("  --api-key=<KEY>       API key for GitHub Action mode");
+            println!("  --provider=<TYPE>     Provider: openrouter, simple-free, ollama, openai-compatible");
+            println!("  --model=<MODEL>       Model name for GitHub Action mode");
+            println!("  --analyze-commits     Analyze commits from GitHub event context");
             println!("\nExamples:");
             println!("  aicommit --add-provider");
             println!("  aicommit --add");
@@ -205,6 +214,8 @@ async fn main() -> Result<(), String> {
             println!("  aicommit --set=<ID>");
             println!("  aicommit --version-file=version.txt --version-iterate");
             println!("  aicommit --watch");
+            println!("  aicommit --github-action --stdin --api-key=$OPENROUTER_API_KEY");
+            println!("  aicommit --github-action --analyze-commits --provider=simple-free");
             println!("  aicommit");
             Ok(())
         }
@@ -273,6 +284,10 @@ async fn main() -> Result<(), String> {
             }
             
             Ok(())
+        }
+        _ if cli.github_action => {
+            // GitHub Action mode - non-interactive
+            run_github_action_mode(&cli).await
         }
         _ if cli.add_provider => {
             Config::setup_interactive().await?;
@@ -485,5 +500,311 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
 
     // In dry-run mode, only return the generated message
     Ok(message)
+}
+
+// GitHub Action output structures
+#[derive(Debug, serde::Serialize)]
+struct GitHubActionOutput {
+    pub commit_message: String,
+    pub model_used: Option<String>,
+    pub input_tokens: Option<i32>,
+    pub output_tokens: Option<i32>,
+    pub total_cost: Option<f32>,
+    pub success: bool,
+    pub error: Option<String>,
+}
+
+// From: github_action.rs
+async fn run_github_action_mode(cli: &Cli) -> Result<(), String> {
+    // Get the diff input
+    let diff = get_github_action_diff(cli)?;
+
+    if diff.trim().is_empty() {
+        return output_github_action_error(cli, "No diff provided. Use --stdin, --input-diff, or --analyze-commits");
+    }
+
+    // Get or create provider configuration
+    let (provider_config, mut simple_free_config) = create_github_action_provider(cli)?;
+
+    // Generate the commit message
+    let result = match &provider_config {
+        ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
+        ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
+        ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
+        ProviderConfig::SimpleFreeOpenRouter(_) => {
+            if let Some(ref mut c) = simple_free_config {
+                generate_simple_free_commit_message(c, &diff, cli).await
+            } else {
+                Err("Simple free config not available".to_string())
+            }
+        },
+        ProviderConfig::ClaudeCode(c) => generate_claude_code_commit_message(c, &diff, cli).await,
+        ProviderConfig::OpenCode(c) => generate_opencode_commit_message(c, &diff, cli).await,
+    };
+
+    match result {
+        Ok((message, usage_info)) => {
+            output_github_action_result(cli, &message, Some(usage_info))
+        }
+        Err(e) => {
+            output_github_action_error(cli, &e)
+        }
+    }
+}
+
+fn get_github_action_diff(cli: &Cli) -> Result<String, String> {
+    // Priority: --input-diff > --stdin > --analyze-commits > env var > git diff
+
+    if let Some(ref file_path) = cli.input_diff {
+        return fs::read_to_string(file_path)
+            .map_err(|e| format!("Failed to read diff file '{}': {}", file_path, e));
+    }
+
+    if cli.stdin {
+        use std::io::{self, Read};
+        let mut buffer = String::new();
+        io::stdin().read_to_string(&mut buffer)
+            .map_err(|e| format!("Failed to read from stdin: {}", e))?;
+        return Ok(buffer);
+    }
+
+    if cli.analyze_commits {
+        return get_commits_from_github_context();
+    }
+
+    // Try environment variable
+    if let Ok(diff) = std::env::var("AICOMMIT_DIFF") {
+        return Ok(diff);
+    }
+
+    // Fall back to git diff
+    get_git_diff(cli)
+}
+
+fn get_commits_from_github_context() -> Result<String, String> {
+    // Read GitHub event context
+    let event_path = std::env::var("GITHUB_EVENT_PATH")
+        .map_err(|_| "GITHUB_EVENT_PATH not set. This mode requires GitHub Actions environment.")?;
+
+    let event_content = fs::read_to_string(&event_path)
+        .map_err(|e| format!("Failed to read GitHub event file: {}", e))?;
+
+    let event: serde_json::Value = serde_json::from_str(&event_content)
+        .map_err(|e| format!("Failed to parse GitHub event JSON: {}", e))?;
+
+    // Get commits from push event
+    let commits = event.get("commits")
+        .and_then(|c| c.as_array())
+        .ok_or_else(|| "No commits found in GitHub event. This action only works on push events.")?;
+
+    let mut combined_diff = String::new();
+
+    // Get the before and after SHAs for the diff range
+    let before_sha = event.get("before")
+        .and_then(|v| v.as_str())
+        .unwrap_or("HEAD~1");
+    let after_sha = event.get("after")
+        .and_then(|v| v.as_str())
+        .unwrap_or("HEAD");
+
+    // Get the combined diff for all commits in the push
+    let diff_output = std::process::Command::new("git")
+        .args(["diff", before_sha, after_sha])
+        .output()
+        .map_err(|e| format!("Failed to run git diff: {}", e))?;
+
+    if !diff_output.status.success() {
+        // Fall back to individual commit diffs
+        for commit in commits {
+            if let Some(sha) = commit.get("id").and_then(|v| v.as_str()) {
+                let output = std::process::Command::new("git")
+                    .args(["show", "--format=", sha])
+                    .output()
+                    .map_err(|e| format!("Failed to get diff for commit {}: {}", sha, e))?;
+
+                if output.status.success() {
+                    let diff = String::from_utf8_lossy(&output.stdout);
+                    combined_diff.push_str(&format!("# Commit: {}\n{}\n\n", sha, diff));
+                }
+            }
+        }
+    } else {
+        combined_diff = String::from_utf8_lossy(&diff_output.stdout).to_string();
+    }
+
+    // Also include commit messages for context
+    let mut context = String::from("# Original commit messages:\n");
+    for commit in commits {
+        if let Some(message) = commit.get("message").and_then(|v| v.as_str()) {
+            context.push_str(&format!("- {}\n", message));
+        }
+    }
+    context.push_str("\n# Diff:\n");
+    context.push_str(&combined_diff);
+
+    Ok(context)
+}
+
+fn create_github_action_provider(cli: &Cli) -> Result<(ProviderConfig, Option<SimpleFreeOpenRouterConfig>), String> {
+    // Try to get API key from CLI or environment
+    let api_key = cli.api_key.clone()
+        .or_else(|| std::env::var("OPENROUTER_API_KEY").ok())
+        .or_else(|| std::env::var("AICOMMIT_API_KEY").ok());
+
+    // Determine provider type
+    let provider_type = cli.provider.clone()
+        .or_else(|| std::env::var("AICOMMIT_PROVIDER").ok())
+        .unwrap_or_else(|| "simple-free".to_string());
+
+    // Get model from CLI or environment
+    let model = cli.model.clone()
+        .or_else(|| std::env::var("AICOMMIT_MODEL").ok());
+
+    match provider_type.as_str() {
+        "openrouter" => {
+            let api_key = api_key.ok_or_else(||
+                "API key required for OpenRouter. Set --api-key or OPENROUTER_API_KEY environment variable.".to_string())?;
+
+            Ok((ProviderConfig::OpenRouter(OpenRouterConfig {
+                id: "github-action".to_string(),
+                provider: "openrouter".to_string(),
+                api_key,
+                model: model.unwrap_or_else(|| "mistralai/mistral-tiny".to_string()),
+                max_tokens: cli.max_tokens,
+                temperature: cli.temperature,
+            }), None))
+        }
+        "simple-free" => {
+            let api_key = api_key.ok_or_else(||
+                "API key required for Simple Free mode. Set --api-key or OPENROUTER_API_KEY environment variable.".to_string())?;
+
+            let config = SimpleFreeOpenRouterConfig {
+                id: "github-action".to_string(),
+                provider: "simple_free_openrouter".to_string(),
+                api_key,
+                max_tokens: cli.max_tokens,
+                temperature: cli.temperature,
+                failed_models: Vec::new(),
+                model_stats: std::collections::HashMap::new(),
+                last_used_model: model,
+                last_config_update: chrono::Utc::now(),
+            };
+            Ok((ProviderConfig::SimpleFreeOpenRouter(config.clone()), Some(config)))
+        }
+        "ollama" => {
+            let url = std::env::var("OLLAMA_URL")
+                .unwrap_or_else(|_| cli.ollama_url.clone());
+
+            Ok((ProviderConfig::Ollama(OllamaConfig {
+                id: "github-action".to_string(),
+                provider: "ollama".to_string(),
+                model: model.unwrap_or_else(|| cli.ollama_model.clone()),
+                url,
+                max_tokens: cli.max_tokens,
+                temperature: cli.temperature,
+            }), None))
+        }
+        "openai-compatible" => {
+            let api_key = api_key.ok_or_else(||
+                "API key required for OpenAI Compatible. Set --api-key environment variable.".to_string())?;
+            let api_url = std::env::var("OPENAI_COMPATIBLE_URL")
+                .or_else(|_| cli.openai_compatible_api_url.clone().ok_or(()))
+                .map_err(|_| "API URL required for OpenAI Compatible. Set OPENAI_COMPATIBLE_URL environment variable.".to_string())?;
+
+            Ok((ProviderConfig::OpenAICompatible(OpenAICompatibleConfig {
+                id: "github-action".to_string(),
+                provider: "openai_compatible".to_string(),
+                api_key,
+                api_url,
+                model: model.unwrap_or_else(|| cli.openai_compatible_model.clone()),
+                max_tokens: cli.max_tokens,
+                temperature: cli.temperature,
+            }), None))
+        }
+        _ => Err(format!("Unknown provider type: {}. Valid options: openrouter, simple-free, ollama, openai-compatible", provider_type))
+    }
+}
+
+fn output_github_action_result(cli: &Cli, message: &str, usage_info: Option<UsageInfo>) -> Result<(), String> {
+    match cli.output_format.as_str() {
+        "json" => {
+            let output = GitHubActionOutput {
+                commit_message: message.to_string(),
+                model_used: usage_info.as_ref().and_then(|u| u.model_used.clone()),
+                input_tokens: usage_info.as_ref().map(|u| u.input_tokens),
+                output_tokens: usage_info.as_ref().map(|u| u.output_tokens),
+                total_cost: usage_info.as_ref().map(|u| u.total_cost),
+                success: true,
+                error: None,
+            };
+            println!("{}", serde_json::to_string_pretty(&output)
+                .map_err(|e| format!("Failed to serialize output: {}", e))?);
+        }
+        "github" => {
+            // GitHub Actions output format
+            // Set output variables for use in subsequent steps
+            if let Ok(github_output) = std::env::var("GITHUB_OUTPUT") {
+                let mut output_content = String::new();
+                output_content.push_str(&format!("commit_message={}\n", message.replace('\n', "\\n")));
+                if let Some(ref info) = usage_info {
+                    if let Some(ref model) = info.model_used {
+                        output_content.push_str(&format!("model_used={}\n", model));
+                    }
+                    output_content.push_str(&format!("input_tokens={}\n", info.input_tokens));
+                    output_content.push_str(&format!("output_tokens={}\n", info.output_tokens));
+                    output_content.push_str(&format!("total_cost={}\n", info.total_cost));
+                }
+                output_content.push_str("success=true\n");
+
+                fs::write(&github_output, output_content)
+                    .map_err(|e| format!("Failed to write to GITHUB_OUTPUT: {}", e))?;
+            }
+            // Also print to stdout for visibility
+            println!("Generated commit message: {}", message);
+            if let Some(ref info) = usage_info {
+                if let Some(ref model) = info.model_used {
+                    println!("Model used: {}", model);
+                }
+                println!("Tokens: {} input, {} output", info.input_tokens, info.output_tokens);
+            }
+        }
+        _ => {
+            // Default text format - just output the message
+            println!("{}", message);
+        }
+    }
+    Ok(())
+}
+
+fn output_github_action_error(cli: &Cli, error: &str) -> Result<(), String> {
+    match cli.output_format.as_str() {
+        "json" => {
+            let output = GitHubActionOutput {
+                commit_message: String::new(),
+                model_used: None,
+                input_tokens: None,
+                output_tokens: None,
+                total_cost: None,
+                success: false,
+                error: Some(error.to_string()),
+            };
+            println!("{}", serde_json::to_string_pretty(&output)
+                .map_err(|e| format!("Failed to serialize error output: {}", e))?);
+            Err(error.to_string())
+        }
+        "github" => {
+            // GitHub Actions error format
+            if let Ok(github_output) = std::env::var("GITHUB_OUTPUT") {
+                let output_content = format!("success=false\nerror={}\n", error.replace('\n', "\\n"));
+                let _ = fs::write(&github_output, output_content);
+            }
+            eprintln!("::error::{}", error);
+            Err(error.to_string())
+        }
+        _ => {
+            eprintln!("Error: {}", error);
+            Err(error.to_string())
+        }
+    }
 }
 

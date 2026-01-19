@@ -1,0 +1,122 @@
+# Example workflow demonstrating aicommit GitHub Action integration
+# This workflow analyzes commits on push and suggests improved commit messages
+#
+# To use this workflow in your own repository:
+# 1. Copy this file to .github/workflows/ in your repository
+# 2. Set up the OPENROUTER_API_KEY secret in your repository settings
+# 3. Customize the configuration as needed
+
+name: AI Commit Message Analysis
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'feature/**'
+  # Optional: Run on pull requests to check commit quality
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  analyze-commits:
+    name: Analyze Commit Messages
+    runs-on: ubuntu-latest
+    # Only run if commits are present (skip for tag pushes, etc.)
+    if: github.event_name == 'push' && github.event.commits
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for accurate diffs
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install aicommit
+        run: npm install -g aicommit
+
+      - name: Analyze commit messages
+        id: analyze
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          # Get the diff for all commits in this push
+          BEFORE_SHA="${{ github.event.before }}"
+          AFTER_SHA="${{ github.event.after }}"
+
+          # Handle initial push (no before SHA)
+          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BEFORE_SHA=$(git rev-list --max-parents=0 HEAD)
+          fi
+
+          # Get the diff
+          git diff "$BEFORE_SHA" "$AFTER_SHA" > /tmp/push_diff.txt
+
+          # Generate improved commit message suggestion
+          RESULT=$(aicommit --github-action \
+            --input-diff=/tmp/push_diff.txt \
+            --provider=simple-free \
+            --output-format=json \
+            --max-tokens=200)
+
+          echo "result<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESULT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # Extract and display the suggested message
+          SUGGESTED_MSG=$(echo "$RESULT" | jq -r '.commit_message // empty')
+          if [ -n "$SUGGESTED_MSG" ]; then
+            echo "## AI Suggested Commit Message" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Based on the changes in this push, AI suggests:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$SUGGESTED_MSG" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Model used:** $(echo "$RESULT" | jq -r '.model_used // "unknown"')" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Post suggestion as PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = JSON.parse(`${{ steps.analyze.outputs.result }}`);
+            if (result.commit_message) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `## AI Commit Message Suggestion\n\nBased on the changes, here's a suggested commit message:\n\n\`\`\`\n${result.commit_message}\n\`\`\`\n\n*Generated using ${result.model_used || 'AI'}*`
+              });
+            }
+
+  # Example: Generate commit message for staged changes (for use in CI/CD pipelines)
+  generate-message:
+    name: Generate Commit Message Demo
+    runs-on: ubuntu-latest
+    if: false  # Disabled by default - enable for testing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make a test change
+        run: echo "test" >> test-file.txt
+
+      - name: Stage changes
+        run: git add test-file.txt
+
+      - name: Generate commit message
+        id: generate
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          npm install -g aicommit
+          MESSAGE=$(aicommit --github-action --output-format=text)
+          echo "message=$MESSAGE" >> $GITHUB_OUTPUT
+          echo "Generated message: $MESSAGE"
