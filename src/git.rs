@@ -5,7 +5,7 @@ use tracing::info;
 use serde_json::json;
 use crate::types::*;
 use crate::{MAX_DIFF_CHARS, MAX_FILE_DIFF_CHARS};
-use crate::utils::{get_safe_slice_length, parse_duration, save_simple_free_config};
+use crate::utils::{get_safe_slice_length, parse_duration, save_simple_free_config, HttpClientSettings, build_http_client, display_proxy_config};
 use crate::version::{update_version_file, update_cargo_version, update_npm_version, update_github_version};
 use crate::models::{get_available_free_models, fallback_to_preferred_models, find_best_available_model, record_model_failure, record_model_success};
 
@@ -479,13 +479,13 @@ pub async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             }
 
             let result = match active_provider {
-                ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
-                ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
-                ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
+                ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli, Some(config)).await,
+                ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli, Some(config)).await,
+                ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli, Some(config)).await,
                 ProviderConfig::SimpleFreeOpenRouter(c) => {
                     // We need to mutate the config to track failed models, so we need to load it again to update later
                     let mut c_clone = c.clone();
-                    let result = generate_simple_free_commit_message(&mut c_clone, &diff, cli).await;
+                    let result = generate_simple_free_commit_message(&mut c_clone, &diff, cli, Some(config)).await;
 
                     // We've already saved the model information in the result
                     result
@@ -645,8 +645,10 @@ pub async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 }
 
 // From: 039_function_generate_openrouter_commit_message.rs
-pub async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
-    let client = reqwest::Client::new();
+pub async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff: &str, cli: &Cli, global_config: Option<&Config>) -> Result<(String, UsageInfo), String> {
+    let settings = HttpClientSettings::from_cli_and_config(cli, global_config);
+    display_proxy_config(&settings, cli.verbose);
+    let client = build_http_client(&settings)?;
 
     // Use the smart diff processing function instead of simple truncation
     let processed_diff = process_git_diff_output(diff);
@@ -745,8 +747,10 @@ Commit Message ONLY:",
 }
 
 // From: 040_function_generate_ollama_commit_message.rs
-pub async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
-    let client = reqwest::Client::new();
+pub async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str, cli: &Cli, global_config: Option<&Config>) -> Result<(String, UsageInfo), String> {
+    let settings = HttpClientSettings::from_cli_and_config(cli, global_config);
+    display_proxy_config(&settings, cli.verbose);
+    let client = build_http_client(&settings)?;
 
     // Use the smart diff processing function instead of simple truncation
     let processed_diff = process_git_diff_output(diff);
@@ -842,8 +846,10 @@ Commit Message ONLY:",
 }
 
 // From: 041_function_generate_openai_compatible_commit_message.rs
-pub async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
-    let client = reqwest::Client::new();
+pub async fn generate_openai_compatible_commit_message(config: &OpenAICompatibleConfig, diff: &str, cli: &Cli, global_config: Option<&Config>) -> Result<(String, UsageInfo), String> {
+    let settings = HttpClientSettings::from_cli_and_config(cli, global_config);
+    display_proxy_config(&settings, cli.verbose);
+    let client = build_http_client(&settings)?;
 
     // Use the smart diff processing function instead of simple truncation
     let processed_diff = process_git_diff_output(diff);
@@ -941,14 +947,14 @@ Commit Message ONLY:",
 
 // From: 042_function_generate_simple_free_commit_message.rs
 pub async fn generate_simple_free_commit_message(
-    config: &mut SimpleFreeOpenRouterConfig, 
-    diff: &str, 
-    cli: &Cli
+    config: &mut SimpleFreeOpenRouterConfig,
+    diff: &str,
+    cli: &Cli,
+    global_config: Option<&Config>
 ) -> Result<(String, UsageInfo), String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-        .unwrap_or_default();
+    let settings = HttpClientSettings::from_cli_and_config(cli, global_config);
+    display_proxy_config(&settings, cli.verbose);
+    let client = build_http_client(&settings)?;
     
     // Get available free models
     if cli.verbose {
@@ -956,7 +962,7 @@ pub async fn generate_simple_free_commit_message(
         println!("API Key: {}", config.api_key.chars().take(8).collect::<String>() + "..." + &config.api_key.chars().rev().take(4).collect::<String>());
     }
     
-    let available_models = match get_available_free_models(&config.api_key, cli.simulate_offline).await {
+    let available_models = match get_available_free_models(&config.api_key, cli.simulate_offline, Some(&settings)).await {
         Ok(models) => models,
         Err(e) => {
             println!("Error fetching models from OpenRouter: {}", e);

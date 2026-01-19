@@ -196,6 +196,16 @@ async fn main() -> Result<(), String> {
             println!("  --jail-status         Show status of all model jails and blacklists");
             println!("  --unjail=<MODEL>      Release specific model from jail/blacklist (model ID as parameter)");
             println!("  --unjail-all          Release all models from jail/blacklist");
+            println!("\nProxy and Network Options:");
+            println!("  --http-proxy=<URL>    HTTP proxy URL (e.g., http://proxy.example.com:8080)");
+            println!("  --https-proxy=<URL>   HTTPS proxy URL (e.g., http://proxy.example.com:8080)");
+            println!("  --no-proxy=<HOSTS>    Comma-separated list of hosts to bypass proxy");
+            println!("  --timeout=<SECONDS>   Request timeout in seconds (default: 30)");
+            println!("  --save-proxy          Save proxy settings to configuration file");
+            println!("\nEnvironment Variables:");
+            println!("  HTTP_PROXY            HTTP proxy URL (overridden by --http-proxy)");
+            println!("  HTTPS_PROXY           HTTPS proxy URL (overridden by --https-proxy)");
+            println!("  NO_PROXY              Hosts to bypass proxy (overridden by --no-proxy)");
             println!("\nExamples:");
             println!("  aicommit --add-provider");
             println!("  aicommit --add");
@@ -205,11 +215,59 @@ async fn main() -> Result<(), String> {
             println!("  aicommit --set=<ID>");
             println!("  aicommit --version-file=version.txt --version-iterate");
             println!("  aicommit --watch");
+            println!("  aicommit --https-proxy=http://proxy.example.com:8080");
+            println!("  aicommit --https-proxy=http://proxy.example.com:8080 --save-proxy");
             println!("  aicommit");
             Ok(())
         }
         _ if cli.version => {
             println!("aicommit v{}", get_version());
+            Ok(())
+        }
+        _ if cli.save_proxy => {
+            // Save proxy settings to configuration file
+            let mut config = Config::load().unwrap_or_else(|_| Config::new());
+
+            // Create proxy config from CLI arguments or environment variables
+            let proxy_config = ProxyConfig {
+                http_proxy: cli.http_proxy.clone()
+                    .or_else(|| std::env::var("HTTP_PROXY").ok())
+                    .or_else(|| std::env::var("http_proxy").ok()),
+                https_proxy: cli.https_proxy.clone()
+                    .or_else(|| std::env::var("HTTPS_PROXY").ok())
+                    .or_else(|| std::env::var("https_proxy").ok()),
+                no_proxy: cli.no_proxy.clone()
+                    .or_else(|| std::env::var("NO_PROXY").ok())
+                    .or_else(|| std::env::var("no_proxy").ok()),
+            };
+
+            // Update config
+            config.proxy = Some(proxy_config);
+            config.request_timeout = cli.timeout;
+
+            // Save the configuration
+            let config_path = dirs::home_dir()
+                .ok_or_else(|| "Could not find home directory".to_string())?
+                .join(".aicommit.json");
+
+            let content = serde_json::to_string_pretty(&config)
+                .map_err(|e| format!("Failed to serialize config: {}", e))?;
+
+            fs::write(&config_path, content)
+                .map_err(|e| format!("Failed to write config file: {}", e))?;
+
+            println!("Proxy settings saved to configuration file.");
+            if let Some(ref http_proxy) = config.proxy.as_ref().unwrap().http_proxy {
+                println!("  HTTP Proxy: {}", http_proxy);
+            }
+            if let Some(ref https_proxy) = config.proxy.as_ref().unwrap().https_proxy {
+                println!("  HTTPS Proxy: {}", https_proxy);
+            }
+            if let Some(ref no_proxy) = config.proxy.as_ref().unwrap().no_proxy {
+                println!("  NO_PROXY: {}", no_proxy);
+            }
+            println!("  Request Timeout: {}s", config.request_timeout);
+
             Ok(())
         }
         _ if cli.jail_status => {
@@ -452,12 +510,12 @@ async fn dry_run(cli: &Cli) -> Result<String, String> {
             }
 
             let result = match active_provider {
-                ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli).await,
-                ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli).await,
-                ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli).await,
+                ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, &diff, cli, Some(&config)).await,
+                ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, &diff, cli, Some(&config)).await,
+                ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, &diff, cli, Some(&config)).await,
                 ProviderConfig::SimpleFreeOpenRouter(c) => {
                     let mut c_clone = c.clone();
-                    let result = generate_simple_free_commit_message(&mut c_clone, &diff, cli).await;
+                    let result = generate_simple_free_commit_message(&mut c_clone, &diff, cli, Some(&config)).await;
                     // We don't need to save failed models in dry-run mode
                     result
                 },

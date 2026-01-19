@@ -153,7 +153,27 @@ pub struct Cli {
     /// Force the use of offline mode (uses fallback model list) for testing purposes
     #[arg(long, hide = true)]
     pub simulate_offline: bool,
-    
+
+    /// HTTP proxy URL (e.g., http://proxy.example.com:8080)
+    #[arg(long = "http-proxy", env = "HTTP_PROXY")]
+    pub http_proxy: Option<String>,
+
+    /// HTTPS proxy URL (e.g., http://proxy.example.com:8080)
+    #[arg(long = "https-proxy", env = "HTTPS_PROXY")]
+    pub https_proxy: Option<String>,
+
+    /// Comma-separated list of hosts to bypass proxy (e.g., localhost,127.0.0.1,.local)
+    #[arg(long = "no-proxy", env = "NO_PROXY")]
+    pub no_proxy: Option<String>,
+
+    /// Request timeout in seconds (default: 30)
+    #[arg(long = "timeout", default_value = "30")]
+    pub timeout: u64,
+
+    /// Save proxy settings to configuration file
+    #[arg(long = "save-proxy")]
+    pub save_proxy: bool,
+
     /// Show status of all model jails and blacklists
     #[arg(long = "jail-status")]
     pub jail_status: bool,
@@ -250,6 +270,20 @@ pub struct OpenCodeConfig {
     pub provider: String,
 }
 
+// From: 014.5_struct_ProxyConfig.rs
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct ProxyConfig {
+    /// HTTP proxy URL (e.g., "http://proxy.example.com:8080")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_proxy: Option<String>,
+    /// HTTPS proxy URL (e.g., "http://proxy.example.com:8080")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub https_proxy: Option<String>,
+    /// Comma-separated list of hosts to bypass proxy (e.g., "localhost,127.0.0.1,.local")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub no_proxy: Option<String>,
+}
+
 // From: 015_struct_Config.rs
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -257,6 +291,12 @@ pub struct Config {
     pub active_provider: String,
     #[serde(default = "default_retry_attempts")]
     pub retry_attempts: u32,
+    /// Proxy configuration for corporate networks
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proxy: Option<ProxyConfig>,
+    /// Request timeout in seconds (default: 30)
+    #[serde(default = "default_request_timeout")]
+    pub request_timeout: u64,
 }
 
 // From: 022_struct_UsageInfo.rs
@@ -327,6 +367,10 @@ fn default_retry_attempts() -> u32 {
     3
 }
 
+fn default_request_timeout() -> u64 {
+    30
+}
+
 // From: 017_impl_impl_Config.rs
 impl Config {
     pub fn new() -> Self {
@@ -334,6 +378,8 @@ impl Config {
             providers: Vec::new(),
             active_provider: String::new(),
             retry_attempts: default_retry_attempts(),
+            proxy: None,
+            request_timeout: default_request_timeout(),
         }
     }
 

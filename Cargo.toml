@@ -20,7 +20,7 @@ console = "0.15"
 dirs = "5.0"
 uuid = { version = "1.6", features = ["v4", "serde"] }
 dotenv = "0.15"
-clap = { version = "4.4", features = ["derive"] }
+clap = { version = "4.4", features = ["derive", "env"] }
 regex = "1.5"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt", "chrono"] }

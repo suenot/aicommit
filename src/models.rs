@@ -2,21 +2,24 @@
 
 use crate::types::*;
 use crate::{PREFERRED_FREE_MODELS, MAX_CONSECUTIVE_FAILURES, INITIAL_JAIL_HOURS, JAIL_TIME_MULTIPLIER, MAX_JAIL_HOURS, BLACKLIST_AFTER_JAIL_COUNT, BLACKLIST_RETRY_DAYS};
+use crate::utils::{HttpClientSettings, build_http_client_with_timeout};
 use std::fs;
 use chrono;
 
 // From: 035_function_get_available_free_models.rs
-pub async fn get_available_free_models(api_key: &str, simulate_offline: bool) -> Result<Vec<String>, String> {
+pub async fn get_available_free_models(api_key: &str, simulate_offline: bool, settings: Option<&HttpClientSettings>) -> Result<Vec<String>, String> {
     // If simulate_offline is true, immediately return the fallback list
     if simulate_offline {
         println!("Debug: Simulating offline mode, using fallback model list");
         return fallback_to_preferred_models();
     }
-    
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10)) // Add a reasonable timeout
-        .build()
-        .unwrap_or_default();
+
+    // Use provided settings or create default ones
+    let default_settings = HttpClientSettings::from_config(None);
+    let settings = settings.unwrap_or(&default_settings);
+
+    // Use a shorter timeout for model discovery (10 seconds)
+    let client = build_http_client_with_timeout(settings, 10)?;
     
     // Try to fetch models from OpenRouter API
     let response = match tokio::time::timeout(
