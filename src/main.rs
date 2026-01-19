@@ -14,6 +14,7 @@ mod git;
 mod providers;
 mod models;
 mod utils;
+mod ignore;
 
 // Use declarations from our modules
 use types::*;
@@ -191,6 +192,7 @@ async fn main() -> Result<(), String> {
             println!("  --version             Display version information");
             println!("  --verbose             Display verbose information");
             println!("  --no-gitignore-check  Skip .gitignore check and creation");
+            println!("  --no-aicommitignore   Skip .aicommitignore filtering (include all files in diff)");
             println!("  --watch               Watch for changes and auto-commit");
             println!("  --wait-for-edit=<DURATION> Wait for edit delay before committing (e.g. \"30s\")");
             println!("  --jail-status         Show status of all model jails and blacklists");

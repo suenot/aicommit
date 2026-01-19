@@ -8,12 +8,16 @@ use crate::{MAX_DIFF_CHARS, MAX_FILE_DIFF_CHARS};
 use crate::utils::{get_safe_slice_length, parse_duration, save_simple_free_config};
 use crate::version::{update_version_file, update_cargo_version, update_npm_version, update_github_version};
 use crate::models::{get_available_free_models, fallback_to_preferred_models, find_best_available_model, record_model_failure, record_model_success};
+use crate::ignore::filter_diff_by_ignore_patterns;
 
 // From: 020_function_process_git_diff_output.rs
-pub fn process_git_diff_output(diff: &str) -> String {
+pub fn process_git_diff_output(diff: &str, skip_aicommitignore: bool) -> String {
+    // First, filter out ignored files based on .aicommitignore patterns
+    let diff = filter_diff_by_ignore_patterns(diff, skip_aicommitignore);
+
     // Early return if diff is small enough
     if diff.len() <= MAX_DIFF_CHARS {
-        return diff.to_string();
+        return diff;
     }
     
     // Split the diff into file sections
@@ -649,7 +653,7 @@ pub async fn generate_openrouter_commit_message(config: &OpenRouterConfig, diff:
     let client = reqwest::Client::new();
 
     // Use the smart diff processing function instead of simple truncation
-    let processed_diff = process_git_diff_output(diff);
+    let processed_diff = process_git_diff_output(diff, cli.no_aicommitignore);
 
     let prompt = format!(
         "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
@@ -749,7 +753,7 @@ pub async fn generate_ollama_commit_message(config: &OllamaConfig, diff: &str, c
     let client = reqwest::Client::new();
 
     // Use the smart diff processing function instead of simple truncation
-    let processed_diff = process_git_diff_output(diff);
+    let processed_diff = process_git_diff_output(diff, cli.no_aicommitignore);
 
     let prompt = format!(
         "Generate ONLY the raw git commit message string (one line, max 72 chars) based on the diff. Follow Conventional Commits (type: description). Do NOT include any introductory text, explanations, or ```.
@@ -846,7 +850,7 @@ pub async fn generate_openai_compatible_commit_message(config: &OpenAICompatible
     let client = reqwest::Client::new();
 
     // Use the smart diff processing function instead of simple truncation
-    let processed_diff = process_git_diff_output(diff);
+    let processed_diff = process_git_diff_output(diff, cli.no_aicommitignore);
 
     let prompt = format!(
         "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
@@ -990,7 +994,7 @@ pub async fn generate_simple_free_commit_message(
         .ok_or_else(|| "Failed to find a suitable model, please try again later".to_string())?;
     
     // Use the smart diff processing function
-    let processed_diff = process_git_diff_output(diff);
+    let processed_diff = process_git_diff_output(diff, cli.no_aicommitignore);
 
     let prompt = format!(
         "Generate ONLY the git commit message string based on the provided diff. Follow the Conventional Commits specification (type: description). Do NOT include any introductory phrases, explanations, or markdown formatting like ```.
@@ -1209,7 +1213,7 @@ Commit Message ONLY:",
 // From: 043_function_generate_claude_code_commit_message.rs
 pub async fn generate_claude_code_commit_message(_config: &ClaudeCodeConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     // Use the smart diff processing function
-    let processed_diff = process_git_diff_output(diff);
+    let processed_diff = process_git_diff_output(diff, cli.no_aicommitignore);
 
     let prompt = format!(
         "Generate ONLY the raw git commit message string (one line, max 72 chars) based on the diff. Follow Conventional Commits (type: description). Do NOT include any introductory text, explanations, or ```.
@@ -1288,7 +1292,7 @@ Commit Message ONLY:",
 // From: 044_function_generate_opencode_commit_message.rs
 pub async fn generate_opencode_commit_message(_config: &OpenCodeConfig, diff: &str, cli: &Cli) -> Result<(String, UsageInfo), String> {
     // Use the smart diff processing function
-    let processed_diff = process_git_diff_output(diff);
+    let processed_diff = process_git_diff_output(diff, cli.no_aicommitignore);
 
     let prompt = format!(
         "Generate ONLY the raw git commit message string (one line, max 72 chars) based on the diff. Follow Conventional Commits (type: description). Do NOT include any introductory text, explanations, or ```.
