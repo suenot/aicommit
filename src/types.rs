@@ -146,6 +146,10 @@ pub struct Cli {
     #[arg(long = "no-gitignore-check")]
     pub no_gitignore_check: bool,
 
+    /// Skip .aicommitignore filtering (include all files in diff sent to LLM)
+    #[arg(long = "no-aicommitignore")]
+    pub no_aicommitignore: bool,
+
     /// Set the git commit message without using AI. (For CI/CD or offline use cases)
     #[arg(long)]
     pub msg: Option<String>,
