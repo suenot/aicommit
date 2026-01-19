@@ -165,6 +165,18 @@ pub struct Cli {
     /// Release all models from jail/blacklist
     #[arg(long = "unjail-all")]
     pub unjail_all: bool,
+
+    /// Run in GitHub Action mode - analyze commits and suggest improved messages
+    #[arg(long = "github-action")]
+    pub github_action: bool,
+
+    /// Base reference for GitHub Action comparison (e.g., origin/main, HEAD~3)
+    #[arg(long = "github-action-base")]
+    pub github_action_base: Option<String>,
+
+    /// GitHub Action mode: "analyze" (report only) or "suggest" (output suggestions)
+    #[arg(long = "github-action-mode", default_value = "analyze")]
+    pub github_action_mode: String,
 }
 
 // From: 006_struct_OpenRouterConfig.rs

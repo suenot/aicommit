@@ -1364,3 +1364,343 @@ Commit Message ONLY:",
     Ok((commit_message, usage))
 }
 
+// From: 045_function_run_github_action.rs
+/// Run in GitHub Action mode - analyze commits and suggest improved messages
+pub async fn run_github_action(cli: &Cli) -> Result<(), String> {
+    // Load configuration
+    let config = Config::load()?;
+
+    // Make sure we have a provider
+    if config.providers.is_empty() {
+        return Err("No providers configured. Please run with --add-provider or --add-simple-free to add a provider.".to_string());
+    }
+
+    // Determine the base reference
+    let base_ref = cli.github_action_base.clone().unwrap_or_else(|| {
+        // Try to auto-detect the base reference
+        // First, check for GITHUB_BASE_REF environment variable (for PRs)
+        if let Ok(base) = std::env::var("GITHUB_BASE_REF") {
+            if !base.is_empty() {
+                return format!("origin/{}", base);
+            }
+        }
+
+        // Then check for GITHUB_EVENT_BEFORE (for push events)
+        if let Ok(before) = std::env::var("GITHUB_EVENT_BEFORE") {
+            if !before.is_empty() && before != "0000000000000000000000000000000000000000" {
+                return before;
+            }
+        }
+
+        // Default to origin/main
+        "origin/main".to_string()
+    });
+
+    if cli.verbose {
+        println!("=== GitHub Action Mode ===");
+        println!("Base reference: {}", base_ref);
+        println!("Mode: {}", cli.github_action_mode);
+    }
+
+    // Get list of commits between base and HEAD
+    let commits = get_commits_between(&base_ref, "HEAD")?;
+
+    if commits.is_empty() {
+        println!("No commits found between {} and HEAD", base_ref);
+        return Ok(());
+    }
+
+    if cli.verbose {
+        println!("Found {} commit(s) to analyze", commits.len());
+    }
+
+    let mode = cli.github_action_mode.as_str();
+    let mut suggestions: Vec<serde_json::Value> = Vec::new();
+    let mut analyzed_count = 0;
+    let mut suggestions_count = 0;
+
+    println!("\n=== Commit Analysis ===\n");
+
+    for commit in &commits {
+        let sha = &commit.sha;
+        let original_message = &commit.message;
+        let short_sha = if sha.len() > 7 { &sha[..7] } else { sha };
+
+        if cli.verbose {
+            println!("Analyzing commit: {} - {}", short_sha, original_message);
+        }
+
+        // Get diff for this commit
+        let diff = match get_commit_diff(sha) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("Warning: Failed to get diff for commit {}: {}", short_sha, e);
+                continue;
+            }
+        };
+
+        if diff.trim().is_empty() {
+            if cli.verbose {
+                println!("Skipping commit {} - no diff available", short_sha);
+            }
+            continue;
+        }
+
+        // Generate suggested commit message
+        let suggested_message = match generate_commit_message_for_diff(&config, &diff, cli).await {
+            Ok(msg) => msg,
+            Err(e) => {
+                eprintln!("Warning: Failed to generate message for commit {}: {}", short_sha, e);
+                continue;
+            }
+        };
+
+        analyzed_count += 1;
+
+        // Compare original and suggested messages
+        let messages_differ = !messages_are_similar(original_message, &suggested_message);
+
+        if messages_differ {
+            suggestions_count += 1;
+        }
+
+        // Output based on mode
+        match mode {
+            "suggest" => {
+                let suggestion = serde_json::json!({
+                    "sha": sha,
+                    "short_sha": short_sha,
+                    "original_message": original_message,
+                    "suggested_message": suggested_message,
+                    "differs": messages_differ
+                });
+                suggestions.push(suggestion);
+
+                println!("Commit: {}", short_sha);
+                println!("  Original:  {}", original_message);
+                println!("  Suggested: {}", suggested_message);
+                if messages_differ {
+                    println!("  Status: IMPROVEMENT SUGGESTED");
+                } else {
+                    println!("  Status: OK");
+                }
+                println!();
+            }
+            _ => {
+                // "analyze" mode - just report
+                println!("Commit: {}", short_sha);
+                println!("  Message: {}", original_message);
+                if messages_differ {
+                    println!("  Suggested: {}", suggested_message);
+                    println!("  Assessment: Could be improved");
+                } else {
+                    println!("  Assessment: Good");
+                }
+                println!();
+            }
+        }
+    }
+
+    // Summary
+    println!("=== Summary ===");
+    println!("Commits analyzed: {}", analyzed_count);
+    println!("Suggestions made: {}", suggestions_count);
+
+    if mode == "suggest" && !suggestions.is_empty() {
+        // Output suggestions as JSON for GitHub Actions output
+        let json_output = serde_json::to_string(&suggestions)
+            .map_err(|e| format!("Failed to serialize suggestions: {}", e))?;
+
+        // Write to GITHUB_OUTPUT if available
+        if let Ok(output_file) = std::env::var("GITHUB_OUTPUT") {
+            let output_content = format!("suggestions={}\n", json_output);
+            std::fs::write(&output_file, output_content)
+                .map_err(|e| format!("Failed to write to GITHUB_OUTPUT: {}", e))?;
+
+            if cli.verbose {
+                println!("\nWrote suggestions to GITHUB_OUTPUT");
+            }
+        }
+
+        // Also write summary to GITHUB_STEP_SUMMARY if available
+        if let Ok(summary_file) = std::env::var("GITHUB_STEP_SUMMARY") {
+            let mut summary = String::new();
+            summary.push_str("## AI Commit Message Analysis\n\n");
+            summary.push_str(&format!("- **Commits analyzed:** {}\n", analyzed_count));
+            summary.push_str(&format!("- **Improvements suggested:** {}\n\n", suggestions_count));
+
+            if suggestions_count > 0 {
+                summary.push_str("### Suggestions\n\n");
+                summary.push_str("| Commit | Original | Suggested |\n");
+                summary.push_str("|--------|----------|----------|\n");
+
+                for suggestion in &suggestions {
+                    if suggestion["differs"].as_bool().unwrap_or(false) {
+                        let short_sha = suggestion["short_sha"].as_str().unwrap_or("?");
+                        let original = suggestion["original_message"].as_str().unwrap_or("?");
+                        let suggested = suggestion["suggested_message"].as_str().unwrap_or("?");
+                        summary.push_str(&format!("| `{}` | {} | {} |\n", short_sha, original, suggested));
+                    }
+                }
+            }
+
+            std::fs::write(&summary_file, summary)
+                .map_err(|e| format!("Failed to write to GITHUB_STEP_SUMMARY: {}", e))?;
+
+            if cli.verbose {
+                println!("Wrote summary to GITHUB_STEP_SUMMARY");
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Get list of commits between two references
+fn get_commits_between(base: &str, head: &str) -> Result<Vec<CommitInfo>, String> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(&format!("git log --format='%H|%s' {}..{}", base, head))
+        .output()
+        .map_err(|e| format!("Failed to get commit list: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        // If the base doesn't exist, try without the range
+        if stderr.contains("unknown revision") {
+            // Fall back to just getting recent commits
+            let fallback_output = Command::new("sh")
+                .arg("-c")
+                .arg("git log --format='%H|%s' -10")
+                .output()
+                .map_err(|e| format!("Failed to get recent commits: {}", e))?;
+
+            if !fallback_output.status.success() {
+                return Err(format!("Failed to get commits: {}", String::from_utf8_lossy(&fallback_output.stderr)));
+            }
+
+            let stdout = String::from_utf8_lossy(&fallback_output.stdout);
+            return parse_commit_log(&stdout);
+        }
+        return Err(format!("Failed to get commits: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    parse_commit_log(&stdout)
+}
+
+/// Parse git log output into CommitInfo structs
+fn parse_commit_log(log: &str) -> Result<Vec<CommitInfo>, String> {
+    let mut commits = Vec::new();
+
+    for line in log.lines() {
+        let line = line.trim().trim_matches('\'');
+        if line.is_empty() {
+            continue;
+        }
+
+        if let Some(pos) = line.find('|') {
+            let sha = line[..pos].to_string();
+            let message = line[pos + 1..].to_string();
+            commits.push(CommitInfo { sha, message });
+        }
+    }
+
+    Ok(commits)
+}
+
+/// Commit information structure
+pub struct CommitInfo {
+    pub sha: String,
+    pub message: String,
+}
+
+/// Get diff for a specific commit
+fn get_commit_diff(sha: &str) -> Result<String, String> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(&format!("git show --format= --patch {}", sha))
+        .output()
+        .map_err(|e| format!("Failed to get commit diff: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+/// Generate commit message for a given diff using the configured provider
+async fn generate_commit_message_for_diff(config: &Config, diff: &str, cli: &Cli) -> Result<String, String> {
+    let active_provider = config.providers.iter().find(|p| match p {
+        ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
+        ProviderConfig::Ollama(c) => c.id == config.active_provider,
+        ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
+        ProviderConfig::SimpleFreeOpenRouter(c) => c.id == config.active_provider,
+        ProviderConfig::ClaudeCode(c) => c.id == config.active_provider,
+        ProviderConfig::OpenCode(c) => c.id == config.active_provider,
+    }).ok_or_else(|| "No active provider found".to_string())?;
+
+    let (message, _) = match active_provider {
+        ProviderConfig::OpenRouter(c) => generate_openrouter_commit_message(c, diff, cli).await?,
+        ProviderConfig::Ollama(c) => generate_ollama_commit_message(c, diff, cli).await?,
+        ProviderConfig::OpenAICompatible(c) => generate_openai_compatible_commit_message(c, diff, cli).await?,
+        ProviderConfig::SimpleFreeOpenRouter(c) => {
+            let mut c_clone = c.clone();
+            generate_simple_free_commit_message(&mut c_clone, diff, cli).await?
+        },
+        ProviderConfig::ClaudeCode(c) => generate_claude_code_commit_message(c, diff, cli).await?,
+        ProviderConfig::OpenCode(c) => generate_opencode_commit_message(c, diff, cli).await?,
+    };
+
+    Ok(message)
+}
+
+/// Check if two commit messages are similar (simple comparison)
+fn messages_are_similar(original: &str, suggested: &str) -> bool {
+    let original_lower = original.to_lowercase();
+    let suggested_lower = suggested.to_lowercase();
+
+    // If they're exactly the same, they're similar
+    if original_lower == suggested_lower {
+        return true;
+    }
+
+    // Check if the main content is similar (ignoring conventional commit prefixes)
+    let original_parts: Vec<&str> = original_lower.splitn(2, ':').collect();
+    let suggested_parts: Vec<&str> = suggested_lower.splitn(2, ':').collect();
+
+    // If both have prefixes, compare the descriptions
+    if original_parts.len() == 2 && suggested_parts.len() == 2 {
+        let original_desc = original_parts[1].trim();
+        let suggested_desc = suggested_parts[1].trim();
+
+        // Check for high similarity in descriptions
+        if original_desc == suggested_desc {
+            return true;
+        }
+
+        // Check if one contains most of the other
+        if original_desc.contains(suggested_desc) || suggested_desc.contains(original_desc) {
+            return true;
+        }
+    }
+
+    // Check word overlap - if more than 60% of words match, consider similar
+    let original_words: std::collections::HashSet<&str> = original_lower.split_whitespace().collect();
+    let suggested_words: std::collections::HashSet<&str> = suggested_lower.split_whitespace().collect();
+
+    if original_words.is_empty() || suggested_words.is_empty() {
+        return false;
+    }
+
+    let common_words: usize = original_words.intersection(&suggested_words).count();
+    let min_words = original_words.len().min(suggested_words.len());
+
+    if min_words > 0 && (common_words as f64 / min_words as f64) > 0.6 {
+        return true;
+    }
+
+    false
+}
+

@@ -196,6 +196,9 @@ async fn main() -> Result<(), String> {
             println!("  --jail-status         Show status of all model jails and blacklists");
             println!("  --unjail=<MODEL>      Release specific model from jail/blacklist (model ID as parameter)");
             println!("  --unjail-all          Release all models from jail/blacklist");
+            println!("  --github-action       Run in GitHub Action mode to analyze commits");
+            println!("  --github-action-base=<REF> Base reference for comparison (default: auto-detect)");
+            println!("  --github-action-mode=<MODE> Mode: 'analyze' (report) or 'suggest' (suggestions)");
             println!("\nExamples:");
             println!("  aicommit --add-provider");
             println!("  aicommit --add");
@@ -205,6 +208,7 @@ async fn main() -> Result<(), String> {
             println!("  aicommit --set=<ID>");
             println!("  aicommit --version-file=version.txt --version-iterate");
             println!("  aicommit --watch");
+            println!("  aicommit --github-action --github-action-base=origin/main");
             println!("  aicommit");
             Ok(())
         }
@@ -384,6 +388,16 @@ async fn main() -> Result<(), String> {
                 Err(e) => {
                     // Provide more detailed error message
                     eprintln!("Error in dry-run mode: {}", e);
+                    Err(e)
+                }
+            }
+        }
+        _ if cli.github_action => {
+            // GitHub Action mode - analyze commits and suggest improved messages
+            match run_github_action(&cli).await {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    eprintln!("Error in GitHub Action mode: {}", e);
                     Err(e)
                 }
             }

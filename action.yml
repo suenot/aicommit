@@ -1,0 +1,95 @@
+name: 'AI Commit Message Analyzer'
+description: 'Analyzes commits and generates improved, AI-powered commit messages using LLMs'
+author: 'Eugen Soloviov <suenot@gmail.com>'
+
+branding:
+  icon: 'git-commit'
+  color: 'purple'
+
+inputs:
+  openrouter_api_key:
+    description: 'OpenRouter API key for AI model access'
+    required: true
+  mode:
+    description: 'Operation mode: "analyze" (report only) or "suggest" (output suggestions)'
+    required: false
+    default: 'analyze'
+  base_ref:
+    description: 'Base reference for comparison (default: origin/main)'
+    required: false
+    default: ''
+  verbose:
+    description: 'Enable verbose output'
+    required: false
+    default: 'false'
+
+outputs:
+  suggestions:
+    description: 'JSON array of commit message suggestions'
+  summary:
+    description: 'Summary of the analysis'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install aicommit
+      shell: bash
+      run: |
+        # Try to install via cargo if available, otherwise download binary
+        if command -v cargo &> /dev/null; then
+          cargo install aicommit --locked || {
+            echo "Cargo install failed, trying binary download..."
+            curl -fsSL https://github.com/suenot/aicommit/releases/latest/download/aicommit-linux-x86_64 -o /tmp/aicommit
+            chmod +x /tmp/aicommit
+            sudo mv /tmp/aicommit /usr/local/bin/aicommit
+          }
+        else
+          echo "Downloading aicommit binary..."
+          curl -fsSL https://github.com/suenot/aicommit/releases/latest/download/aicommit-linux-x86_64 -o /tmp/aicommit
+          chmod +x /tmp/aicommit
+          sudo mv /tmp/aicommit /usr/local/bin/aicommit
+        fi
+        aicommit --version
+
+    - name: Configure aicommit
+      shell: bash
+      env:
+        OPENROUTER_API_KEY: ${{ inputs.openrouter_api_key }}
+      run: |
+        # Configure aicommit with Simple Free provider using the API key
+        aicommit --add-simple-free --openrouter-api-key="$OPENROUTER_API_KEY"
+
+    - name: Analyze commits
+      id: analyze
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        BASE_REF: ${{ inputs.base_ref }}
+        VERBOSE: ${{ inputs.verbose }}
+        GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        GITHUB_EVENT_AFTER: ${{ github.event.after }}
+        GITHUB_SHA: ${{ github.sha }}
+        GITHUB_REF: ${{ github.ref }}
+        GITHUB_BASE_REF: ${{ github.base_ref }}
+      run: |
+        # Determine the base reference for comparison
+        if [ -n "$BASE_REF" ]; then
+          BASE="$BASE_REF"
+        elif [ -n "$GITHUB_BASE_REF" ]; then
+          BASE="origin/$GITHUB_BASE_REF"
+        elif [ "$GITHUB_EVENT_BEFORE" != "0000000000000000000000000000000000000000" ] && [ -n "$GITHUB_EVENT_BEFORE" ]; then
+          BASE="$GITHUB_EVENT_BEFORE"
+        else
+          BASE="origin/main"
+        fi
+
+        echo "Analyzing commits from $BASE to HEAD"
+
+        # Build verbose flag
+        VERBOSE_FLAG=""
+        if [ "$VERBOSE" = "true" ]; then
+          VERBOSE_FLAG="--verbose"
+        fi
+
+        # Run aicommit in GitHub Action mode
+        aicommit --github-action --github-action-base="$BASE" --github-action-mode="$MODE" $VERBOSE_FLAG
