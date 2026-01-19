@@ -1,0 +1,114 @@
+name: 'AI Commit Message Generator'
+description: 'Automatically generate or improve git commit messages using AI (powered by aicommit)'
+author: 'suenot'
+
+branding:
+  icon: 'git-commit'
+  color: 'purple'
+
+inputs:
+  api_key:
+    description: 'OpenRouter API key for AI model access'
+    required: true
+  provider:
+    description: 'AI provider to use (openrouter, simple-free, ollama, openai-compatible)'
+    required: false
+    default: 'simple-free'
+  model:
+    description: 'Specific model to use (optional, provider will auto-select if not specified)'
+    required: false
+  mode:
+    description: 'Operating mode: generate (generate message for staged changes) or analyze (analyze push commits)'
+    required: false
+    default: 'generate'
+  output_format:
+    description: 'Output format: text, json, or github'
+    required: false
+    default: 'github'
+  max_tokens:
+    description: 'Maximum tokens for response'
+    required: false
+    default: '200'
+  temperature:
+    description: 'Temperature for generation (0.0-1.0)'
+    required: false
+    default: '0.2'
+  diff_file:
+    description: 'Path to a file containing the diff (optional)'
+    required: false
+
+outputs:
+  commit_message:
+    description: 'Generated commit message'
+  model_used:
+    description: 'AI model that was used for generation'
+  input_tokens:
+    description: 'Number of input tokens used'
+  output_tokens:
+    description: 'Number of output tokens generated'
+  total_cost:
+    description: 'Total cost of the API call'
+  success:
+    description: 'Whether the generation was successful'
+  error:
+    description: 'Error message if generation failed'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install aicommit
+      shell: bash
+      run: npm install -g aicommit
+
+    - name: Generate commit message (staged changes)
+      if: ${{ inputs.mode == 'generate' }}
+      shell: bash
+      env:
+        OPENROUTER_API_KEY: ${{ inputs.api_key }}
+        AICOMMIT_PROVIDER: ${{ inputs.provider }}
+        AICOMMIT_MODEL: ${{ inputs.model }}
+      run: |
+        ARGS="--github-action --output-format=${{ inputs.output_format }}"
+        ARGS="$ARGS --max-tokens=${{ inputs.max_tokens }}"
+        ARGS="$ARGS --temperature=${{ inputs.temperature }}"
+
+        if [ -n "${{ inputs.diff_file }}" ]; then
+          ARGS="$ARGS --input-diff=${{ inputs.diff_file }}"
+        fi
+
+        if [ -n "${{ inputs.model }}" ]; then
+          ARGS="$ARGS --model=${{ inputs.model }}"
+        fi
+
+        if [ -n "${{ inputs.provider }}" ]; then
+          ARGS="$ARGS --provider=${{ inputs.provider }}"
+        fi
+
+        aicommit $ARGS
+
+    - name: Analyze commits (push event)
+      if: ${{ inputs.mode == 'analyze' }}
+      shell: bash
+      env:
+        OPENROUTER_API_KEY: ${{ inputs.api_key }}
+        AICOMMIT_PROVIDER: ${{ inputs.provider }}
+        AICOMMIT_MODEL: ${{ inputs.model }}
+      run: |
+        ARGS="--github-action --analyze-commits --output-format=${{ inputs.output_format }}"
+        ARGS="$ARGS --max-tokens=${{ inputs.max_tokens }}"
+        ARGS="$ARGS --temperature=${{ inputs.temperature }}"
+
+        if [ -n "${{ inputs.model }}" ]; then
+          ARGS="$ARGS --model=${{ inputs.model }}"
+        fi
+
+        if [ -n "${{ inputs.provider }}" ]; then
+          ARGS="$ARGS --provider=${{ inputs.provider }}"
+        fi
+
+        aicommit $ARGS
