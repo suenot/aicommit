@@ -165,6 +165,18 @@ pub struct Cli {
     /// Release all models from jail/blacklist
     #[arg(long = "unjail-all")]
     pub unjail_all: bool,
+
+    /// Copy generated commit message to clipboard instead of committing
+    #[arg(short = 'c', long = "clipboard")]
+    pub clipboard: bool,
+
+    /// Amend the previous commit with an improved commit message
+    #[arg(long = "amend")]
+    pub amend: bool,
+
+    /// Display the last generated commit message
+    #[arg(long = "last")]
+    pub last: bool,
 }
 
 // From: 006_struct_OpenRouterConfig.rs
@@ -257,6 +269,16 @@ pub struct Config {
     pub active_provider: String,
     #[serde(default = "default_retry_attempts")]
     pub retry_attempts: u32,
+}
+
+// State management for last generated message
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct AppState {
+    pub last_generated_message: Option<String>,
+    #[serde(with = "chrono::serde::ts_seconds_option", default)]
+    pub last_generated_timestamp: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_provider: Option<String>,
+    pub last_model: Option<String>,
 }
 
 // From: 022_struct_UsageInfo.rs
@@ -763,6 +785,46 @@ nbproject/
             .map_err(|e| format!("Failed to write config file: {}", e))?;
 
         Ok(config)
+    }
+}
+
+impl AppState {
+    pub fn load() -> Result<Self, String> {
+        let state_path = dirs::home_dir()
+            .ok_or_else(|| "Could not find home directory".to_string())?
+            .join(".aicommit_state.json");
+
+        if !state_path.exists() {
+            return Ok(AppState::default());
+        }
+
+        let content = fs::read_to_string(&state_path)
+            .map_err(|e| format!("Failed to read state file: {}", e))?;
+
+        serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse state file: {}", e))
+    }
+
+    pub fn save(&self) -> Result<(), String> {
+        let state_path = dirs::home_dir()
+            .ok_or_else(|| "Could not find home directory".to_string())?
+            .join(".aicommit_state.json");
+
+        let content = serde_json::to_string_pretty(&self)
+            .map_err(|e| format!("Failed to serialize state: {}", e))?;
+
+        fs::write(&state_path, content)
+            .map_err(|e| format!("Failed to write state file: {}", e))?;
+
+        Ok(())
+    }
+
+    pub fn save_last_message(&mut self, message: &str, provider: Option<&str>, model: Option<&str>) -> Result<(), String> {
+        self.last_generated_message = Some(message.to_string());
+        self.last_generated_timestamp = Some(chrono::Utc::now());
+        self.last_provider = provider.map(|s| s.to_string());
+        self.last_model = model.map(|s| s.to_string());
+        self.save()
     }
 }
 

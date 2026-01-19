@@ -3,6 +3,7 @@
 use std::process::Command;
 use tracing::info;
 use serde_json::json;
+use arboard::Clipboard;
 use crate::types::*;
 use crate::{MAX_DIFF_CHARS, MAX_FILE_DIFF_CHARS};
 use crate::utils::{get_safe_slice_length, parse_duration, save_simple_free_config};
@@ -75,6 +76,106 @@ pub fn process_git_diff_output(diff: &str) -> String {
     }
     
     processed
+}
+
+// Copy text to system clipboard
+pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
+    let mut clipboard = Clipboard::new()
+        .map_err(|e| format!("Failed to access clipboard: {}", e))?;
+
+    clipboard.set_text(text)
+        .map_err(|e| format!("Failed to copy to clipboard: {}", e))?;
+
+    Ok(())
+}
+
+// Get diff for amend mode (changes from the last commit)
+pub fn get_amend_diff() -> Result<String, String> {
+    // First check if there's at least one commit
+    let has_commits = Command::new("sh")
+        .arg("-c")
+        .arg("git rev-parse HEAD")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+
+    if !has_commits {
+        return Err("No commits found to amend".to_string());
+    }
+
+    // Get the diff from the last commit (HEAD~1..HEAD)
+    let diff_output = Command::new("sh")
+        .arg("-c")
+        .arg("git diff HEAD~1..HEAD")
+        .output()
+        .map_err(|e| format!("Failed to execute git diff: {}", e))?;
+
+    if !diff_output.status.success() {
+        // If HEAD~1 doesn't exist (first commit), get the initial commit's diff
+        let first_commit_output = Command::new("sh")
+            .arg("-c")
+            .arg("git diff --cached HEAD 2>/dev/null || git diff HEAD")
+            .output()
+            .map_err(|e| format!("Failed to get first commit diff: {}", e))?;
+
+        if first_commit_output.status.success() {
+            let diff = String::from_utf8_lossy(&first_commit_output.stdout).to_string();
+            if !diff.trim().is_empty() {
+                return Ok(diff);
+            }
+        }
+
+        // Try showing the entire first commit
+        let show_output = Command::new("sh")
+            .arg("-c")
+            .arg("git show HEAD --format='' --patch")
+            .output()
+            .map_err(|e| format!("Failed to get first commit diff: {}", e))?;
+
+        if show_output.status.success() {
+            return Ok(String::from_utf8_lossy(&show_output.stdout).to_string());
+        }
+
+        return Err("Failed to get diff for amend: this might be the first commit".to_string());
+    }
+
+    let diff = String::from_utf8_lossy(&diff_output.stdout).to_string();
+
+    if diff.trim().is_empty() {
+        return Err("No changes found in the last commit".to_string());
+    }
+
+    Ok(diff)
+}
+
+// Get the previous commit message
+pub fn get_previous_commit_message() -> Result<String, String> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg("git log -1 --pretty=%B")
+        .output()
+        .map_err(|e| format!("Failed to get previous commit message: {}", e))?;
+
+    if !output.status.success() {
+        return Err("Failed to get previous commit message".to_string());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+// Create git commit with amend option
+pub fn create_git_commit_amend(message: &str) -> Result<(), String> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(&format!("git commit --amend -m '{}'", message.replace("'", "'\\''")))
+        .output()
+        .map_err(|e| format!("Failed to execute command: {}", e))?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
 }
 
 // From: 028_function_watch_and_commit.rs
@@ -452,12 +553,28 @@ pub async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         }
     }
 
-    // Get the diff (will handle git add if needed)
-    let diff = get_git_diff(cli)?;
+    // Get the diff (amend mode uses the previous commit's diff)
+    let diff = if cli.amend {
+        if cli.verbose {
+            println!("\n=== Amend Mode ===");
+            println!("Retrieving diff from the last commit...");
+        }
+        get_amend_diff()?
+    } else {
+        get_git_diff(cli)?
+    };
 
     // Show diff in verbose mode
     if cli.verbose {
         println!("\n=== Git Diff ===\n{}", diff);
+    }
+
+    // For amend mode, also show the previous commit message
+    if cli.amend && cli.verbose {
+        match get_previous_commit_message() {
+            Ok(prev_msg) => println!("\n=== Previous Commit Message ===\n{}\n", prev_msg),
+            Err(_) => {}
+        }
     }
 
     // Generate commit message based on the active provider
@@ -526,8 +643,56 @@ pub async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         println!("Model used: {}", model);
     }
 
-    create_git_commit(&message)?;
-    println!("Commit successfully created.");
+    // Save the last generated message to state
+    let provider_name = match config.providers.iter().find(|p| match p {
+        ProviderConfig::OpenRouter(c) => c.id == config.active_provider,
+        ProviderConfig::Ollama(c) => c.id == config.active_provider,
+        ProviderConfig::OpenAICompatible(c) => c.id == config.active_provider,
+        ProviderConfig::SimpleFreeOpenRouter(c) => c.id == config.active_provider,
+        ProviderConfig::ClaudeCode(c) => c.id == config.active_provider,
+        ProviderConfig::OpenCode(c) => c.id == config.active_provider,
+    }) {
+        Some(ProviderConfig::OpenRouter(_)) => Some("openrouter"),
+        Some(ProviderConfig::Ollama(_)) => Some("ollama"),
+        Some(ProviderConfig::OpenAICompatible(_)) => Some("openai_compatible"),
+        Some(ProviderConfig::SimpleFreeOpenRouter(_)) => Some("simple_free_openrouter"),
+        Some(ProviderConfig::ClaudeCode(_)) => Some("claude_code"),
+        Some(ProviderConfig::OpenCode(_)) => Some("opencode"),
+        None => None,
+    };
+
+    // Save last message to state
+    if let Ok(mut state) = AppState::load() {
+        let _ = state.save_last_message(
+            &message,
+            provider_name,
+            usage_info.model_used.as_deref()
+        );
+    }
+
+    // Handle clipboard mode - copy to clipboard and return without committing
+    if cli.clipboard {
+        match copy_to_clipboard(&message) {
+            Ok(_) => {
+                println!("Commit message copied to clipboard.");
+                return Ok(());
+            }
+            Err(e) => {
+                // Print warning but continue - try to commit instead
+                eprintln!("Warning: Failed to copy to clipboard: {}", e);
+                println!("Proceeding with commit instead...");
+            }
+        }
+    }
+
+    // Create the commit (amend mode uses --amend flag)
+    if cli.amend {
+        create_git_commit_amend(&message)?;
+        println!("Commit successfully amended.");
+    } else {
+        create_git_commit(&message)?;
+        println!("Commit successfully created.");
+    }
 
     // Pull changes if --pull flag is set
     if cli.pull {

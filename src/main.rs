@@ -196,6 +196,9 @@ async fn main() -> Result<(), String> {
             println!("  --jail-status         Show status of all model jails and blacklists");
             println!("  --unjail=<MODEL>      Release specific model from jail/blacklist (model ID as parameter)");
             println!("  --unjail-all          Release all models from jail/blacklist");
+            println!("  -c, --clipboard       Copy generated commit message to clipboard instead of committing");
+            println!("  --amend               Amend the previous commit with an improved commit message");
+            println!("  --last                Display the last generated commit message");
             println!("\nExamples:");
             println!("  aicommit --add-provider");
             println!("  aicommit --add");
@@ -205,6 +208,9 @@ async fn main() -> Result<(), String> {
             println!("  aicommit --set=<ID>");
             println!("  aicommit --version-file=version.txt --version-iterate");
             println!("  aicommit --watch");
+            println!("  aicommit --clipboard");
+            println!("  aicommit --amend");
+            println!("  aicommit --last");
             println!("  aicommit");
             Ok(())
         }
@@ -258,7 +264,7 @@ async fn main() -> Result<(), String> {
             // Unjail all models
             let mut config = Config::load()?;
             let mut found = false;
-            
+
             for provider in &mut config.providers {
                 if let ProviderConfig::SimpleFreeOpenRouter(c) = provider {
                     unjail_all_models(c)?;
@@ -267,11 +273,40 @@ async fn main() -> Result<(), String> {
                     break;
                 }
             }
-            
+
             if !found {
                 println!("No Simple Free OpenRouter configuration found. You can add one with 'aicommit --add-simple-free'");
             }
-            
+
+            Ok(())
+        }
+        _ if cli.last => {
+            // Display the last generated commit message
+            match AppState::load() {
+                Ok(state) => {
+                    if let Some(message) = state.last_generated_message {
+                        println!("Last generated commit message:");
+                        println!("  \"{}\"", message);
+
+                        if let Some(timestamp) = state.last_generated_timestamp {
+                            println!("\nGenerated at: {}", timestamp.format("%Y-%m-%d %H:%M:%S UTC"));
+                        }
+                        if let Some(provider) = state.last_provider {
+                            println!("Provider: {}", provider);
+                        }
+                        if let Some(model) = state.last_model {
+                            println!("Model: {}", model);
+                        }
+                    } else {
+                        println!("No commit message has been generated yet.");
+                        println!("Run 'aicommit' to generate a commit message.");
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to load state: {}", e);
+                    println!("No commit message has been generated yet.");
+                }
+            }
             Ok(())
         }
         _ if cli.add_provider => {
