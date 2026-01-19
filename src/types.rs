@@ -201,6 +201,10 @@ pub struct Cli {
     /// Analyze commits from GitHub event and suggest improved messages
     #[arg(long = "analyze-commits")]
     pub analyze_commits: bool,
+
+    /// Manage Git hooks (install/uninstall prepare-commit-msg hook)
+    #[arg(long = "hook")]
+    pub hook: Option<String>,
 }
 
 // From: 006_struct_OpenRouterConfig.rs
