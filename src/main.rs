@@ -15,6 +15,7 @@ mod providers;
 mod models;
 mod utils;
 mod ignore;
+mod hooks;
 
 // Use declarations from our modules
 use types::*;
@@ -207,6 +208,10 @@ async fn main() -> Result<(), String> {
             println!("  --provider=<TYPE>     Provider: openrouter, simple-free, ollama, openai-compatible");
             println!("  --model=<MODEL>       Model name for GitHub Action mode");
             println!("  --analyze-commits     Analyze commits from GitHub event context");
+            println!("\nGit Hook Options:");
+            println!("  --hook=install        Install prepare-commit-msg hook for automatic AI messages");
+            println!("  --hook=uninstall      Remove the installed hook");
+            println!("  --hook=status         Check if hook is installed");
             println!("\nExamples:");
             println!("  aicommit --add-provider");
             println!("  aicommit --add");
@@ -218,6 +223,8 @@ async fn main() -> Result<(), String> {
             println!("  aicommit --watch");
             println!("  aicommit --github-action --stdin --api-key=$OPENROUTER_API_KEY");
             println!("  aicommit --github-action --analyze-commits --provider=simple-free");
+            println!("  aicommit --hook=install");
+            println!("  aicommit --hook=uninstall");
             println!("  aicommit");
             Ok(())
         }
@@ -290,6 +297,19 @@ async fn main() -> Result<(), String> {
         _ if cli.github_action => {
             // GitHub Action mode - non-interactive
             run_github_action_mode(&cli).await
+        }
+        _ if cli.hook.is_some() => {
+            // Hook management
+            let hook_cmd = cli.hook.as_ref().unwrap();
+            match hook_cmd.as_str() {
+                "install" => hooks::install_hook(),
+                "uninstall" => hooks::uninstall_hook(),
+                "status" => hooks::hook_status(),
+                _ => Err(format!(
+                    "Unknown hook command: '{}'. Valid commands are: install, uninstall, status",
+                    hook_cmd
+                )),
+            }
         }
         _ if cli.add_provider => {
             Config::setup_interactive().await?;
