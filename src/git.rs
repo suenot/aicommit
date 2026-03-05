@@ -650,17 +650,8 @@ pub async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
         println!("Successfully pulled changes.");
     }
 
-    // Push changes if --push flag is set
-    if cli.push {
-        // Проверяем, имеет ли текущая ветка upstream
-        let check_upstream = Command::new("sh")
-            .arg("-c")
-            .arg("git rev-parse --abbrev-ref --symbolic-full-name @{upstream} 2>/dev/null || echo \"\"")
-            .output()
-            .map_err(|e| format!("Failed to check upstream branch: {}", e))?;
-
-        let has_upstream = !String::from_utf8_lossy(&check_upstream.stdout).trim().is_empty();
-
+    // Push changes if --push or --push-all flag is set
+    if cli.push || cli.push_all {
         // Получаем имя текущей ветки
         let branch_output = Command::new("sh")
             .arg("-c")
@@ -670,30 +661,70 @@ pub async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 
         let branch_name = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
 
-        let remote_url_info = get_remote_https_url("origin")
-            .map(|url| format!(" ({})", url))
-            .unwrap_or_default();
+        // Determine which remotes to push to
+        let remotes: Vec<String> = if cli.push_all {
+            let remotes_output = Command::new("sh")
+                .arg("-c")
+                .arg("git remote")
+                .output()
+                .map_err(|e| format!("Failed to list git remotes: {}", e))?;
 
-        let push_cmd = if has_upstream {
-            // Если upstream настроен, выполняем обычный push
-            "git push"
+            let remotes_str = String::from_utf8_lossy(&remotes_output.stdout).trim().to_string();
+            if remotes_str.is_empty() {
+                return Err("No remotes configured. Add a remote first with `git remote add`.".to_string());
+            }
+            remotes_str.lines().map(|s| s.to_string()).collect()
         } else {
-            // Если upstream не настроен, настраиваем его
-            println!("Setting upstream for branch '{}' to 'origin/{}'{}", branch_name, branch_name, remote_url_info);
-            &format!("git push --set-upstream origin {}", branch_name)
+            vec!["origin".to_string()]
         };
 
-        let push_output = Command::new("sh")
-            .arg("-c")
-            .arg(push_cmd)
-            .output()
-            .map_err(|e| format!("Failed to execute git push: {}", e))?;
+        for remote in &remotes {
+            // Проверяем, имеет ли текущая ветка upstream для данного remote
+            let check_upstream = Command::new("sh")
+                .arg("-c")
+                .arg(format!("git rev-parse --abbrev-ref --symbolic-full-name @{{upstream}} 2>/dev/null | grep -q '^{}/{}$' && echo ok || echo \"\"", remote, branch_name))
+                .output()
+                .map_err(|e| format!("Failed to check upstream branch: {}", e))?;
 
-        if !push_output.status.success() {
-            return Err(String::from_utf8_lossy(&push_output.stderr).to_string());
+            let has_upstream_for_remote = String::from_utf8_lossy(&check_upstream.stdout).trim() == "ok";
+
+            let remote_url_info = get_remote_https_url(remote)
+                .map(|url| format!(" ({})", url))
+                .unwrap_or_default();
+
+            let push_cmd = if has_upstream_for_remote || remotes.len() > 1 {
+                // For multi-remote or when upstream exists, push explicitly to the remote
+                format!("git push {} {}", remote, branch_name)
+            } else if !has_upstream_for_remote {
+                // Single remote without upstream — set it up
+                println!("Setting upstream for branch '{}' to '{}/{}'{}", branch_name, remote, branch_name, remote_url_info);
+                format!("git push --set-upstream {} {}", remote, branch_name)
+            } else {
+                "git push".to_string()
+            };
+
+            let push_output = Command::new("sh")
+                .arg("-c")
+                .arg(&push_cmd)
+                .output()
+                .map_err(|e| format!("Failed to execute git push to {}: {}", remote, e))?;
+
+            if !push_output.status.success() {
+                let stderr = String::from_utf8_lossy(&push_output.stderr).to_string();
+                eprintln!("Failed to push to {}{}: {}", remote, remote_url_info, stderr.trim());
+                if !cli.push_all {
+                    return Err(stderr);
+                }
+                // For --push-all, continue to next remote even if one fails
+                continue;
+            }
+
+            println!("Changes successfully pushed to {}/{}{}.", remote, branch_name, remote_url_info);
         }
 
-        println!("Changes successfully pushed to origin/{}{}.", branch_name, remote_url_info);
+        if cli.push_all {
+            println!("Push to all remotes completed ({} remote(s)).", remotes.len());
+        }
     }
 
     Ok(())

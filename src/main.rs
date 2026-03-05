@@ -189,6 +189,7 @@ async fn main() -> Result<(), String> {
             println!("  --dry-run             Interactive commit message generation");
             println!("  --pull                Pull changes before commit");
             println!("  --push                Automatically push changes after commit");
+            println!("  --push-all            Push changes to all configured remotes");
             println!("  --help                Display this help message");
             println!("  --version             Display version information");
             println!("  --verbose             Display verbose information");
