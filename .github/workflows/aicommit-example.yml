@@ -31,13 +31,23 @@ jobs:
         with:
           fetch-depth: 0  # Fetch full history for accurate diffs
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
         with:
-          node-version: '20'
+          toolchain: stable
+          override: true
 
-      - name: Install aicommit
-        run: npm install -g @suenot/aicommit
+      - name: Cache cargo
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install aicommit from source
+        run: cargo install --path .
 
       - name: Analyze commit messages
         id: analyze
