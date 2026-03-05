@@ -33,7 +33,7 @@ fn get_remote_https_url(remote_name: &str) -> Option<String> {
 
 /// Convert a git remote URL (SSH or HTTPS) to an HTTPS URL.
 fn convert_git_url_to_https(url: &str) -> String {
-    // SSH format: git@github.com:user/repo.git
+    // SSH format: git@github.com:user/repo.git or git@gitlab.com:group/subgroup/repo.git
     if let Some(rest) = url.strip_prefix("git@") {
         if let Some(colon_pos) = rest.find(':') {
             let host = &rest[..colon_pos];
