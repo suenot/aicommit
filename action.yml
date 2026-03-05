@@ -63,7 +63,7 @@ runs:
 
     - name: Install aicommit
       shell: bash
-      run: npm install -g aicommit
+      run: npm install -g @suenot/aicommit
 
     - name: Generate commit message (staged changes)
       if: ${{ inputs.mode == 'generate' }}

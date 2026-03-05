@@ -37,7 +37,7 @@ jobs:
           node-version: '20'
 
       - name: Install aicommit
-        run: npm install -g aicommit
+        run: npm install -g @suenot/aicommit
 
       - name: Analyze commit messages
         id: analyze
@@ -116,7 +116,7 @@ jobs:
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
-          npm install -g aicommit
+          npm install -g @suenot/aicommit
           MESSAGE=$(aicommit --github-action --output-format=text)
           echo "message=$MESSAGE" >> $GITHUB_OUTPUT
           echo "Generated message: $MESSAGE"
