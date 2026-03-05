@@ -164,7 +164,10 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 
             if remote_branch_exists {
                 // Настраиваем upstream для существующей удаленной ветки
-                println!("Setting upstream for branch '{}' to 'origin/{}'", branch_name, branch_name);
+                let remote_url_info = get_remote_https_url("origin")
+                    .map(|url| format!(" ({})", url))
+                    .unwrap_or_default();
+                println!("Setting upstream for branch '{}' to 'origin/{}'{}", branch_name, branch_name, remote_url_info);
                 let set_upstream = Command::new("sh")
                     .arg("-c")
                     .arg(format!("git branch --set-upstream-to=origin/{} {}", branch_name, branch_name))
@@ -219,12 +222,16 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 
         let branch_name = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
 
+        let remote_url_info = get_remote_https_url("origin")
+            .map(|url| format!(" ({})", url))
+            .unwrap_or_default();
+
         let push_cmd = if has_upstream {
             // Если upstream настроен, выполняем обычный push
             "git push"
         } else {
             // Если upstream не настроен, настраиваем его
-            println!("Setting upstream for branch '{}' to 'origin/{}'", branch_name, branch_name);
+            println!("Setting upstream for branch '{}' to 'origin/{}'{}", branch_name, branch_name, remote_url_info);
             &format!("git push --set-upstream origin {}", branch_name)
         };
 
@@ -238,7 +245,7 @@ async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             return Err(String::from_utf8_lossy(&push_output.stderr).to_string());
         }
 
-        println!("Changes successfully pushed.");
+        println!("Changes successfully pushed to origin/{}{}.", branch_name, remote_url_info);
     }
 
     Ok(())
