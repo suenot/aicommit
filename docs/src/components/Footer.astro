@@ -1,0 +1,108 @@
+---
+const base = import.meta.env.BASE_URL;
+---
+
+<footer class="footer">
+	<div class="container">
+		<div class="footer-grid">
+			<div class="brand">
+				<a href={`${base}`} class="logo">
+					<img src={`${base}aicommit-logo.png`} alt="AICommit Logo" />
+					<span>AICommit</span>
+				</a>
+				<p>Making git history meaningful, one commit at a time.</p>
+			</div>
+			<div class="links">
+				<h4>Resources</h4>
+				<a href={`${base}wiki/`}>Wiki</a>
+				<a href="https://github.com/suenot/aicommit">GitHub</a>
+				<a href="https://crates.io/crates/aicommit">Crates.io</a>
+				<a href="https://marketplace.visualstudio.com/items?itemName=suenot.suenot-aicommit-vscode">VS Code Extension</a>
+			</div>
+			<div class="links">
+				<h4>Project</h4>
+				<a href="#features">Features</a>
+				<a href="#installation">Installation</a>
+				<a href="#usage">Usage</a>
+			</div>
+			<div class="links">
+				<h4>Legal</h4>
+				<a href="https://github.com/suenot/aicommit/blob/main/LICENSE">MIT License</a>
+			</div>
+		</div>
+		<div class="copyright">
+			<p>&copy; {new Date().getFullYear()} Eugen Soloviov. AICommit is an open source project.</p>
+		</div>
+	</div>
+</footer>
+
+<style>
+	.footer {
+		padding: 6rem 0 3rem;
+		background: #020617;
+		border-top: 1px solid var(--card-border);
+	}
+	.footer-grid {
+		display: grid;
+		grid-template-columns: 2fr 1fr 1fr 1fr;
+		gap: 3rem;
+		margin-bottom: 5rem;
+	}
+	.brand .logo {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		text-decoration: none;
+		color: var(--foreground);
+		font-weight: 700;
+		font-size: 1.5rem;
+		font-family: 'Outfit', sans-serif;
+		margin-bottom: 1.5rem;
+	}
+	.brand .logo img {
+		height: 32px;
+		width: auto;
+	}
+	.brand p {
+		color: #94a3b8;
+		font-size: 1rem;
+		max-width: 300px;
+	}
+	h4 {
+		font-size: 1.125rem;
+		font-weight: 700;
+		margin-bottom: 1.5rem;
+		color: white;
+	}
+	.links {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+	.links a {
+		color: #94a3b8;
+		text-decoration: none;
+		transition: color 0.2s;
+		font-size: 0.95rem;
+	}
+	.links a:hover {
+		color: white;
+	}
+	.copyright {
+		padding-top: 3rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.05);
+		text-align: center;
+		color: #64748b;
+		font-size: 0.9rem;
+	}
+	@media (max-width: 1024px) {
+		.footer-grid {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+	@media (max-width: 640px) {
+		.footer-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

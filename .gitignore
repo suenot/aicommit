@@ -6,3 +6,6 @@ tasks/
 node_modules/
 my/
 .my/
+docs/node_modules/
+docs/dist/
+docs/.astro/

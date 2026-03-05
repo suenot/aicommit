@@ -1,0 +1,314 @@
+---
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<section class="hero">
+	<div class="background-decorations">
+		<div class="blob blob-1"></div>
+		<div class="blob blob-2"></div>
+		<div class="grid-pattern"></div>
+	</div>
+	
+	<div class="container">
+		<div class="hero-content">
+			<h1>AICommit: Generate <span class="text-gradient">Professional</span> Commit Messages Automatically</h1>
+			<p class="subtitle">A powerful CLI tool that uses Large Language Models to write your git commit messages for you. Fast, reliable, and completely free mode included.</p>
+			
+			<div class="cta">
+				<div class="cta-row">
+					<a href="#installation" class="btn primary">Start Using Cargo</a>
+					<a href="https://github.com/suenot/aicommit" class="btn secondary" target="_blank">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.577.688.48C19.137 20.161 22 16.415 22 12c0-5.523-4.477-10-10-10z"/></svg>
+						Star on GitHub
+					</a>
+				</div>
+				<div class="command-box prominent">
+					<span class="prompt">$</span>
+					<code>cargo install aicommit</code>
+					<button id="copy-btn" aria-label="Copy to clipboard" title="Copy to clipboard">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+					</button>
+				</div>
+			</div>
+			
+			<div class="badges">
+				<a href="#installation"><img src="https://img.shields.io/npm/v/@suenot/aicommit.svg?label=npm&color=CB3837" alt="NPM" /></a>
+				<a href="https://crates.io/crates/aicommit" target="_blank"><img src="https://img.shields.io/crates/v/aicommit.svg" alt="Crates.io" /></a>
+				<a href="https://marketplace.visualstudio.com/items?itemName=suenot.suenot-aicommit-vscode" target="_blank"><img src={`${base}/vscode-badge.svg`} alt="VS Code Extension" /></a>
+			</div>
+		</div>
+		<div class="hero-image">
+			<div class="image-wrapper">
+				<img src={`${base}/aicommit-logo.png`} alt="AICommit Logo" class="main-logo" />
+				<div class="logo-glow"></div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<script>
+	const copyBtn = document.getElementById('copy-btn');
+	const cmd = "cargo install aicommit";
+	
+	copyBtn?.addEventListener('click', () => {
+		navigator.clipboard.writeText(cmd);
+		const originalIcon = copyBtn.innerHTML;
+		copyBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+		copyBtn.classList.add('copied');
+		setTimeout(() => {
+			copyBtn.innerHTML = originalIcon;
+			copyBtn.classList.remove('copied');
+		}, 2000);
+	});
+</script>
+
+<style>
+	.hero {
+		padding: 0.5rem 0 4rem;
+		position: relative;
+		overflow: hidden;
+	}
+	.background-decorations {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: -1;
+		pointer-events: none;
+	}
+	.blob {
+		position: absolute;
+		width: 600px;
+		height: 600px;
+		background: radial-gradient(circle, rgba(79, 70, 229, 0.15) 0%, transparent 70%);
+		border-radius: 50%;
+		filter: blur(80px);
+	}
+	.blob-1 { top: -200px; left: -200px; }
+	.blob-2 { bottom: -200px; right: -200px; background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%); }
+	
+	.grid-pattern {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+		background-size: 40px 40px;
+		mask-image: linear-gradient(to bottom, black, transparent);
+	}
+
+	.container {
+		display: grid;
+		grid-template-columns: 1.3fr 1fr;
+		gap: 5rem;
+		align-items: center;
+	}
+
+	.npm-badge-link {
+		display: inline-block;
+		transition: all 0.2s;
+		opacity: 0.85;
+	}
+	.npm-badge-link:hover {
+		opacity: 1;
+		transform: translateY(-2px);
+	}
+	.npm-badge {
+		height: 28px;
+	}
+
+	h1 {
+		font-size: 4.5rem;
+		font-weight: 800;
+		line-height: 1;
+		margin-bottom: 2rem;
+		letter-spacing: -0.04em;
+	}
+	.text-gradient {
+		background-image: var(--accent-gradient);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-size: 400%;
+		background-position: 0%;
+	}
+	.subtitle {
+		font-size: 1.35rem;
+		color: #94a3b8;
+		margin-bottom: 3.5rem;
+		max-width: 640px;
+		line-height: 1.6;
+	}
+
+	.cta {
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		margin-bottom: 3rem;
+	}
+	.cta-row {
+		display: flex;
+		gap: 1.5rem;
+		align-items: center;
+	}
+	.btn.primary {
+		padding: 1.25rem 2.5rem;
+		background: rgb(var(--accent));
+		color: white;
+		text-decoration: none;
+		border-radius: 1rem;
+		font-weight: 700;
+		font-size: 1.125rem;
+		transition: all 0.3s;
+		box-shadow: 0 10px 30px rgba(79, 70, 229, 0.4);
+	}
+	.btn.primary:hover {
+		transform: translateY(-3px);
+		box-shadow: 0 15px 40px rgba(79, 70, 229, 0.6);
+		background: rgb(var(--accent-light));
+	}
+	.btn.secondary {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 1.25rem 2.5rem;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: white;
+		text-decoration: none;
+		border-radius: 1rem;
+		font-weight: 600;
+		transition: all 0.3s;
+	}
+	.btn.secondary:hover {
+		background: rgba(255, 255, 255, 0.1);
+		border-color: rgba(255, 255, 255, 0.2);
+	}
+
+	.command-box {
+		display: flex;
+		align-items: center;
+		gap: 1.25rem;
+		background: rgba(15, 23, 42, 0.8);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		padding: 1rem 1.5rem;
+		border-radius: 1.25rem;
+		width: fit-content;
+		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+	}
+	.command-box.prominent {
+		border-color: rgba(79, 70, 229, 0.4);
+		background: rgba(79, 70, 229, 0.1);
+	}
+	.command-box .prompt {
+		color: rgb(var(--accent-light));
+		font-weight: 700;
+	}
+	.command-box code {
+		color: #e2e8f0;
+		font-size: 0.95rem;
+	}
+	#copy-btn {
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: #94a3b8;
+		cursor: pointer;
+		padding: 0.5rem;
+		border-radius: 0.75rem;
+		transition: all 0.2s;
+	}
+	#copy-btn:hover {
+		color: white;
+		background: rgba(255, 255, 255, 0.1);
+		border-color: rgba(255, 255, 255, 0.2);
+	}
+	
+	.alternative {
+		font-size: 0.875rem;
+		color: #64748b;
+		margin: 0;
+	}
+	.alternative a {
+		color: #94a3b8;
+		text-decoration: none;
+		border-bottom: 1px solid transparent;
+		transition: all 0.2s;
+	}
+	.alternative a:hover {
+		color: white;
+		border-bottom-color: var(--accent-light);
+	}
+
+	.badges {
+		display: flex;
+		gap: 1.5rem;
+		align-items: center;
+	}
+	.badges img {
+		height: 28px;
+		opacity: 0.8;
+		transition: opacity 0.2s;
+	}
+	.badges img:hover {
+		opacity: 1;
+	}
+
+	.hero-image {
+		display: flex;
+		justify-content: center;
+		position: relative;
+	}
+	.image-wrapper {
+		position: relative;
+		width: 100%;
+		max-width: 450px;
+	}
+	.main-logo {
+		width: 100%;
+		height: auto;
+		z-index: 2;
+		position: relative;
+		filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
+		animation: floating 6s ease-in-out infinite;
+	}
+	.logo-glow {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: 120%;
+		height: 120%;
+		background: radial-gradient(circle, rgba(79, 70, 229, 0.3) 0%, transparent 70%);
+		z-index: 1;
+		filter: blur(40px);
+		animation: pulse 4s ease-in-out infinite;
+	}
+
+	@keyframes floating {
+		0%, 100% { transform: translateY(0) rotate(0deg); }
+		50% { transform: translateY(-25px) rotate(2deg); }
+	}
+	@keyframes pulse {
+		0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+		50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }
+	}
+
+	@media (max-width: 1100px) {
+		.container {
+			grid-template-columns: 1fr;
+			text-align: center;
+			gap: 4rem;
+		}
+		.hero-content {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+		h1 { font-size: 3.5rem; }
+		.btn.primary, .btn.secondary { width: 100%; max-width: 320px; }
+		.cta-row { flex-direction: column; width: 100%; }
+		.command-box { width: 100%; max-width: 500px; justify-content: center; }
+		.hero-image { order: -1; }
+	}
+</style>

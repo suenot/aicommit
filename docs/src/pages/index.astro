@@ -1,0 +1,27 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navigation from '../components/Navigation.astro';
+import Hero from '../components/Hero.astro';
+import Features from '../components/Features.astro';
+import Installation from '../components/Installation.astro';
+import Usage from '../components/Usage.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout title="AICommit - Smart Git Commit Messages with AI">
+	<Navigation />
+	<main>
+		<Hero />
+		<Features />
+		<Usage />
+		<Installation />
+	</main>
+	<Footer />
+</Layout>
+
+<style>
+	main {
+		width: 100%;
+		overflow-x: hidden;
+	}
+</style>

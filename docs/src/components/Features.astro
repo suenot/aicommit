@@ -1,0 +1,174 @@
+---
+const features = [
+	{
+		title: "AI-Powered",
+		description: "Generate meaningful, descriptive commit messages using state-of-the-art Large Language Models.",
+		icon: "brain",
+		color: "from-blue-400 to-indigo-600"
+	},
+	{
+		title: "Simple Free Mode",
+		description: "Zero cost, zero setup. Automatically selects and rotates through the best available free models via OpenRouter.",
+		icon: "zap",
+		color: "from-yellow-400 to-orange-500"
+	},
+	{
+		title: "Multiple Providers",
+		description: "Full support for OpenRouter, Ollama (local), and any OpenAI-compatible API endpoints.",
+		icon: "layers",
+		color: "from-purple-400 to-pink-500"
+	},
+	{
+		title: "Smart Versioning",
+		description: "Automate your release workflow with built-in support for Cargo.toml, package.json, and GitHub tags.",
+		icon: "git-branch",
+		color: "from-green-400 to-emerald-600"
+	},
+	{
+		title: "Watch Mode",
+		description: "Keep working! AICommit can monitor your files and commit only when you take a break from typing.",
+		icon: "eye",
+		color: "from-red-400 to-rose-600"
+	},
+	{
+		title: "VS Code Extension",
+		description: "Generate commit messages directly from your IDE with a dedicated button in the Source Control view.",
+		icon: "code",
+		color: "from-cyan-400 to-blue-500"
+	}
+];
+---
+
+<section id="features" class="features">
+	<div class="container">
+		<div class="header">
+			<h2>Unmatched Efficiency</h2>
+			<p>Everything you need to streamline your development workflow and maintain a clean git history.</p>
+		</div>
+		<div class="grid">
+			{features.map(feature => (
+				<div class="feature-card">
+					<div class={`icon-wrapper bg-gradient-to-br ${feature.color}`}>
+						{feature.icon === 'brain' && (
+							<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bot"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+						)}
+						{feature.icon === 'zap' && (
+							<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+						)}
+						{feature.icon === 'layers' && (
+							<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layers"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.27a1 1 0 0 0 0 1.83l8.57 4.09a2 2 0 0 0 1.66 0l8.57-4.09a1 1 0 0 0 0-1.83Z"/><path d="m2.6 11.3 8.57 4.1a2 2 0 0 0 1.66 0l8.57-4.1"/><path d="m2.6 15.7 8.57 4.1a2 2 0 0 0 1.66 0l8.57-4.1"/></svg>
+						)}
+						{feature.icon === 'git-branch' && (
+							<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-git-merge"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>
+						)}
+						{feature.icon === 'eye' && (
+							<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>
+						)}
+						{feature.icon === 'code' && (
+							<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-code"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+						)}
+						<div class="icon-glow"></div>
+					</div>
+					<h3>{feature.title}</h3>
+					<p>{feature.description}</p>
+				</div>
+			))}
+		</div>
+	</div>
+</section>
+
+<style>
+	.features {
+		padding: 8rem 0;
+		background: #0b1120;
+		position: relative;
+	}
+	.header {
+		text-align: center;
+		margin-bottom: 5rem;
+	}
+	h2 {
+		font-size: 3.5rem;
+		font-weight: 800;
+		margin-bottom: 1.5rem;
+		letter-spacing: -0.02em;
+	}
+	.header p {
+		font-size: 1.25rem;
+		color: #94a3b8;
+		max-width: 600px;
+		margin: 0 auto;
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+		gap: 2.5rem;
+	}
+	.feature-card {
+		padding: 3rem;
+		background: rgba(30, 41, 59, 0.3);
+		border: 1px solid rgba(255, 255, 255, 0.05);
+		border-radius: 2rem;
+		transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		position: relative;
+		overflow: hidden;
+	}
+	.feature-card::before {
+		content: "";
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
+		pointer-events: none;
+	}
+	.feature-card:hover {
+		transform: translateY(-10px);
+		border-color: rgba(79, 70, 229, 0.3);
+		background: rgba(30, 41, 59, 0.5);
+		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+	}
+	.icon-wrapper {
+		width: 64px;
+		height: 64px;
+		border-radius: 1.25rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 2rem;
+		position: relative;
+		color: white;
+		z-index: 1;
+	}
+	.from-blue-400 { background: linear-gradient(135deg, #60a5fa, #2563eb); }
+	.from-yellow-400 { background: linear-gradient(135deg, #facc15, #f59e0b); }
+	.from-purple-400 { background: linear-gradient(135deg, #c084fc, #a855f7); }
+	.from-green-400 { background: linear-gradient(135deg, #4ade80, #10b981); }
+	.from-red-400 { background: linear-gradient(135deg, #f87171, #e11d48); }
+	.from-cyan-400 { background: linear-gradient(135deg, #22d3ee, #0ea5e9); }
+
+	.icon-glow {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: inherit;
+		filter: blur(15px);
+		opacity: 0.5;
+		z-index: -1;
+		border-radius: inherit;
+	}
+	h3 {
+		font-size: 1.75rem;
+		font-weight: 700;
+		margin-bottom: 1rem;
+		color: #f1f5f9;
+	}
+	.feature-card p {
+		color: #94a3b8;
+		line-height: 1.7;
+		font-size: 1.1rem;
+	}
+</style>

@@ -1,0 +1,125 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navigation from '../../components/Navigation.astro';
+import Footer from '../../components/Footer.astro';
+import { getCollection } from 'astro:content';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const wikiEntries = await getCollection('wiki');
+
+// Group entries by category (first part of the slug)
+const categories = wikiEntries.reduce((acc, entry) => {
+    const parts = entry.slug.split('/');
+    const category = parts.length > 1 ? parts[0] : 'General';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(entry);
+    return acc;
+}, {});
+---
+
+<Layout title="Wiki - AICommit">
+    <Navigation />
+    <main class="page-container">
+        <header class="page-header">
+            <span class="eyebrow">Documentation</span>
+            <h1>Knowledge Base</h1>
+            <p>Master AICommit with our comprehensive guides and references.</p>
+        </header>
+
+        <section class="wiki-grid">
+            {Object.entries(categories).map(([category, entries]) => (
+                <div class="category-card">
+                    <h2>{category}</h2>
+                    <ul>
+                        {entries.map(entry => (
+                            <li>
+                                <a href={`${base}/wiki/${entry.slug}`}>
+                                    {entry.data.title || entry.slug.split('/').pop().replace('.md', '').replaceAll('-', ' ')}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ))}
+        </section>
+    </main>
+    <Footer />
+</Layout>
+
+<style>
+    .page-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 8rem 2rem;
+    }
+    .page-header {
+        text-align: center;
+        margin-bottom: 6rem;
+    }
+    h1 {
+        font-size: 4rem;
+        font-weight: 800;
+        margin-bottom: 1.5rem;
+        letter-spacing: -0.04em;
+    }
+    .eyebrow {
+        color: rgb(var(--accent-light));
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    .page-header p {
+        font-size: 1.25rem;
+        color: #94a3b8;
+    }
+
+    .wiki-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 3rem;
+    }
+    .category-card {
+        padding: 2.5rem;
+        background: rgba(30, 41, 59, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 2rem;
+    }
+    .category-card h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        color: white;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 1rem;
+    }
+    .category-card ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    .category-card a {
+        color: #94a3b8;
+        text-decoration: none;
+        transition: all 0.2s;
+        font-weight: 500;
+        display: block;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        background: rgba(255, 255, 255, 0.02);
+    }
+    .category-card a:hover {
+        color: white;
+        background: rgba(79, 70, 229, 0.1);
+        transform: translateX(5px);
+    }
+
+    @media (max-width: 768px) {
+        h1 { font-size: 3rem; }
+    }
+</style>

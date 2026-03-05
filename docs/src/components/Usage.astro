@@ -1,0 +1,240 @@
+---
+const base = import.meta.env.BASE_URL;
+---
+
+<section id="usage" class="usage">
+	<div class="container">
+		<div class="usage-content">
+			<div class="text-side">
+				<div class="eyebrow">Usage Guide</div>
+				<h2>Master Your Workflow</h2>
+				<p>Three main ways to use AICommit to make your life easier.</p>
+				
+				<div class="steps">
+					<div class="step">
+						<div class="step-icon">
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" x2="20" y1="19" y2="19"></line></svg>
+						</div>
+						<div class="step-text">
+							<h3>Standard Mode</h3>
+							<p>Generate a message and commit manually. Perfect for ultimate control.</p>
+							<div class="step-code">
+								<code>aicommit</code>
+							</div>
+						</div>
+					</div>
+					<div class="step">
+						<div class="step-icon">
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"></path></svg>
+						</div>
+						<div class="step-text">
+							<h3>Full Automation</h3>
+							<p>Stage, generate, pull, and push with ONE command. Set it and forget it.</p>
+							<div class="step-code">
+								<code>aicommit --add --pull --push</code>
+							</div>
+						</div>
+					</div>
+					<div class="step">
+						<div class="step-icon">
+							<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+						</div>
+						<div class="step-text">
+							<h3>Watch Mode</h3>
+							<p>Sit back and let AICommit handle everything. It commits when you're done typing.</p>
+							<div class="step-code">
+								<code>aicommit --watch --wait-for-edit 30s</code>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			
+			<div class="image-side">
+				<div class="terminal-mockup">
+					<div class="terminal-header">
+						<div class="terminal-dots">
+							<div class="dot red"></div>
+							<div class="dot yellow"></div>
+							<div class="dot green"></div>
+						</div>
+						<div class="terminal-title">zsh — suenot/aicommit</div>
+					</div>
+					<div class="terminal-body">
+						<div class="terminal-line"><span class="terminal-prompt">%</span> <span class="terminal-cmd">aicommit --add</span></div>
+						<div class="terminal-line status">✔ Staging changes...</div>
+						<div class="terminal-line status">✔ Analyzing differences...</div>
+						<div class="terminal-line status">✔ Using Meta Llama 4 Maverick (Free)</div>
+						<div class="terminal-line-break"></div>
+						<div class="terminal-line label">Generated commit message:</div>
+						<div class="terminal-line-msg">"feat(provider): add support for DeepSeek Chat v3"</div>
+						<div class="terminal-line-break"></div>
+						<div class="terminal-line stats">Tokens: 156↑ 18↓  Cost: $0.0000 (Free Mode)</div>
+						<div class="terminal-line status-final">✓ Commit created successfully.</div>
+					</div>
+				</div>
+				<div class="terminal-shadow"></div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<style>
+	.usage {
+		padding: 10rem 0;
+		background: #0f172a;
+		border-top: 1px solid rgba(255, 255, 255, 0.05);
+		position: relative;
+	}
+	.usage::after {
+		content: "";
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		height: 300px;
+		background: linear-gradient(to top, #0b1120, transparent);
+		pointer-events: none;
+	}
+
+	.usage-content {
+		display: grid;
+		grid-template-columns: 1fr 1.2fr;
+		gap: 6rem;
+		align-items: center;
+	}
+	
+	.eyebrow {
+		color: rgb(var(--accent-light));
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		font-size: 0.875rem;
+		margin-bottom: 1.5rem;
+	}
+	h2 {
+		font-size: 4rem;
+		font-weight: 800;
+		margin-bottom: 1.5rem;
+		letter-spacing: -0.04em;
+	}
+	.text-side > p {
+		font-size: 1.25rem;
+		color: #94a3b8;
+		margin-bottom: 4rem;
+	}
+
+	.steps {
+		display: flex;
+		flex-direction: column;
+		gap: 3.5rem;
+	}
+	.step {
+		display: flex;
+		gap: 2rem;
+	}
+	.step-icon {
+		min-width: 56px;
+		height: 56px;
+		background: rgba(79, 70, 229, 0.1);
+		color: rgb(var(--accent-light));
+		border-radius: 1rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid rgba(79, 70, 229, 0.2);
+	}
+	.step-text h3 {
+		font-size: 1.75rem;
+		font-weight: 700;
+		margin-bottom: 0.5rem;
+		color: #f1f5f9;
+	}
+	.step-text p {
+		color: #94a3b8;
+		margin-bottom: 1.25rem;
+		font-size: 1.1rem;
+	}
+	.step-code {
+		background: rgba(15, 23, 42, 0.5);
+		padding: 0.75rem 1rem;
+		border-radius: 0.75rem;
+		border: 1px solid rgba(255, 255, 255, 0.05);
+		width: fit-content;
+		font-family: 'JetBrains Mono', monospace;
+	}
+	.step-code code {
+		color: #e2e8f0;
+		font-size: 0.9rem;
+	}
+
+	.terminal-mockup {
+		background: #1e293b;
+		border-radius: 1.25rem;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		overflow: hidden;
+		box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+		position: relative;
+		z-index: 10;
+	}
+	.terminal-header {
+		background: #334155;
+		padding: 1rem;
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+	.terminal-dots {
+		display: flex;
+		gap: 0.5rem;
+	}
+	.dot {
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+	}
+	.dot.red { background: #ef4444; }
+	.dot.yellow { background: #f59e0b; }
+	.dot.green { background: #10b981; }
+	.terminal-title {
+		color: #cbd5e1;
+		font-size: 0.75rem;
+		font-weight: 500;
+		letter-spacing: 0.05em;
+	}
+	.terminal-body {
+		padding: 2.5rem;
+		font-family: 'JetBrains Mono', 'Fira Code', monospace;
+		font-size: 0.95rem;
+		line-height: 1.6;
+	}
+	.terminal-line { color: #f1f5f9; }
+	.terminal-prompt { color: rgb(var(--accent-light)); font-weight: 800; margin-right: 0.75rem; }
+	.terminal-cmd { font-weight: 500; }
+	.terminal-line.status { color: #94a3b8; }
+	.terminal-line.label { color: #f8fafc; font-weight: 700; margin-top: 1.5rem; }
+	.terminal-line-msg { color: #facc15; font-style: italic; font-weight: 500; border-left: 2px solid #facc15; padding-left: 1.5rem; margin: 1rem 0; }
+	.terminal-line.stats { color: #38bdf8; font-size: 0.85rem; }
+	.terminal-line.status-final { color: #10b981; font-weight: 700; margin-top: 1.5rem; }
+	.terminal-line-break { height: 1.5rem; }
+
+	.terminal-shadow {
+		position: absolute;
+		bottom: -20px;
+		left: 10%;
+		right: 10%;
+		height: 20px;
+		background: rgba(79, 70, 229, 0.3);
+		filter: blur(40px);
+		z-index: 5;
+	}
+
+	@media (max-width: 1100px) {
+		.usage-content { grid-template-columns: 1fr; gap: 5rem; }
+		.image-side { order: -1; }
+		.usage-content { text-align: center; }
+		.step { flex-direction: column; align-items: center; }
+		.step-code { margin: 0 auto; }
+		h2 { font-size: 3.5rem; }
+	}
+</style>

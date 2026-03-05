@@ -1,0 +1,173 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navigation from '../components/Navigation.astro';
+import Footer from '../components/Footer.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const releases = [
+    {
+        version: "0.1.142",
+        date: "2024-03-05",
+        highlights: [
+            "Introduced Simple Free Mode - automatic model rotation for free providers",
+            "Added model jail and blacklist system for improved reliability",
+            "Enhanced diff processing for massive files",
+            "Automatic upstream setup for new branches"
+        ]
+    },
+    {
+        version: "0.1.135",
+        date: "2024-02-15",
+        highlights: [
+            "Initial release of VS Code extension",
+            "Added support for LM Studio local server",
+            "Customizable token limits and temperature"
+        ]
+    },
+    {
+        version: "0.1.0",
+        date: "2024-01-10",
+        highlights: [
+            "Official v0.1 release",
+            "Support for OpenRouter and Ollama",
+            "Interactive and Watch modes implemented"
+        ]
+    }
+];
+---
+
+<Layout title="Changelog - AICommit">
+    <Navigation />
+    <main class="page-container">
+        <header class="page-header">
+            <span class="eyebrow">Updates</span>
+            <h1>Changelog</h1>
+            <p>Track the evolution of AICommit and our latest features.</p>
+        </header>
+
+        <section class="timeline">
+            {releases.map(release => (
+                <div class="release-item">
+                    <div class="meta">
+                        <span class="version">v{release.version}</span>
+                        <time>{release.date}</time>
+                    </div>
+                    <div class="content">
+                        <ul>
+                            {release.highlights.map(item => (
+                                <li>{item}</li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            ))}
+        </section>
+
+        <div class="more-info">
+            <p>For a full list of all commits, please visit our <a href="https://github.com/suenot/aicommit/commits/main">GitHub Commits</a> page.</p>
+        </div>
+    </main>
+    <Footer />
+</Layout>
+
+<style>
+    .page-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 8rem 2rem;
+    }
+    .page-header {
+        text-align: center;
+        margin-bottom: 6rem;
+    }
+    .eyebrow {
+        color: rgb(var(--accent-light));
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    h1 {
+        font-size: 4rem;
+        font-weight: 800;
+        margin-bottom: 1.5rem;
+        letter-spacing: -0.04em;
+    }
+    .page-header p {
+        font-size: 1.25rem;
+        color: #94a3b8;
+    }
+
+    .timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 3rem;
+    }
+    .release-item {
+        padding: 2.5rem;
+        background: rgba(30, 41, 59, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 2rem;
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 2rem;
+        transition: all 0.3s;
+    }
+    .release-item:hover {
+        border-color: rgba(79, 70, 229, 0.3);
+        background: rgba(30, 41, 59, 0.5);
+    }
+    .meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .version {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: white;
+    }
+    time {
+        color: #64748b;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    .content ul {
+        margin: 0;
+        padding-left: 1.25rem;
+        color: #94a3b8;
+    }
+    .content li {
+        margin-bottom: 0.75rem;
+        line-height: 1.6;
+    }
+    .content li::marker {
+        color: rgb(var(--accent-light));
+    }
+
+    .more-info {
+        text-align: center;
+        margin-top: 6rem;
+        color: #64748b;
+    }
+    .more-info a {
+        color: white;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.2s;
+    }
+    .more-info a:hover {
+        border-bottom-color: var(--accent-light);
+    }
+
+    @media (max-width: 768px) {
+        .release-item {
+            grid-template-columns: 1fr;
+            padding: 2rem;
+        }
+        h1 { font-size: 3rem; }
+    }
+</style>
