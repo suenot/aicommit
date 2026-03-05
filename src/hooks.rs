@@ -1,6 +1,7 @@
 // Git hooks module - installation and management of Git hooks
 
 use std::fs;
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
@@ -116,13 +117,16 @@ pub fn install_hook() -> Result<(), String> {
     fs::write(&hook_path, PREPARE_COMMIT_MSG_HOOK)
         .map_err(|e| format!("Failed to write hook file: {}", e))?;
 
-    // Make the hook executable
-    let mut perms = fs::metadata(&hook_path)
-        .map_err(|e| format!("Failed to get hook file metadata: {}", e))?
-        .permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(&hook_path, perms)
-        .map_err(|e| format!("Failed to set hook file permissions: {}", e))?;
+    // Make the hook executable (Unix only)
+    #[cfg(unix)]
+    {
+        let mut perms = fs::metadata(&hook_path)
+            .map_err(|e| format!("Failed to get hook file metadata: {}", e))?
+            .permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(&hook_path, perms)
+            .map_err(|e| format!("Failed to set hook file permissions: {}", e))?;
+    }
 
     println!("Successfully installed aicommit hook at {}", hook_path.display());
     println!("\nThe hook will automatically generate AI commit messages when you run 'git commit'.");

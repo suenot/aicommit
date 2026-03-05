@@ -355,6 +355,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Set version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
       - name: Download Linux binary
         uses: actions/download-artifact@v4
         with:
@@ -362,11 +365,12 @@ jobs:
           path: ./dist
       - name: Create .deb package
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
           chmod +x ./dist/aicommit-linux-x86_64
           mkdir -p debian/DEBIAN debian/usr/bin
           cat > debian/DEBIAN/control << EOF
           Package: aicommit
-          Version: ${GITHUB_REF#refs/tags/v}
+          Version: ${VERSION}
           Section: utils
           Priority: optional
           Architecture: amd64
@@ -375,7 +379,7 @@ jobs:
            A tool that helps developers write better commit messages using AI.
           EOF
           cp ./dist/aicommit-linux-x86_64 debian/usr/bin/aicommit
-          dpkg-deb --build debian ./dist/aicommit_${GITHUB_REF#refs/tags/v}_amd64.deb
+          dpkg-deb --build debian ./dist/aicommit_${VERSION}_amd64.deb
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
@@ -389,7 +393,7 @@ jobs:
           UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
           upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./dist/aicommit_${GITHUB_REF#refs/tags/v}_amd64.deb
+          asset_path: ./dist/aicommit_${{ steps.version.outputs.version }}_amd64.deb
           asset_name: aicommit_${{ github.ref_name }}_amd64.deb
           asset_content_type: application/vnd.debian.binary-package
 
@@ -398,6 +402,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Set version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
       - name: Install RPM tools
         run: sudo apt-get update && sudo apt-get install -y rpm
       - name: Download Linux binary
@@ -407,12 +414,13 @@ jobs:
           path: ./dist
       - name: Create RPM structure
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
           chmod +x ./dist/aicommit-linux-x86_64
           mkdir -p rpmbuild/{SPECS,BUILD,BUILDROOT,RPMS,SOURCES}
           cp ./dist/aicommit-linux-x86_64 rpmbuild/SOURCES/aicommit
           cat > rpmbuild/SPECS/aicommit.spec << EOF
           Name:           aicommit
-          Version:        ${GITHUB_REF#refs/tags/v}
+          Version:        ${VERSION}
           Release:        1%{?dist}
           Summary:        AI-powered commit message generator
           License:        MIT
@@ -430,7 +438,7 @@ jobs:
           /usr/bin/aicommit
 
           %changelog
-          * $(date '+%a %b %d %Y') Cascade Team <team@cascade.dev> - ${GITHUB_REF#refs/tags/v}
+          * $(date '+%a %b %d %Y') Cascade Team <team@cascade.dev> - ${VERSION}
           - Initial RPM release
           EOF
       - name: Build RPM package
@@ -439,6 +447,7 @@ jobs:
         run: |
           mkdir -p dist
           cp rpmbuild/RPMS/x86_64/*.rpm ./dist/
+          ls -la ./dist/
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
         with:
@@ -452,7 +461,7 @@ jobs:
           UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
           upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./dist/aicommit-${{ github.ref_name }}-1.x86_64.rpm
+          asset_path: ./dist/aicommit-${{ steps.version.outputs.version }}-1.x86_64.rpm
           asset_name: aicommit-${{ github.ref_name }}-1.x86_64.rpm
           asset_content_type: application/x-rpm
 
@@ -464,7 +473,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install build tools
         run: |
-          apk add --no-cache alpine-sdk
+          apk add --no-cache alpine-sdk sudo
+          adduser -D builder
+          addgroup builder abuild
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
       - name: Download Linux binary
         uses: actions/download-artifact@v4
         with:
@@ -472,13 +484,15 @@ jobs:
           path: ./dist
       - name: Create APKBUILD
         run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
           chmod +x ./dist/aicommit-linux-x86_64
-          mkdir -p ~/packages/aicommit
-          cat > ~/packages/aicommit/APKBUILD << EOF
+          mkdir -p /home/builder/packages/aicommit
+          cp -r ./dist /home/builder/packages/aicommit/dist
+          cat > /home/builder/packages/aicommit/APKBUILD << EOF
           # Contributor: Cascade Team
           # Maintainer: Cascade Team
           pkgname=aicommit
-          pkgver=${GITHUB_REF#refs/tags/v}
+          pkgver=${VERSION}
           pkgrel=0
           pkgdesc="AI-powered commit message generator"
           url="https://github.com/suenot/aicommit"
@@ -491,18 +505,18 @@ jobs:
 
           package() {
               mkdir -p "\$pkgdir"/usr/bin
-              install -m755 ../../dist/aicommit-linux-x86_64 "\$pkgdir"/usr/bin/aicommit
+              install -m755 "\$startdir"/dist/aicommit-linux-x86_64 "\$pkgdir"/usr/bin/aicommit
           }
           EOF
+          chown -R builder:builder /home/builder/packages
       - name: Build Alpine package
         run: |
-          cd ~/packages/aicommit
-          abuild-keygen -a -n
-          abuild -r
+          su builder -c "cd /home/builder/packages/aicommit && abuild-keygen -a -n && abuild -r -P /home/builder/packages/output"
       - name: Copy package to dist
         run: |
           mkdir -p dist
-          cp ~/packages/aicommit/packages/x86_64/*.apk ./dist/
+          cp /home/builder/packages/output/x86_64/*.apk ./dist/ || cp /home/builder/packages/aicommit/packages/x86_64/*.apk ./dist/
+          ls -la ./dist/
       - name: Upload Alpine package artifact
         uses: actions/upload-artifact@v4
         with:
@@ -510,15 +524,11 @@ jobs:
           path: ./dist/*.apk
           if-no-files-found: error
       - name: Upload Alpine Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./dist/aicommit-${{ github.ref_name }}-r0.apk
-          asset_name: aicommit-${{ github.ref_name }}-r0.apk
-          asset_content_type: application/x-alpine-linux-package
+          files: ./dist/*.apk
 
   build-arch-package:
     needs: [build-and-release, build-linux-x86]
@@ -526,6 +536,10 @@ jobs:
     container: archlinux:base-devel
     steps:
       - uses: actions/checkout@v4
+      - name: Setup non-root user
+        run: |
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
       - name: Download Linux binary
         uses: actions/download-artifact@v4
         with:
@@ -533,12 +547,13 @@ jobs:
           path: ./dist
       - name: Create PKGBUILD
         run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
           chmod +x ./dist/aicommit-linux-x86_64
           mkdir -p pkg
           cat > pkg/PKGBUILD << EOF
           # Maintainer: Cascade Team
           pkgname=aicommit
-          pkgver=${GITHUB_REF#refs/tags/v}
+          pkgver=${VERSION}
           pkgrel=1
           pkgdesc="AI-powered commit message generator"
           arch=('x86_64')
@@ -552,14 +567,15 @@ jobs:
               install -Dm755 ../dist/aicommit-linux-x86_64 "\$pkgdir/usr/bin/aicommit"
           }
           EOF
+          chown -R builder:builder pkg dist
       - name: Build Arch package
         run: |
-          cd pkg
-          makepkg -f
+          su builder -c "cd pkg && makepkg -f"
       - name: Copy package to dist
         run: |
           mkdir -p dist
           cp pkg/*.pkg.tar.zst ./dist/
+          ls -la ./dist/
       - name: Upload Arch package artifact
         uses: actions/upload-artifact@v4
         with:
@@ -567,15 +583,11 @@ jobs:
           path: ./dist/*.pkg.tar.zst
           if-no-files-found: error
       - name: Upload Arch Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./dist/aicommit-${{ github.ref_name }}-1-x86_64.pkg.tar.zst
-          asset_name: aicommit-${{ github.ref_name }}-1-x86_64.pkg.tar.zst
-          asset_content_type: application/zstd
+          files: ./dist/*.pkg.tar.zst
 
   build-snap-package:
     needs: [build-and-release, build-linux-x86]
@@ -621,6 +633,7 @@ jobs:
                 - aicommit-linux-x86_64
               override-prime: |
                 craftctl default
+                mkdir -p bin
                 mv aicommit-linux-x86_64 bin/aicommit
                 chmod +x bin/aicommit
           EOF
@@ -635,15 +648,11 @@ jobs:
           path: ./*.snap
           if-no-files-found: error
       - name: Upload Snap Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./aicommit_${{ github.ref_name }}_amd64.snap
-          asset_name: aicommit_${{ github.ref_name }}_amd64.snap
-          asset_content_type: application/vnd.snap
+          files: ./*.snap
 
   build-nix-package:
     needs: [build-and-release, build-linux-x86]
@@ -713,22 +722,19 @@ jobs:
           EOF
       - name: Build Nix package
         run: |
-          nix build
+          chmod +x ./dist/aicommit-linux-x86_64
+          RESULT=$(nix build --no-link --print-out-paths 'path:.#')
           mkdir -p dist-nix
-          cp result dist-nix/aicommit-${{ github.ref_name }}.tar.gz
+          cp -L ${RESULT}/bin/aicommit dist-nix/aicommit-${{ github.ref_name }}-nix
       - name: Upload Nix artifact
         uses: actions/upload-artifact@v4
         with:
           name: aicommit-nix-${{ github.ref_name }}
-          path: dist-nix/*.tar.gz
+          path: dist-nix/aicommit-*
           if-no-files-found: error
       - name: Upload Nix Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          UPLOAD_URL: ${{ needs.build-and-release.outputs.upload_url }}
         with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./dist-nix/aicommit-${{ github.ref_name }}.tar.gz
-          asset_name: aicommit-${{ github.ref_name }}.tar.gz
-          asset_content_type: application/gzip
+          files: dist-nix/aicommit-*
