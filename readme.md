@@ -22,6 +22,7 @@ A CLI tool that generates concise and descriptive git commit messages using LLMs
   - OpenAI-compatible endpoints (LM Studio, local OpenAI proxy, etc.)
 - ✅ Automatically stages changes with `--add` option
 - ✅ Pushes commits automatically with `--push`
+- ✅ Push to all remotes at once with `--push-all` (github, gitlab, etc.)
 - ✅ Interactive mode with `--dry-run`
 - ✅ Watch mode with `--watch`
 - ✅ Verbose mode with `--verbose`
@@ -482,6 +483,9 @@ aicommit --add --push
 
 # Stage all changes, pull before commit, and push after (automatically sets up upstream if needed)
 aicommit --add --pull --push
+
+# Stage all changes, commit, and push to ALL configured remotes (github, gitlab, etc.)
+aicommit --add --push-all
 ```
 
 ### Automatic Upstream Branch Setup
@@ -503,6 +507,23 @@ When using `--pull` or `--push` flags, aicommit automatically handles upstream b
   - No manual `git push --set-upstream origin <branch>` needed
 
 This makes working with new branches much easier, as you don't need to manually configure upstream tracking.
+
+### Push to All Remotes
+
+If your repository has multiple remotes (e.g. `origin` for GitHub and `gitlab` for GitLab), you can push to all of them at once using the `--push-all` flag:
+
+```bash
+# Push to all configured remotes after commit
+aicommit --push-all
+
+# Stage all changes, commit, and push to all remotes
+aicommit --add --push-all
+
+# List your configured remotes
+git remote -v
+```
+
+This is useful for mirroring your repository across multiple hosting platforms. If a push to one remote fails, aicommit will continue pushing to the remaining remotes and report the error.
 
 ## Watch Mode
 
@@ -651,9 +672,12 @@ flowchart TD
     
     Q --> R{Additional operations}
     R -->|--pull| R1[Sync with remote repository]
-    R -->|--push| R2[Push changes to remote]
+    R -->|--push| R2[Push changes to origin]
+    R -->|--push-all| R3[Get list of all remotes]
+    R3 --> R4[Push to each remote]
     R1 --> S[Done]
     R2 --> S
+    R4 --> S
     R -->|no additional options| S
     
     %% Improved watch mode with timer reset logic

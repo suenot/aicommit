@@ -130,6 +130,10 @@ pub struct Cli {
     #[arg(long = "push")]
     pub push: bool,
 
+    /// Push changes to all configured remotes (github, gitlab, etc.)
+    #[arg(long = "push-all")]
+    pub push_all: bool,
+
     /// Display help information
     #[arg(long = "help")]
     pub help: bool,
