@@ -10,6 +10,50 @@ use crate::version::{update_version_file, update_cargo_version, update_npm_versi
 use crate::models::{get_available_free_models, fallback_to_preferred_models, find_best_available_model, record_model_failure, record_model_success};
 use crate::ignore::filter_diff_by_ignore_patterns;
 
+/// Get the HTTPS URL of a git remote. Converts SSH URLs to HTTPS format.
+/// Returns None if the remote URL cannot be determined.
+fn get_remote_https_url(remote_name: &str) -> Option<String> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(format!("git remote get-url {}", remote_name))
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if url.is_empty() {
+        return None;
+    }
+
+    Some(convert_git_url_to_https(&url))
+}
+
+/// Convert a git remote URL (SSH or HTTPS) to an HTTPS URL.
+fn convert_git_url_to_https(url: &str) -> String {
+    // SSH format: git@github.com:user/repo.git
+    if let Some(rest) = url.strip_prefix("git@") {
+        if let Some(colon_pos) = rest.find(':') {
+            let host = &rest[..colon_pos];
+            let path = rest[colon_pos + 1..].trim_end_matches(".git");
+            return format!("https://{}/{}", host, path);
+        }
+    }
+
+    // SSH format: ssh://git@github.com/user/repo.git
+    if let Some(rest) = url.strip_prefix("ssh://") {
+        if let Some(at_pos) = rest.find('@') {
+            let after_at = &rest[at_pos + 1..].trim_end_matches(".git");
+            return format!("https://{}", after_at);
+        }
+    }
+
+    // Already HTTPS or other format — strip .git suffix for cleaner URL
+    url.trim_end_matches(".git").to_string()
+}
+
 // From: 020_function_process_git_diff_output.rs
 pub fn process_git_diff_output(diff: &str, skip_aicommitignore: bool) -> String {
     // First, filter out ignored files based on .aicommitignore patterns
@@ -568,7 +612,10 @@ pub async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 
             if remote_branch_exists {
                 // Настраиваем upstream для существующей удаленной ветки
-                println!("Setting upstream for branch '{}' to 'origin/{}'", branch_name, branch_name);
+                let remote_url_info = get_remote_https_url("origin")
+                    .map(|url| format!(" ({})", url))
+                    .unwrap_or_default();
+                println!("Setting upstream for branch '{}' to 'origin/{}'{}", branch_name, branch_name, remote_url_info);
                 let set_upstream = Command::new("sh")
                     .arg("-c")
                     .arg(format!("git branch --set-upstream-to=origin/{} {}", branch_name, branch_name))
@@ -623,12 +670,16 @@ pub async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
 
         let branch_name = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
 
+        let remote_url_info = get_remote_https_url("origin")
+            .map(|url| format!(" ({})", url))
+            .unwrap_or_default();
+
         let push_cmd = if has_upstream {
             // Если upstream настроен, выполняем обычный push
             "git push"
         } else {
             // Если upstream не настроен, настраиваем его
-            println!("Setting upstream for branch '{}' to 'origin/{}'", branch_name, branch_name);
+            println!("Setting upstream for branch '{}' to 'origin/{}'{}", branch_name, branch_name, remote_url_info);
             &format!("git push --set-upstream origin {}", branch_name)
         };
 
@@ -642,7 +693,7 @@ pub async fn run_commit(config: &Config, cli: &Cli) -> Result<(), String> {
             return Err(String::from_utf8_lossy(&push_output.stderr).to_string());
         }
 
-        println!("Changes successfully pushed.");
+        println!("Changes successfully pushed to origin/{}{}.", branch_name, remote_url_info);
     }
 
     Ok(())
